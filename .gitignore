@@ -1,0 +1,8 @@
+# Rust build output
+/target
+
+# Backups / editor / OS cruft
+**/*.rs.bk
+*.swp
+.DS_Store
+Thumbs.db
