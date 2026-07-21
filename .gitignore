@@ -1,6 +1,9 @@
 # Rust build output
 /target
 
+# Local model / embedding caches
+/.fastembed_cache
+
 # Backups / editor / OS cruft
 **/*.rs.bk
 *.swp

@@ -1,9 +1,14 @@
 pub mod breadcrumb;
+pub mod collections;
 pub mod commandbar;
 pub mod context;
 pub mod file_list;
 pub mod icons;
+pub mod rag_modal;
+pub mod search;
+pub mod settings;
 pub mod sidebar;
+pub mod spotlight;
 pub mod status_bar;
 pub mod style;
 pub mod toolbar;

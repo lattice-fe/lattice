@@ -31,7 +31,7 @@ fn breadcrumb<'a>(current: &Path) -> Element<'a, Message> {
     let mut segments: Row<'a, Message> = row![].spacing(2).align_y(iced::Alignment::Center);
     for (i, anc) in chain.iter().enumerate() {
         if i > 0 {
-            segments = segments.push(text("›").size(14).color(iced::Color::from_rgb8(140, 146, 154)));
+            segments = segments.push(text("›").size(14).style(style::dim_text));
         }
         let label = match anc.file_name() {
             Some(name) => name.to_string_lossy().into_owned(),

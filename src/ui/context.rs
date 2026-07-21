@@ -23,6 +23,7 @@ pub fn view<'a>(menu: &Menu, has_clipboard: bool, target_is_dir: bool) -> Elemen
         Some(index) => {
             if target_is_dir {
                 items.push(item("Open", Some(Message::ActivateEntry(index))));
+                items.push(item("Open with Index\u{2026}", Some(Message::OpenWithIndex(index))));
                 items.push(separator());
             }
             items.push(item("Cut", Some(Message::Cut)));

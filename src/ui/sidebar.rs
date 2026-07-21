@@ -42,7 +42,7 @@ pub fn view<'a>(
 }
 
 fn section_label<'a>(label: &'a str) -> Element<'a, Message> {
-    container(text(label).size(12).color(iced::Color::from_rgb8(120, 126, 134)))
+    container(text(label).size(12).style(style::dim_text))
         .padding([4, 6])
         .into()
 }
@@ -116,7 +116,7 @@ fn node<'a>(
                 col = col.push(
                     row![
                         Space::new().width(Length::Fixed(indent(depth + 1) + 16.0)),
-                        text("(empty)").size(12).color(iced::Color::from_rgb8(150, 155, 162)),
+                        text("(empty)").size(12).style(style::dim_text),
                     ]
                 );
             }

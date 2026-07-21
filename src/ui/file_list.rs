@@ -59,7 +59,7 @@ pub fn view<'a>(
     } else if loading {
         centered(text("Loading\u{2026}").size(14))
     } else if entries.is_empty() {
-        centered(text("This folder is empty").size(14).color(iced::Color::from_rgb8(140, 145, 152)))
+        centered(text("This folder is empty").size(14).style(style::dim_text))
     } else {
         let mut list: Column<'a, Message> = column![].spacing(1);
         for (i, entry) in entries.iter().enumerate() {
@@ -177,7 +177,7 @@ fn entry_row<'a>(
 }
 
 fn cell<'a>(value: String, width: f32, align: Horizontal) -> Element<'a, Message> {
-    container(text(value).size(13).color(iced::Color::from_rgb8(90, 96, 104)))
+    container(text(value).size(13).style(style::dim_text))
         .width(Length::Fixed(width))
         .align_x(align)
         .into()

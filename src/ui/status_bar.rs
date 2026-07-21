@@ -9,7 +9,8 @@ use crate::selection::Selection;
 pub fn view<'a>(
     entries: &'a [Entry],
     selection: &'a Selection,
-    notice: Option<&'a str>,
+    info: Option<&'a str>,
+    error: Option<&'a str>,
 ) -> Element<'a, Message> {
     let count = entries.len();
     let items = if count == 1 {
@@ -34,12 +35,19 @@ pub fn view<'a>(
         }
     };
 
-    let middle: Element<'a, Message> = match notice {
-        Some(msg) => text(msg)
+    // Errors take priority (red); otherwise show neutral info (e.g. index status).
+    let middle: Element<'a, Message> = if let Some(msg) = error {
+        text(msg)
             .size(12)
             .color(iced::Color::from_rgb8(180, 60, 60))
-            .into(),
-        None => Space::new().width(Length::Fill).into(),
+            .into()
+    } else if let Some(msg) = info {
+        text(msg)
+            .size(12)
+            .color(iced::Color::from_rgb8(90, 110, 90))
+            .into()
+    } else {
+        Space::new().width(Length::Fill).into()
     };
 
     let bar = row![
