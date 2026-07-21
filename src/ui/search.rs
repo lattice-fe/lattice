@@ -1,4 +1,4 @@
-use iced::widget::{button, column, container, mouse_area, row, scrollable, svg, text, text_input, Column};
+use iced::widget::{button, column, container, mouse_area, row, scrollable, svg, text, Column};
 use iced::{Alignment, Element, Length};
 
 use super::{icons, style};
@@ -8,23 +8,11 @@ use crate::message::Message;
 
 pub const SEARCH_ID: &str = "search-input";
 
-/// The search bar row: query field, Text/Semantic toggle, and (for now) an
-/// "Index this folder" action for testing until the collections UI lands.
-pub fn bar<'a>(
-    query: &'a str,
-    mode: SearchMode,
-    active: bool,
-    searching: bool,
-) -> Element<'a, Message> {
-    let field = text_input("Search indexed files\u{2026}", query)
-        .id(SEARCH_ID)
-        .on_input(Message::SearchInput)
-        .on_submit(Message::SearchSubmit)
-        .padding([4, 8])
-        .width(Length::Fill);
-
+/// The slim search-mode strip, shown just under the top bar only while a search
+/// is active. The query field itself lives in the top bar (see `toolbar`).
+pub fn modes_bar<'a>(mode: SearchMode, searching: bool) -> Element<'a, Message> {
     let mut bar = row![
-        field,
+        text("Search in").size(12).font(style::BODY).style(style::dim_text),
         mode_button("Name", SearchMode::Name, mode),
         mode_button("Text", SearchMode::Text, mode),
         mode_button("Semantic", SearchMode::Semantic, mode),
@@ -33,31 +21,11 @@ pub fn bar<'a>(
     .align_y(Alignment::Center);
 
     if searching {
-        bar = bar.push(text("\u{2026}").size(13));
+        bar = bar.push(text("\u{2026}").size(13).style(style::dim_text));
     }
-    if active || !query.is_empty() {
-        bar = bar.push(
-            button(text("Clear").size(13))
-                .padding([4, 8])
-                .style(style::tool_button)
-                .on_press(Message::SearchClear),
-        );
-    }
-    bar = bar.push(
-        button(text("\u{1F4C1} Folders").size(13))
-            .padding([4, 8])
-            .style(style::tool_button)
-            .on_press(Message::CollectionsOpen),
-    );
-    bar = bar.push(
-        button(text("\u{2699}").size(15))
-            .padding([4, 9])
-            .style(style::tool_button)
-            .on_press(Message::SettingsOpen),
-    );
 
     container(bar)
-        .padding([4, 8])
+        .padding([5, 12])
         .width(Length::Fill)
         .style(style::band)
         .into()

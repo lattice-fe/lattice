@@ -178,9 +178,9 @@ impl App {
 
     pub fn theme(&self, _window: window::Id) -> Theme {
         if self.dark_mode {
-            Theme::Dark
+            ui::style::ink_theme()
         } else {
-            Theme::Light
+            ui::style::paper_theme()
         }
     }
 
@@ -611,7 +611,7 @@ impl App {
             }
 
             Message::CollectionsOpen => {
-                eprintln!("[ui] CollectionsOpen");
+                self.show_settings = false; // may be launched from the Settings modal
                 self.show_collections = true;
                 Task::none()
             }
@@ -858,19 +858,7 @@ impl App {
             self.history.can_go_back(),
             self.history.can_go_forward(),
             current.parent().is_some(),
-            self.show_hidden,
-        );
-
-        let commandbar = ui::commandbar::view(
-            !self.selection.is_empty(),
-            self.selection.single().is_some(),
-            self.clipboard.is_some(),
-        );
-
-        let search_bar = ui::search::bar(
             &self.search.query,
-            self.search.mode,
-            self.search.active,
             self.search.searching,
         );
 
@@ -881,7 +869,13 @@ impl App {
             ui::search::results(&self.search.results, &self.search.query, self.search.searching)
         } else {
             let renaming = self.renaming.as_ref().map(|r| (r.index, r.value.as_str()));
+            // The folder's own name titles its header (drive-root falls back to its path).
+            let folder_title = current
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|| current.display().to_string());
             ui::file_list::view(
+                folder_title,
                 &self.entries,
                 &self.selection,
                 self.sort,
@@ -898,24 +892,35 @@ impl App {
             self.notice.as_deref(),
         );
 
+        // Inspector shows the single selected browsing entry (never during search,
+        // where selection indexes don't map to the results list).
+        let selected_entry = if self.search.active {
+            None
+        } else {
+            self.selection.single().and_then(|i| self.entries.get(i))
+        };
+        let inspector = ui::inspector::view(selected_entry);
+
         let body = row![
             sidebar,
             rule::vertical(1),
             container(panel).width(Length::Fill).height(Length::Fill),
+            rule::vertical(1),
+            inspector,
         ]
         .height(Length::Fill);
 
-        let content = column![
-            toolbar,
-            rule::horizontal(1),
-            commandbar,
-            rule::horizontal(1),
-            search_bar,
-            rule::horizontal(1),
-            body,
-            rule::horizontal(1),
-            status,
-        ];
+        let mut content = column![toolbar, rule::horizontal(1)];
+        // The search-mode strip only appears while a search is active.
+        if self.search.active {
+            content = content
+                .push(ui::search::modes_bar(self.search.mode, self.search.searching))
+                .push(rule::horizontal(1));
+        }
+        let content = content
+            .push(body)
+            .push(rule::horizontal(1))
+            .push(status);
 
         if self.show_rag_modal {
             if let Some(job) = &self.rag_job {
@@ -933,7 +938,7 @@ impl App {
         }
 
         if self.show_settings {
-            let overlay = ui::settings::view(self.dark_mode);
+            let overlay = ui::settings::view(self.dark_mode, self.show_hidden);
             return stack![content, overlay].into();
         }
 

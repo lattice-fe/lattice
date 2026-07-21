@@ -62,6 +62,61 @@ fn icons() -> &'static Icons {
     })
 }
 
+// --- Monochrome line glyphs (recolored per tone by the svg widget) ---
+// White strokes so iced's `svg` color filter maps cleanly to the tone color.
+fn mono(inner: &str) -> String {
+    format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">{inner}</svg>"##
+    )
+}
+
+struct MonoIcons {
+    folder: svg::Handle,
+    drive: svg::Handle,
+    image: svg::Handle,
+    audio: svg::Handle,
+    video: svg::Handle,
+    archive: svg::Handle,
+    document: svg::Handle,
+    code: svg::Handle,
+    executable: svg::Handle,
+    other: svg::Handle,
+}
+
+fn mono_icons() -> &'static MonoIcons {
+    static M: OnceLock<MonoIcons> = OnceLock::new();
+    M.get_or_init(|| MonoIcons {
+        folder: handle(mono(r#"<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>"#).into_bytes()),
+        drive: handle(mono(r#"<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h.01M10 12h.01"/>"#).into_bytes()),
+        image: handle(mono(r#"<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="1.6"/><path d="m21 15-5-5L5 21"/>"#).into_bytes()),
+        audio: handle(mono(r#"<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>"#).into_bytes()),
+        video: handle(mono(r#"<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m10 9 5 3-5 3z"/>"#).into_bytes()),
+        archive: handle(mono(r#"<rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 12h4"/>"#).into_bytes()),
+        document: handle(mono(r#"<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h4"/>"#).into_bytes()),
+        code: handle(mono(r#"<path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/>"#).into_bytes()),
+        executable: handle(mono(r#"<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m8 9 3 3-3 3M13 15h3"/>"#).into_bytes()),
+        other: handle(mono(r#"<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>"#).into_bytes()),
+    })
+}
+
+/// Monochrome glyph for an entry category — meant to be tinted and set inside a
+/// tone-coloured tile (see [`crate::ui::style::tile`]).
+pub fn for_kind_mono(kind: EntryKind) -> svg::Handle {
+    let i = mono_icons();
+    match kind {
+        EntryKind::Folder => i.folder.clone(),
+        EntryKind::Drive => i.drive.clone(),
+        EntryKind::Image => i.image.clone(),
+        EntryKind::Audio => i.audio.clone(),
+        EntryKind::Video => i.video.clone(),
+        EntryKind::Archive => i.archive.clone(),
+        EntryKind::Document => i.document.clone(),
+        EntryKind::Code => i.code.clone(),
+        EntryKind::Executable => i.executable.clone(),
+        EntryKind::Other => i.other.clone(),
+    }
+}
+
 /// The icon handle for a given entry category.
 pub fn for_kind(kind: EntryKind) -> svg::Handle {
     let i = icons();

@@ -16,6 +16,8 @@ pub fn view<'a>(
 ) -> Element<'a, Message> {
     let mut content: Column<'a, Message> = column![].spacing(2).padding([8, 6]);
 
+    content = content.push(brand());
+    content = content.push(Space::new().height(Length::Fixed(14.0)));
     content = content.push(section_label("Quick access"));
     for s in quick {
         content = content.push(leaf(&s.path, &s.label, EntryKind::Folder, 0, current));
@@ -34,15 +36,30 @@ pub fn view<'a>(
         ));
     }
 
-    container(scrollable(content).height(Length::Fill))
+    container(scrollable(content).height(Length::Fill).style(style::scrollbar))
         .width(Length::Fixed(style::SIDEBAR_WIDTH))
         .height(Length::Fill)
         .style(style::sidebar)
         .into()
 }
 
+fn brand<'a>() -> Element<'a, Message> {
+    let mark = svg(svg::Handle::from_memory(
+        include_bytes!("../../branding/lattice-mark.svg").as_slice(),
+    ))
+    .width(Length::Fixed(22.0))
+    .height(Length::Fixed(22.0));
+    container(
+        row![mark, text("lattice").size(18)]
+            .spacing(9)
+            .align_y(Alignment::Center),
+    )
+    .padding([4, 6])
+    .into()
+}
+
 fn section_label<'a>(label: &'a str) -> Element<'a, Message> {
-    container(text(label).size(12).style(style::dim_text))
+    container(text(label).size(12).font(style::BODY).style(style::dim_text))
         .padding([4, 6])
         .into()
 }

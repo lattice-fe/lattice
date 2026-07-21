@@ -15,6 +15,7 @@ use crate::{format, ui::icons};
 pub const RENAME_ID: &str = "rename-field";
 
 pub fn view<'a>(
+    title: String,
     entries: &'a [Entry],
     selection: &'a Selection,
     sort: SortState,
@@ -22,6 +23,20 @@ pub fn view<'a>(
     error: Option<&'a str>,
     renaming: Option<(usize, &'a str)>,
 ) -> Element<'a, Message> {
+    // Each directory gets its own header: name + item count.
+    let count = entries.len();
+    let panel_header = container(
+        column![
+            text(title).size(17).font(style::BODY_SEMIBOLD),
+            text(format!("{count} item{}", if count == 1 { "" } else { "s" }))
+                .size(12)
+                .font(style::MONO)
+                .style(style::dim_text),
+        ]
+        .spacing(2),
+    )
+    .padding([12, 16]);
+
     let header = row![
         header_cell("Name", SortColumn::Name, sort, Length::Fill, Horizontal::Left),
         header_cell(
@@ -76,10 +91,13 @@ pub fn view<'a>(
             .on_right_press(Message::BackgroundRightPressed);
         list = list.push(filler);
 
-        scrollable(list).height(Length::Fill).into()
+        scrollable(list)
+            .height(Length::Fill)
+            .style(style::scrollbar)
+            .into()
     };
 
-    column![header, body]
+    column![panel_header, header, body]
         .spacing(0)
         .width(Length::Fill)
         .height(Length::Fill)
@@ -102,7 +120,7 @@ fn header_cell<'a>(
         ""
     };
 
-    let content = container(text(format!("{label}{indicator}")).size(13))
+    let content = container(text(format!("{label}{indicator}")).size(13).font(style::BODY))
         .width(Length::Fill)
         .align_x(align);
 
@@ -120,9 +138,15 @@ fn entry_row<'a>(
     selected: bool,
     renaming: Option<&'a str>,
 ) -> Element<'a, Message> {
-    let icon = svg(icons::for_kind(entry.kind))
-        .width(Length::Fixed(style::ICON_SIZE))
-        .height(Length::Fixed(style::ICON_SIZE));
+    let kind = entry.kind;
+    let glyph = svg(icons::for_kind_mono(kind))
+        .width(Length::Fixed(15.0))
+        .height(Length::Fixed(15.0))
+        .style(move |theme, _| iced::widget::svg::Style { color: Some(style::tone(kind, theme).1) });
+    let icon = container(glyph)
+        .center_x(Length::Fixed(26.0))
+        .center_y(Length::Fixed(26.0))
+        .style(style::tile(kind, 7.0));
 
     let name: Element<'a, Message> = match renaming {
         Some(value) => row![
@@ -177,7 +201,7 @@ fn entry_row<'a>(
 }
 
 fn cell<'a>(value: String, width: f32, align: Horizontal) -> Element<'a, Message> {
-    container(text(value).size(13).style(style::dim_text))
+    container(text(value).size(13).font(style::BODY).style(style::dim_text))
         .width(Length::Fixed(width))
         .align_x(align)
         .into()

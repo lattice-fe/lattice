@@ -51,11 +51,11 @@ pub fn view<'a>(
     };
 
     let bar = row![
-        text(items).size(12),
+        text(items).size(12).font(style::MONO),
         Space::new().width(Length::Fixed(16.0)),
         middle,
         Space::new().width(Length::Fill),
-        text(selection_text).size(12),
+        text(selection_text).size(12).font(style::MONO),
     ]
     .spacing(8);
 

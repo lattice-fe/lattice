@@ -5,7 +5,7 @@ use super::style;
 use crate::message::Message;
 
 /// A centered Settings modal. Dismissed via the Close button or Esc.
-pub fn view<'a>(dark_mode: bool) -> Element<'a, Message> {
+pub fn view<'a>(dark_mode: bool, show_hidden: bool) -> Element<'a, Message> {
     let header = row![
         text("Settings").size(16).width(Length::Fill),
         button(text("Close").size(13))
@@ -35,11 +35,45 @@ pub fn view<'a>(dark_mode: bool) -> Element<'a, Message> {
     ]
     .align_y(Alignment::Center);
 
+    let hidden_toggle = row![
+        column![
+            text("Show hidden files").size(14),
+            text("Reveal dotfiles and system-hidden items")
+                .size(11)
+                .style(style::dim_text),
+        ]
+        .spacing(1)
+        .width(Length::Fill),
+        button(text(if show_hidden { "On" } else { "Off" }).size(13))
+            .padding([5, 14])
+            .style(if show_hidden { style::primary_button } else { style::tool_button })
+            .on_press(Message::ToggleHidden),
+    ]
+    .align_y(Alignment::Center);
+
+    let folders = row![
+        column![
+            text("Indexed folders").size(14),
+            text("Manage which folders are searchable")
+                .size(11)
+                .style(style::dim_text),
+        ]
+        .spacing(1)
+        .width(Length::Fill),
+        button(text("Manage\u{2026}").size(13))
+            .padding([5, 14])
+            .style(style::tool_button)
+            .on_press(Message::CollectionsOpen),
+    ]
+    .align_y(Alignment::Center);
+
     let card = container(
         column![
             header,
             container(iced::widget::rule::horizontal(1)).width(Length::Fill),
             dark_toggle,
+            hidden_toggle,
+            folders,
             Space::new().height(Length::Fixed(4.0)),
         ]
         .spacing(14)

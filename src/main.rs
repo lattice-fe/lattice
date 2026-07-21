@@ -20,5 +20,9 @@ fn main() -> iced::Result {
         .title(App::title)
         .theme(App::theme)
         .subscription(App::subscription)
+        // Vendored OFL brand fonts (see fonts/); Inter is the default body face.
+        .font(include_bytes!("../fonts/Inter.ttf").as_slice())
+        .font(include_bytes!("../fonts/JetBrainsMono.ttf").as_slice())
+        .default_font(ui::style::BODY)
         .run()
 }
