@@ -1,76 +1,113 @@
 pub mod core;
 
-use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
 use serde::Serialize;
+use tauri_plugin_opener::OpenerExt;
+
+use core::fs::entry::{Entry, EntryKind};
+use core::fs::{ops, platform, scan};
+
+// ---------- DTOs (serialized to the React frontend) ----------
 
 #[derive(Serialize)]
-struct Entry {
+struct EntryDto {
     name: String,
     path: String,
     is_dir: bool,
     size: u64,
     modified: Option<u64>, // ms since epoch
     kind: String,
+    type_label: String,
+    hidden: bool,
 }
 
-fn classify(path: &Path, is_dir: bool) -> String {
-    if is_dir {
-        return "folder".into();
+fn kind_str(k: EntryKind) -> &'static str {
+    match k {
+        EntryKind::Folder => "folder",
+        EntryKind::Drive => "folder",
+        EntryKind::Image => "image",
+        EntryKind::Audio => "audio",
+        EntryKind::Video => "video",
+        EntryKind::Archive => "archive",
+        EntryKind::Document => "document",
+        EntryKind::Code => "code",
+        EntryKind::Executable => "executable",
+        EntryKind::Other => "other",
     }
-    let ext = path
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("")
-        .to_ascii_lowercase();
-    match ext.as_str() {
-        "png" | "jpg" | "jpeg" | "gif" | "bmp" | "webp" | "svg" | "ico" | "tiff" => "image",
-        "mp3" | "wav" | "flac" | "aac" | "ogg" | "m4a" | "wma" => "audio",
-        "mp4" | "mkv" | "avi" | "mov" | "wmv" | "webm" | "flv" | "m4v" => "video",
-        "zip" | "rar" | "7z" | "tar" | "gz" | "bz2" | "xz" => "archive",
-        "pdf" | "doc" | "docx" | "txt" | "md" | "rtf" | "odt" | "csv" | "ppt" | "pptx" => "document",
-        "rs" | "js" | "ts" | "tsx" | "jsx" | "py" | "go" | "c" | "cpp" | "h" | "java" | "rb"
-        | "toml" | "json" | "yaml" | "yml" | "html" | "css" | "sh" => "code",
-        "exe" | "msi" | "bat" | "cmd" | "com" | "scr" => "executable",
-        _ => "other",
+}
+
+fn to_dto(e: Entry) -> EntryDto {
+    let modified = e
+        .modified
+        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+        .map(|d| d.as_millis() as u64);
+    EntryDto {
+        type_label: e.type_label(),
+        name: e.name,
+        path: e.path.to_string_lossy().into_owned(),
+        is_dir: e.is_dir,
+        size: e.size,
+        modified,
+        kind: kind_str(e.kind).into(),
+        hidden: e.hidden,
     }
-    .into()
+}
+
+#[derive(Serialize)]
+struct DriveDto {
+    letter: String,
+    name: String,
+    display: String,
+    path: String,
+}
+
+#[derive(Serialize)]
+struct ShortcutDto {
+    label: String,
+    path: String,
+}
+
+// ---------- commands ----------
+
+#[tauri::command]
+async fn list_dir(path: String, show_hidden: bool) -> Result<Vec<EntryDto>, String> {
+    let entries = scan::scan_dir_async(PathBuf::from(path)).await?;
+    Ok(entries
+        .into_iter()
+        .filter(|e| show_hidden || !e.hidden)
+        .map(to_dto)
+        .collect())
 }
 
 #[tauri::command]
-fn list_dir(path: String) -> Result<Vec<Entry>, String> {
-    let mut out = Vec::new();
-    let read = fs::read_dir(&path).map_err(|e| e.to_string())?;
-    for entry in read.flatten() {
-        let p = entry.path();
-        let meta = match entry.metadata() {
-            Ok(m) => m,
-            Err(_) => continue,
-        };
-        let is_dir = meta.is_dir();
-        let modified = meta
-            .modified()
-            .ok()
-            .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
-            .map(|d| d.as_millis() as u64);
-        out.push(Entry {
-            name: entry.file_name().to_string_lossy().into_owned(),
-            path: p.to_string_lossy().into_owned(),
-            is_dir,
-            size: if is_dir { 0 } else { meta.len() },
-            modified,
-            kind: classify(&p, is_dir),
-        });
-    }
-    // Folders first, then files; each alphabetical (case-insensitive).
-    out.sort_by(|a, b| {
-        b.is_dir
-            .cmp(&a.is_dir)
-            .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
-    });
-    Ok(out)
+fn drives() -> Vec<DriveDto> {
+    platform::current()
+        .drives()
+        .into_iter()
+        .map(|d| {
+            let display = d.display();
+            DriveDto {
+                letter: d.letter,
+                name: d.name,
+                display,
+                path: d.path.to_string_lossy().into_owned(),
+            }
+        })
+        .collect()
+}
+
+#[tauri::command]
+fn quick_access() -> Vec<ShortcutDto> {
+    platform::current()
+        .quick_access()
+        .into_iter()
+        .map(|s| ShortcutDto {
+            label: s.label,
+            path: s.path.to_string_lossy().into_owned(),
+        })
+        .collect()
 }
 
 #[tauri::command]
@@ -80,11 +117,58 @@ fn home_dir() -> String {
         .unwrap_or_else(|_| "C:/".into())
 }
 
+#[tauri::command]
+fn new_folder(dir: String) -> Result<String, String> {
+    ops::create_folder(Path::new(&dir)).map(|p| p.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+fn rename(path: String, new_name: String) -> Result<String, String> {
+    ops::rename(Path::new(&path), &new_name).map(|p| p.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+async fn copy_items(sources: Vec<String>, dest: String) -> Result<(), String> {
+    ops::copy_into_async(sources.into_iter().map(PathBuf::from).collect(), PathBuf::from(dest)).await
+}
+
+#[tauri::command]
+async fn move_items(sources: Vec<String>, dest: String) -> Result<(), String> {
+    ops::move_into_async(sources.into_iter().map(PathBuf::from).collect(), PathBuf::from(dest)).await
+}
+
+#[tauri::command]
+async fn delete_items(paths: Vec<String>) -> Result<(), String> {
+    ops::delete_to_trash_async(paths.into_iter().map(PathBuf::from).collect()).await
+}
+
+#[tauri::command]
+fn open_path(app: tauri::AppHandle, path: String) -> Result<(), String> {
+    app.opener().open_path(path, None::<&str>).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn reveal(app: tauri::AppHandle, path: String) -> Result<(), String> {
+    app.opener().reveal_item_in_dir(path).map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![list_dir, home_dir])
+        .invoke_handler(tauri::generate_handler![
+            list_dir,
+            drives,
+            quick_access,
+            home_dir,
+            new_folder,
+            rename,
+            copy_items,
+            move_items,
+            delete_items,
+            open_path,
+            reveal,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
