@@ -7,7 +7,13 @@ use super::entry::{classify, Entry};
 /// blocking call (touches the filesystem for every child's metadata) and is
 /// meant to be run off the UI thread via `Task::perform` + `spawn_blocking`.
 pub fn scan_dir(path: &Path) -> Result<Vec<Entry>, String> {
-    let read = fs::read_dir(path).map_err(|e| format!("Can't open {}: {e}", path.display()))?;
+    let read = fs::read_dir(path).map_err(|e| {
+        if e.kind() == std::io::ErrorKind::PermissionDenied {
+            "You don't have permission to open this folder.".to_string()
+        } else {
+            format!("Can't open {}: {e}", path.display())
+        }
+    })?;
 
     let mut entries = Vec::new();
     for item in read {

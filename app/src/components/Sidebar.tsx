@@ -1,5 +1,4 @@
 import { Explorer } from "../hooks/useExplorer";
-import { Mark } from "../lib/icons";
 
 const QUICK_ICON: Record<string, string> = {
   Home: "⌂", Desktop: "▢", Downloads: "⤓", Documents: "▤", Pictures: "▨", Music: "♪", Videos: "▷", Starred: "☆", Recents: "◷",
@@ -11,8 +10,6 @@ export function Sidebar({ ex }: { ex: Explorer }) {
 
   return (
     <aside className="sidebar">
-      <div className="brand"><span className="brand-mark"><Mark /></span><span className="brand-word">lattice</span></div>
-
       <div className="side-group">
         <div className="side-label">Quick access</div>
         {ex.quick.map((q) => (
