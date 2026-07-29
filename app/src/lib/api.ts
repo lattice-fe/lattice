@@ -94,4 +94,33 @@ export const api = {
     if (!isTauri) return;
     return invoke("reveal", { path });
   },
+  // --- search + indexing (results arrive via the "index:*" events) ---
+  async search(seq: number, query: string, mode: SearchMode): Promise<void> {
+    if (!isTauri) return;
+    return invoke("search", { seq, query, mode });
+  },
+  async indexFolder(path: string): Promise<void> {
+    if (!isTauri) return;
+    return invoke("index_folder", { path });
+  },
+  async collections(): Promise<Collection[]> {
+    if (!isTauri) return [];
+    return invoke<Collection[]>("collections");
+  },
+  async reindex(id: number): Promise<void> { if (!isTauri) return; return invoke("reindex", { id }); },
+  async removeCollection(id: number): Promise<void> { if (!isTauri) return; return invoke("remove_collection", { id }); },
+  async setSemantic(id: number, on: boolean): Promise<void> { if (!isTauri) return; return invoke("set_semantic", { id, on }); },
 };
+
+export type SearchMode = "name" | "text" | "semantic";
+export interface Hit { file_path: string; snippet: string; score: number; char_start: number; }
+export interface Collection { id: number; root: string; semantic: boolean; status: string; file_count: number; }
+
+// Browser-preview mock: filter the mock entries by name.
+export function mockSearch(query: string): Hit[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  return MOCK.filter((e) => e.name.toLowerCase().includes(q)).map((e) => ({
+    file_path: e.path, snippet: e.name, score: 1, char_start: 0,
+  }));
+}

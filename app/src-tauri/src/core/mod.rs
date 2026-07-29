@@ -4,3 +4,4 @@
 pub mod fs;
 pub mod format;
 pub mod sort;
+pub mod index;

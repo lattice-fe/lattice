@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { useExplorer } from "./hooks/useExplorer";
+import { useSearch } from "./hooks/useSearch";
 import { TopBar } from "./components/TopBar";
 import { Sidebar } from "./components/Sidebar";
 import { FileList } from "./components/FileList";
+import { SearchResults } from "./components/SearchResults";
 import { Inspector } from "./components/Inspector";
 import { ContextMenu } from "./components/ContextMenu";
 import { isTauri } from "./lib/api";
@@ -10,12 +12,17 @@ import "./lattice.css";
 
 export default function App() {
   const ex = useExplorer();
+  const s = useSearch();
+
+  // browsing to a new folder ends an active search
+  useEffect(() => { s.clear(); }, [ex.path, s.clear]);
 
   // global keyboard shortcuts (ignored while typing in an input)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       const ctrl = e.ctrlKey || e.metaKey;
+      if (ctrl && e.key === "f") { e.preventDefault(); document.querySelector<HTMLInputElement>(".search input")?.focus(); return; }
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       const only = ex.selectedEntries[0];
       if (ctrl && e.key === "a") { e.preventDefault(); ex.selectAll(); }
       else if (ctrl && e.key === "c") ex.copySel();
@@ -36,10 +43,10 @@ export default function App() {
 
   return (
     <div className="app">
-      <TopBar ex={ex} />
+      <TopBar ex={ex} s={s} />
       <div className="body">
         <Sidebar ex={ex} />
-        <FileList ex={ex} />
+        {s.active ? <SearchResults s={s} ex={ex} /> : <FileList ex={ex} />}
         <Inspector ex={ex} />
       </div>
       <ContextMenu ex={ex} />

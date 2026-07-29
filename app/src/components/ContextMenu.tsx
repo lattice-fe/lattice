@@ -1,4 +1,5 @@
 import { Explorer } from "../hooks/useExplorer";
+import { api } from "../lib/api";
 
 export function ContextMenu({ ex }: { ex: Explorer }) {
   if (!ex.ctx) return null;
@@ -23,6 +24,7 @@ export function ContextMenu({ ex }: { ex: Explorer }) {
         {onRow && target && <>
           <Item label="Open" on={() => { ex.closeContext(); ex.openEntry(target); }} kbd="↵" />
           <Item label="Reveal in Explorer" on={() => { ex.closeContext(); ex.reveal(target.path); }} />
+          {target.is_dir && <Item label="Index for search" on={() => { ex.closeContext(); api.indexFolder(target.path); }} />}
           <Sep />
           <Item label="Copy" on={ex.copySel} kbd="Ctrl C" />
           <Item label="Cut" on={ex.cutSel} kbd="Ctrl X" />
@@ -33,6 +35,7 @@ export function ContextMenu({ ex }: { ex: Explorer }) {
         </>}
         {ex.clipboard && <Item label="Paste" on={ex.paste} kbd="Ctrl V" />}
         <Item label="New folder" on={ex.newFolder} />
+        {!onRow && <Item label="Index this folder for search" on={() => { ex.closeContext(); api.indexFolder(ex.path); }} />}
         {!onRow && <Item label="Refresh" on={() => { ex.closeContext(); ex.refresh(); }} />}
       </div>
     </div>

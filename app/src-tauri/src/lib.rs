@@ -1,13 +1,19 @@
 pub mod core;
 
 use std::path::{Path, PathBuf};
+use std::sync::mpsc::Sender as CmdSender;
+use std::sync::{Arc, Mutex};
 use std::time::UNIX_EPOCH;
 
 use serde::Serialize;
+use tauri::{Emitter, Manager, State};
 use tauri_plugin_opener::OpenerExt;
 
 use core::fs::entry::{Entry, EntryKind};
 use core::fs::{ops, platform, scan};
+use core::index::{self, Command, SearchHit};
+use core::index::search::SearchMode;
+use core::index::db::CollectionInfo;
 
 // ---------- DTOs (serialized to the React frontend) ----------
 
@@ -152,22 +158,94 @@ fn reveal(app: tauri::AppHandle, path: String) -> Result<(), String> {
     app.opener().reveal_item_in_dir(path).map_err(|e| e.to_string())
 }
 
+// ---------- search + indexing ----------
+
+struct IndexState {
+    tx: Mutex<CmdSender<Command>>,
+    collections: Arc<Mutex<Vec<CollectionInfo>>>,
+}
+
+#[derive(Serialize, Clone)]
+struct ProgressDto { collection: i64, done: usize, total: usize, current: String }
+#[derive(Serialize, Clone)]
+struct ResultsDto { seq: u64, hits: Vec<SearchHit> }
+
+fn send_cmd(state: &IndexState, cmd: Command) -> Result<(), String> {
+    state.tx.lock().unwrap().send(cmd).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn search(state: State<IndexState>, seq: u64, query: String, mode: String) -> Result<(), String> {
+    let mode = match mode.as_str() {
+        "text" => SearchMode::Text,
+        "semantic" => SearchMode::Semantic,
+        _ => SearchMode::Name,
+    };
+    send_cmd(&state, Command::Search { seq, query, mode })
+}
+
+#[tauri::command]
+fn index_folder(state: State<IndexState>, path: String) -> Result<(), String> {
+    send_cmd(&state, Command::AddCollection(PathBuf::from(path)))
+}
+
+#[tauri::command]
+fn reindex(state: State<IndexState>, id: i64) -> Result<(), String> {
+    send_cmd(&state, Command::Reindex(id))
+}
+
+#[tauri::command]
+fn remove_collection(state: State<IndexState>, id: i64) -> Result<(), String> {
+    send_cmd(&state, Command::RemoveCollection(id))
+}
+
+#[tauri::command]
+fn set_semantic(state: State<IndexState>, id: i64, on: bool) -> Result<(), String> {
+    send_cmd(&state, Command::SetSemantic(id, on))
+}
+
+#[tauri::command]
+fn collections(state: State<IndexState>) -> Vec<CollectionInfo> {
+    state.collections.lock().unwrap().clone()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .setup(|app| {
+            // Spawn the indexer worker (owns the DB + embedding model) and forward
+            // its events to the frontend as `index:*` Tauri events.
+            let (tx, mut ev_rx) = index::spawn();
+            let collections = Arc::new(Mutex::new(Vec::new()));
+            app.manage(IndexState { tx: Mutex::new(tx), collections: collections.clone() });
+
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                use index::Event::*;
+                while let Some(ev) = ev_rx.recv().await {
+                    match ev {
+                        Collections(list) => {
+                            *collections.lock().unwrap() = list.clone();
+                            let _ = handle.emit("index:collections", &list);
+                        }
+                        Progress { collection, done, total, current } => {
+                            let _ = handle.emit("index:progress", ProgressDto { collection, done, total, current });
+                        }
+                        Indexed(id) => { let _ = handle.emit("index:indexed", id); }
+                        Results { seq, hits } => { let _ = handle.emit("index:results", ResultsDto { seq, hits }); }
+                        Status(s) => { let _ = handle.emit("index:status", s); }
+                        Error(e) => { let _ = handle.emit("index:error", e); }
+                    }
+                }
+            });
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
-            list_dir,
-            drives,
-            quick_access,
-            home_dir,
-            new_folder,
-            rename,
-            copy_items,
-            move_items,
-            delete_items,
-            open_path,
-            reveal,
+            list_dir, drives, quick_access, home_dir,
+            new_folder, rename, copy_items, move_items, delete_items,
+            open_path, reveal,
+            search, index_folder, reindex, remove_collection, set_semantic, collections,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
