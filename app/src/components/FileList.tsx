@@ -27,10 +27,26 @@ function RenameField({ entry, ex }: { entry: Entry; ex: Explorer }) {
 
 export function FileList({ ex }: { ex: Explorer }) {
   const { entries, sel, sort, view, renaming } = ex;
+  // Manual double-click detection: relying on the DOM dblclick event is flaky
+  // because the first click re-renders (selection), which can make the browser
+  // miss the pair. A timestamp ref is reliable across re-renders.
+  const lastClick = useRef<{ path: string; t: number } | null>(null);
 
   const rowProps = (e: Entry, i: number) => ({
-    onClick: (ev: React.MouseEvent) => { ev.stopPropagation(); ex.selectAt(i, { ctrl: ev.ctrlKey || ev.metaKey, shift: ev.shiftKey }); },
-    onDoubleClick: (ev: React.MouseEvent) => { ev.stopPropagation(); ex.openEntry(e); },
+    onClick: (ev: React.MouseEvent) => {
+      ev.stopPropagation();
+      const mods = { ctrl: ev.ctrlKey || ev.metaKey, shift: ev.shiftKey };
+      if (mods.ctrl || mods.shift) { lastClick.current = null; ex.selectAt(i, mods); return; }
+      const now = Date.now();
+      const prev = lastClick.current;
+      if (prev && prev.path === e.path && now - prev.t < 400) {
+        lastClick.current = null;
+        ex.openEntry(e);
+      } else {
+        lastClick.current = { path: e.path, t: now };
+        ex.selectAt(i, mods);
+      }
+    },
     onContextMenu: (ev: React.MouseEvent) => { ev.preventDefault(); ev.stopPropagation(); if (!sel.has(e.path)) ex.selectAt(i, { ctrl: false, shift: false }); ex.openContext(ev.clientX, ev.clientY, i); },
   });
 
