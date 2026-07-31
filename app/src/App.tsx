@@ -1,8 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useExplorer } from "./hooks/useExplorer";
 import { useSearch } from "./hooks/useSearch";
 import { useIndexer } from "./hooks/useIndexer";
 import { IndexStatus } from "./components/IndexStatus";
+import { Settings } from "./components/Settings";
 import { TopBar } from "./components/TopBar";
 import { Sidebar } from "./components/Sidebar";
 import { FileList } from "./components/FileList";
@@ -16,6 +17,7 @@ export default function App() {
   const ex = useExplorer();
   const s = useSearch();
   const ind = useIndexer();
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // browsing to a new folder ends an active search
   useEffect(() => { s.clear(); }, [ex.path, s.clear]);
@@ -38,7 +40,7 @@ export default function App() {
       else if (e.key === "Backspace") ex.up();
       else if (e.altKey && e.key === "ArrowLeft") ex.back();
       else if (e.altKey && e.key === "ArrowRight") ex.forward();
-      else if (e.key === "Escape") { ex.closeContext(); ex.clearSel(); }
+      else if (e.key === "Escape") { setSettingsOpen(false); ex.closeContext(); ex.clearSel(); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -46,7 +48,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <TopBar ex={ex} s={s} />
+      <TopBar ex={ex} s={s} onSettings={() => setSettingsOpen(true)} />
       <div className="body">
         <Sidebar ex={ex} />
         {s.active ? <SearchResults s={s} ex={ex} /> : <FileList ex={ex} />}
@@ -54,6 +56,7 @@ export default function App() {
       </div>
       <ContextMenu ex={ex} />
       <IndexStatus ind={ind} />
+      {settingsOpen && <Settings ex={ex} ind={ind} onClose={() => setSettingsOpen(false)} />}
       {!isTauri && <div className="scaffold-note">preview · mock data — run <b style={{ color: "var(--paper-dim)" }}>npm run tauri dev</b> for live files</div>}
     </div>
   );
