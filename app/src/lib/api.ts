@@ -94,6 +94,12 @@ export const api = {
     if (!isTauri) return;
     return invoke("reveal", { path });
   },
+  async openUrl(url: string): Promise<void> {
+    if (!isTauri) { window.open(url, "_blank"); return; }
+    return invoke("open_url", { url });
+  },
+  async showMain(): Promise<void> { if (!isTauri) return; return invoke("show_main_window"); },
+  async quit(): Promise<void> { if (!isTauri) return; return invoke("quit_app"); },
   // --- search + indexing (results arrive via the "index:*" events) ---
   async search(seq: number, query: string, mode: SearchMode): Promise<void> {
     if (!isTauri) return;

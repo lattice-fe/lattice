@@ -161,6 +161,21 @@ fn reveal(app: tauri::AppHandle, path: String) -> Result<(), String> {
     app.opener().reveal_item_in_dir(path).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn open_url(app: tauri::AppHandle, url: String) -> Result<(), String> {
+    app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn show_main_window(app: AppHandle) {
+    show_main(&app);
+}
+
+#[tauri::command]
+fn quit_app(app: AppHandle) {
+    app.exit(0);
+}
+
 // ---------- search + indexing ----------
 
 struct IndexState {
@@ -382,7 +397,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             list_dir, drives, quick_access, home_dir,
             new_folder, rename, copy_items, move_items, delete_items,
-            open_path, reveal,
+            open_path, reveal, open_url, show_main_window, quit_app,
             search, index_folder, reindex, remove_collection, set_semantic, collections,
             search_apps,
         ])

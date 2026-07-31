@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
 import { useExplorer } from "./hooks/useExplorer";
 import { useSearch } from "./hooks/useSearch";
 import { useIndexer } from "./hooks/useIndexer";
@@ -18,9 +19,21 @@ export default function App() {
   const s = useSearch();
   const ind = useIndexer();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const exRef = useRef(ex);
+  exRef.current = ex;
 
   // browsing to a new folder ends an active search
   useEffect(() => { s.clear(); }, [ex.path, s.clear]);
+
+  // commands dispatched from the Spotlight window
+  useEffect(() => {
+    if (!isTauri) return;
+    const subs = [
+      listen<string>("spotlight:navigate", (e) => exRef.current.navigate(e.payload)),
+      listen("spotlight:open-settings", () => setSettingsOpen(true)),
+    ];
+    return () => { subs.forEach((p) => p.then((u) => u())); };
+  }, []);
 
   // global keyboard shortcuts (ignored while typing in an input)
   useEffect(() => {
