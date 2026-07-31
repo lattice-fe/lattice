@@ -1,20 +1,8 @@
 import { Search } from "../hooks/useSearch";
 import { Explorer } from "../hooks/useExplorer";
-import { api, Kind } from "../lib/api";
+import { api } from "../lib/api";
 import { baseName, parentOf } from "../lib/format";
-import { Glyph, TONE } from "../lib/icons";
-
-const kindOf = (name: string): Kind => {
-  const ext = name.split(".").pop()?.toLowerCase() ?? "";
-  if (["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico"].includes(ext)) return "image";
-  if (["mp4", "mkv", "mov", "webm", "avi", "wmv"].includes(ext)) return "video";
-  if (["mp3", "wav", "flac", "ogg", "m4a"].includes(ext)) return "audio";
-  if (["zip", "rar", "7z", "tar", "gz"].includes(ext)) return "archive";
-  if (["rs", "ts", "tsx", "js", "jsx", "py", "go", "json", "toml", "yaml", "yml", "html", "css", "c", "cpp", "h", "java"].includes(ext)) return "code";
-  if (["pdf", "md", "txt", "doc", "docx", "csv", "rtf"].includes(ext)) return "document";
-  if (["exe", "msi", "bat"].includes(ext)) return "executable";
-  return "other";
-};
+import { Glyph, TONE, kindOf } from "../lib/icons";
 
 export function SearchResults({ s, ex }: { s: Search; ex: Explorer }) {
   const body = () => {

@@ -12,11 +12,26 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Lattice",
         "width": 1200,
         "height": 800,
         "minWidth": 880,
         "minHeight": 560
+      },
+      {
+        "label": "spotlight",
+        "url": "index.html",
+        "width": 640,
+        "height": 440,
+        "transparent": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "visible": false,
+        "center": true,
+        "resizable": false,
+        "shadow": false
       }
     ],
     "security": {

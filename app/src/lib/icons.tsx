@@ -12,6 +12,18 @@ export const TONE: Record<Kind, { bg: string; fg: string }> = {
   other: { bg: "#26221d", fg: "#a99f8e" },
 };
 
+export const kindOf = (name: string): Kind => {
+  const ext = name.split(".").pop()?.toLowerCase() ?? "";
+  if (["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico"].includes(ext)) return "image";
+  if (["mp4", "mkv", "mov", "webm", "avi", "wmv"].includes(ext)) return "video";
+  if (["mp3", "wav", "flac", "ogg", "m4a"].includes(ext)) return "audio";
+  if (["zip", "rar", "7z", "tar", "gz"].includes(ext)) return "archive";
+  if (["rs", "ts", "tsx", "js", "jsx", "py", "go", "json", "toml", "yaml", "yml", "html", "css", "c", "cpp", "h", "java"].includes(ext)) return "code";
+  if (["pdf", "md", "txt", "doc", "docx", "csv", "rtf"].includes(ext)) return "document";
+  if (["exe", "msi", "bat"].includes(ext)) return "executable";
+  return "other";
+};
+
 export function Glyph({ kind }: { kind: Kind }) {
   const p = { fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
   switch (kind) {

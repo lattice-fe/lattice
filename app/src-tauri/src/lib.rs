@@ -6,7 +6,10 @@ use std::sync::{Arc, Mutex};
 use std::time::UNIX_EPOCH;
 
 use serde::Serialize;
-use tauri::{Emitter, Manager, State};
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::{AppHandle, Emitter, Manager, State, WindowEvent};
+use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 use tauri_plugin_opener::OpenerExt;
 
 use core::fs::entry::{Entry, EntryKind};
@@ -209,11 +212,79 @@ fn collections(state: State<IndexState>) -> Vec<CollectionInfo> {
     state.collections.lock().unwrap().clone()
 }
 
+// ---------- windows / tray ----------
+
+fn show_main(app: &AppHandle) {
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.show();
+        let _ = w.unminimize();
+        let _ = w.set_focus();
+    }
+}
+
+fn toggle_spotlight(app: &AppHandle) {
+    if let Some(w) = app.get_webview_window("spotlight") {
+        if w.is_visible().unwrap_or(false) {
+            let _ = w.hide();
+        } else {
+            let _ = w.center();
+            let _ = w.show();
+            let _ = w.set_focus();
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, shortcut, event| {
+                    let alt_space = Shortcut::new(Some(Modifiers::ALT), Code::Space);
+                    if event.state == ShortcutState::Pressed && shortcut == &alt_space {
+                        toggle_spotlight(app);
+                    }
+                })
+                .build(),
+        )
         .setup(|app| {
+            // Global Alt+Space toggles the Spotlight window.
+            let alt_space = Shortcut::new(Some(Modifiers::ALT), Code::Space);
+            let _ = app.global_shortcut().register(alt_space);
+
+            // System tray with a small menu; left-click shows the main window.
+            let show = MenuItem::with_id(app, "show", "Show Lattice", true, None::<&str>)?;
+            let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&show, &quit])?;
+            let _tray = TrayIconBuilder::new()
+                .icon(app.default_window_icon().unwrap().clone())
+                .tooltip("Lattice")
+                .menu(&menu)
+                .show_menu_on_left_click(false)
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "show" => show_main(app),
+                    "quit" => app.exit(0),
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
+                        show_main(tray.app_handle());
+                    }
+                })
+                .build(app)?;
+
+            // Close-to-tray: hide the main window instead of quitting.
+            if let Some(main) = app.get_webview_window("main") {
+                let m = main.clone();
+                main.on_window_event(move |event| {
+                    if let WindowEvent::CloseRequested { api, .. } = event {
+                        api.prevent_close();
+                        let _ = m.hide();
+                    }
+                });
+            }
+
             // Spawn the indexer worker (owns the DB + embedding model) and forward
             // its events to the frontend as `index:*` Tauri events.
             let (tx, mut ev_rx) = index::spawn();
