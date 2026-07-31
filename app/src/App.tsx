@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { useExplorer } from "./hooks/useExplorer";
 import { useSearch } from "./hooks/useSearch";
+import { useIndexer } from "./hooks/useIndexer";
+import { IndexStatus } from "./components/IndexStatus";
 import { TopBar } from "./components/TopBar";
 import { Sidebar } from "./components/Sidebar";
 import { FileList } from "./components/FileList";
@@ -13,6 +15,7 @@ import "./lattice.css";
 export default function App() {
   const ex = useExplorer();
   const s = useSearch();
+  const ind = useIndexer();
 
   // browsing to a new folder ends an active search
   useEffect(() => { s.clear(); }, [ex.path, s.clear]);
@@ -50,6 +53,7 @@ export default function App() {
         <Inspector ex={ex} />
       </div>
       <ContextMenu ex={ex} />
+      <IndexStatus ind={ind} />
       {!isTauri && <div className="scaffold-note">preview · mock data — run <b style={{ color: "var(--paper-dim)" }}>npm run tauri dev</b> for live files</div>}
     </div>
   );
