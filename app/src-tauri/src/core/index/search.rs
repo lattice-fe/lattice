@@ -22,6 +22,7 @@ impl Default for SearchMode {
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct SearchHit {
     pub file_path: PathBuf,
+    pub is_dir: bool,
     pub snippet: String,
     /// Lower is better for FTS (bm25); higher is better for semantic (cosine).
     /// Only used for ordering, which the query already applies.
@@ -75,6 +76,7 @@ pub fn run_text_search(
     let rows = stmt.query_map(rusqlite::params![match_expr, scan as i64], |r| {
         Ok(SearchHit {
             file_path: PathBuf::from(r.get::<_, String>(0)?),
+            is_dir: false,
             snippet: r.get(1)?,
             score: r.get(2)?,
             char_start: r.get(3)?,
@@ -114,32 +116,33 @@ pub fn run_name_search(
         .collect::<Vec<_>>()
         .join(" AND ");
     let sql = format!(
-        "SELECT DISTINCT path FROM files WHERE {where_clause} LIMIT {}",
+        "SELECT DISTINCT path, is_dir FROM files WHERE {where_clause} LIMIT {}",
         limit * 4
     );
     let like_params: Vec<String> = terms.iter().map(|t| format!("%{t}%")).collect();
 
     let mut stmt = conn.prepare(&sql)?;
     let rows = stmt.query_map(rusqlite::params_from_iter(like_params.iter()), |r| {
-        Ok(PathBuf::from(r.get::<_, String>(0)?))
+        Ok((PathBuf::from(r.get::<_, String>(0)?), r.get::<_, i64>(1)? != 0))
     })?;
-    let mut paths: Vec<PathBuf> = rows.collect::<Result<_, _>>()?;
+    let mut hits: Vec<(PathBuf, bool)> = rows.collect::<Result<_, _>>()?;
 
-    // Rank filename matches first.
-    paths.sort_by_cached_key(|p| {
+    // Rank filename matches first, then folders ahead of files.
+    hits.sort_by_cached_key(|(p, is_dir)| {
         let name = p
             .file_name()
             .map(|n| n.to_string_lossy().to_lowercase())
             .unwrap_or_default();
         let in_name = terms.iter().all(|t| name.contains(t));
-        (u8::from(!in_name), name)
+        (u8::from(!in_name), u8::from(!*is_dir), name)
     });
 
-    Ok(paths
+    Ok(hits
         .into_iter()
         .take(limit)
-        .map(|p| SearchHit {
+        .map(|(p, is_dir)| SearchHit {
             file_path: p,
+            is_dir,
             snippet: String::new(),
             score: 0.0,
             char_start: 0,
@@ -200,6 +203,7 @@ pub fn run_semantic_search(
             .unwrap_or_default();
         out.push(SearchHit {
             file_path: path,
+            is_dir: false,
             snippet,
             score: distance,
             char_start,

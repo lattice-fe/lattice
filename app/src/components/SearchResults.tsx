@@ -12,7 +12,7 @@ export function SearchResults({ s, ex }: { s: Search; ex: Explorer }) {
       <div className="list">
         {s.results.map((h, i) => {
           const name = baseName(h.file_path);
-          const k = kindOf(name);
+          const k = h.is_dir ? "folder" : kindOf(name);
           const t = TONE[k];
           const dir = parentOf(h.file_path);
           const snip = h.snippet && h.snippet.trim() && h.snippet.trim() !== name ? h.snippet.trim() : null;
@@ -21,9 +21,9 @@ export function SearchResults({ s, ex }: { s: Search; ex: Explorer }) {
               key={h.file_path + i}
               className="row result"
               style={{ animationDelay: `${Math.min(i * 16, 240)}ms` }}
-              onClick={() => dir && ex.navigate(dir)}
-              onDoubleClick={() => api.openPath(h.file_path)}
-              title="Click to reveal · double-click to open"
+              onClick={() => (h.is_dir ? ex.navigate(h.file_path) : dir && ex.navigate(dir))}
+              onDoubleClick={() => (h.is_dir ? ex.navigate(h.file_path) : api.openPath(h.file_path))}
+              title={h.is_dir ? "Open folder" : "Click to reveal · double-click to open"}
             >
               <span className="tile" style={{ background: t.bg, color: t.fg }}><Glyph kind={k} /></span>
               <span className="result-main">

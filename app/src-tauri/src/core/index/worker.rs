@@ -148,12 +148,14 @@ impl Worker {
         let semantic = db::collection_semantic(&self.conn, collection_id).unwrap_or(false);
         let _ = db::set_collection_status(&self.conn, collection_id, "indexing");
         let found = walk::discover(root);
+        let dirs = walk::discover_dirs(root);
         let total = found.len();
 
-        // Prune files that have disappeared since the last index.
+        // Prune entries that have disappeared since the last index (files + dirs).
         let found_paths: std::collections::HashSet<String> = found
             .iter()
             .map(|f| f.path.to_string_lossy().into_owned())
+            .chain(dirs.iter().map(|(p, _)| p.to_string_lossy().into_owned()))
             .collect();
         if let Ok(existing) = db::collection_files(&self.conn, collection_id) {
             for (file_id, path) in existing {
@@ -184,6 +186,12 @@ impl Worker {
             }
         }
 
+        // Record directories as name-searchable entries (no content).
+        let dir_now = now_secs();
+        for (path, mtime) in &dirs {
+            let _ = db::upsert_file(&self.conn, collection_id, &path.to_string_lossy(), *mtime, 0, dir_now, true);
+        }
+
         let now = now_secs();
         let _ = db::mark_indexed(&self.conn, collection_id, now);
         self.emit_collections();
@@ -204,6 +212,7 @@ impl Worker {
             file.mtime,
             file.size as i64,
             now_secs(),
+            false,
         )?;
         db::clear_file_chunks(&self.conn, file_id)?;
 

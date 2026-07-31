@@ -113,6 +113,36 @@ pub fn discover(root: &Path) -> Vec<Found> {
     out
 }
 
+/// Walk `root` and yield its sub-directories as `(path, mtime)` — recorded as
+/// name-searchable entries with no content. Same prune/hidden rules as
+/// [`discover`]; the root itself is skipped.
+pub fn discover_dirs(root: &Path) -> Vec<(PathBuf, i64)> {
+    let mut out = Vec::new();
+    let walk = WalkBuilder::new(root)
+        .git_ignore(true)
+        .git_global(false)
+        .git_exclude(true)
+        .hidden(true)
+        .filter_entry(|entry| {
+            let name = entry.file_name().to_string_lossy();
+            !PRUNED_DIRS.contains(&name.as_ref())
+        })
+        .build();
+    for result in walk {
+        let Ok(entry) = result else { continue };
+        if !entry.file_type().is_some_and(|t| t.is_dir()) {
+            continue;
+        }
+        let path = entry.path();
+        if path == root {
+            continue;
+        }
+        let mtime = entry.metadata().ok().map(|m| mtime_secs(&m)).unwrap_or(0);
+        out.push((path.to_path_buf(), mtime));
+    }
+    out
+}
+
 fn mtime_secs(meta: &std::fs::Metadata) -> i64 {
     meta.modified()
         .ok()

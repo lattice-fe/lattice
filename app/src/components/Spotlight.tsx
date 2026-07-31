@@ -15,7 +15,7 @@ const BADGE: Record<Mode, string> = { default: "", apps: "Apps", files: "Files",
 
 type Item =
   | { kind: "app"; name: string; path: string }
-  | { kind: "file"; name: string; sub: string; path: string; k: Kind }
+  | { kind: "file"; name: string; sub: string; path: string; k: Kind; isDir: boolean }
   | { kind: "math"; value: number }
   | { kind: "web"; term: string }
   | { kind: "command"; name: string; sub: string; run: () => void };
@@ -89,7 +89,7 @@ export function Spotlight() {
     if (mode === "commands") return commands.filter((c) => c.name.toLowerCase().includes(term.toLowerCase())).map((c) => ({ kind: "command", name: c.name, sub: c.sub, run: c.run }));
     const a: Item[] = mode === "default" || mode === "apps" ? apps.map((x) => ({ kind: "app", name: x.name, path: x.path })) : [];
     const f: Item[] = mode === "default" || mode === "files"
-      ? s.results.slice(0, 8).map((h) => { const name = baseName(h.file_path); const snip = h.snippet?.trim() && h.snippet.trim() !== name ? h.snippet.trim() : parentOf(h.file_path) ?? ""; return { kind: "file", name, sub: snip, path: h.file_path, k: kindOf(name) }; })
+      ? s.results.slice(0, 8).map((h) => { const name = baseName(h.file_path); const snip = h.snippet?.trim() && h.snippet.trim() !== name ? h.snippet.trim() : parentOf(h.file_path) ?? ""; return { kind: "file", name, sub: snip, path: h.file_path, k: h.is_dir ? "folder" : kindOf(name), isDir: h.is_dir }; })
       : [];
     return [...a, ...f];
   }, [mode, term, apps, s.results, commands]);
@@ -97,7 +97,8 @@ export function Spotlight() {
   useEffect(() => { setActive(0); }, [items.length, mode]);
 
   const run = (it: Item) => {
-    if (it.kind === "app" || it.kind === "file") api.openPath(it.path);
+    if (it.kind === "app") api.openPath(it.path);
+    else if (it.kind === "file") { if (it.isDir) { fire("spotlight:navigate", it.path); api.showMain(); } else api.openPath(it.path); }
     else if (it.kind === "web") api.openUrl(`https://www.google.com/search?q=${encodeURIComponent(it.term)}`);
     else if (it.kind === "math") navigator.clipboard?.writeText(String(it.value)).catch(() => {});
     else if (it.kind === "command") it.run();

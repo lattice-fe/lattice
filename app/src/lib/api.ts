@@ -131,7 +131,7 @@ function mockApps(query: string): AppMatch[] {
 }
 
 export type SearchMode = "name" | "text" | "semantic";
-export interface Hit { file_path: string; snippet: string; score: number; char_start: number; }
+export interface Hit { file_path: string; is_dir: boolean; snippet: string; score: number; char_start: number; }
 export interface Collection { id: number; root: string; semantic: boolean; status: string; file_count: number; }
 
 // Browser-preview mock: filter the mock entries by name.
@@ -139,6 +139,6 @@ export function mockSearch(query: string): Hit[] {
   const q = query.trim().toLowerCase();
   if (!q) return [];
   return MOCK.filter((e) => e.name.toLowerCase().includes(q)).map((e) => ({
-    file_path: e.path, snippet: e.name, score: 1, char_start: 0,
+    file_path: e.path, is_dir: e.is_dir, snippet: e.name, score: 1, char_start: 0,
   }));
 }

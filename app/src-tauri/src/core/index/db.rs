@@ -75,6 +75,7 @@ fn migrate(conn: &Connection) -> rusqlite::Result<()> {
             mtime         INTEGER NOT NULL,
             size          INTEGER NOT NULL,
             indexed_at    INTEGER,
+            is_dir        INTEGER NOT NULL DEFAULT 0,
             UNIQUE(collection_id, path)
         );
 
@@ -90,7 +91,10 @@ fn migrate(conn: &Connection) -> rusqlite::Result<()> {
         CREATE VIRTUAL TABLE IF NOT EXISTS chunk_fts USING fts5(text, chunk_id UNINDEXED);
 
         CREATE VIRTUAL TABLE IF NOT EXISTS vec_chunks USING vec0(embedding float[{EMBED_DIM}]);",
-    ))
+    ))?;
+    // Migrate existing DBs (created before directories were indexed).
+    let _ = conn.execute("ALTER TABLE files ADD COLUMN is_dir INTEGER NOT NULL DEFAULT 0", []);
+    Ok(())
 }
 
 /// Pack a float vector into the little-endian byte blob sqlite-vec expects.
@@ -257,13 +261,14 @@ pub fn upsert_file(
     mtime: i64,
     size: i64,
     now: i64,
+    is_dir: bool,
 ) -> rusqlite::Result<i64> {
     conn.execute(
-        "INSERT INTO files(collection_id, path, mtime, size, indexed_at)
-         VALUES (?1, ?2, ?3, ?4, ?5)
+        "INSERT INTO files(collection_id, path, mtime, size, indexed_at, is_dir)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)
          ON CONFLICT(collection_id, path)
-         DO UPDATE SET mtime = ?3, size = ?4, indexed_at = ?5",
-        rusqlite::params![collection_id, path, mtime, size, now],
+         DO UPDATE SET mtime = ?3, size = ?4, indexed_at = ?5, is_dir = ?6",
+        rusqlite::params![collection_id, path, mtime, size, now, is_dir as i64],
     )?;
     conn.query_row(
         "SELECT id FROM files WHERE collection_id = ?1 AND path = ?2",
