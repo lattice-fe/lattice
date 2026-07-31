@@ -98,7 +98,7 @@ export function Spotlight() {
 
   const run = (it: Item) => {
     if (it.kind === "app" || it.kind === "file") api.openPath(it.path);
-    else if (it.kind === "web") api.openUrl(`https://duckduckgo.com/?q=${encodeURIComponent(it.term)}`);
+    else if (it.kind === "web") api.openUrl(`https://www.google.com/search?q=${encodeURIComponent(it.term)}`);
     else if (it.kind === "math") navigator.clipboard?.writeText(String(it.value)).catch(() => {});
     else if (it.kind === "command") it.run();
     hide();

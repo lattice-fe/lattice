@@ -8,8 +8,17 @@ export function useSearch() {
   const [results, setResults] = useState<Hit[]>([]);
   const [searching, setSearching] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
-  const seq = useRef(0);
+  // Unique per window instance so the main + spotlight searches never collide
+  // on the shared worker's echoed seq.
+  const seq = useRef(Math.floor(Math.random() * 1e9));
   const active = query.trim().length > 0;
+
+  // watchdog: never let the "Searching…" state hang if a result never arrives
+  useEffect(() => {
+    if (!searching) return;
+    const t = setTimeout(() => setSearching(false), 4000);
+    return () => clearTimeout(t);
+  }, [searching]);
 
   // subscribe to worker events (Tauri only)
   useEffect(() => {
@@ -28,8 +37,12 @@ export function useSearch() {
     if (!q.trim()) { setResults([]); setSearching(false); return; }
     const id = ++seq.current;
     setSearching(true);
-    if (isTauri) await api.search(id, q, m);
-    else { setResults(mockSearch(q)); setSearching(false); }
+    if (!isTauri) { setResults(mockSearch(q)); setSearching(false); return; }
+    try {
+      await api.search(id, q, m);
+    } catch (e) {
+      if (id === seq.current) { setSearching(false); setStatus(String(e)); }
+    }
   }, []);
 
   // debounce
