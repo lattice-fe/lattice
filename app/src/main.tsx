@@ -7,7 +7,7 @@ import { isTauri } from "./lib/api";
 
 // The Spotlight window loads the same bundle; branch on the window label so it
 // renders only the launcher (never the full explorer).
-let spotlight = false;
+let spotlight = new URLSearchParams(location.search).has("spotlight"); // dev override
 if (isTauri) {
   try { spotlight = getCurrentWindow().label === "spotlight"; } catch { /* not tauri */ }
 }

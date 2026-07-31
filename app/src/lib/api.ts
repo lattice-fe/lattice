@@ -110,7 +110,19 @@ export const api = {
   async reindex(id: number): Promise<void> { if (!isTauri) return; return invoke("reindex", { id }); },
   async removeCollection(id: number): Promise<void> { if (!isTauri) return; return invoke("remove_collection", { id }); },
   async setSemantic(id: number, on: boolean): Promise<void> { if (!isTauri) return; return invoke("set_semantic", { id, on }); },
+  async searchApps(query: string): Promise<AppMatch[]> {
+    if (!isTauri) return mockApps(query);
+    return invoke<AppMatch[]>("search_apps", { query });
+  },
 };
+
+export interface AppMatch { name: string; path: string; }
+const MOCK_APPS = ["Google Chrome", "Visual Studio Code", "Spotify", "Discord", "Firefox", "Notion", "Terminal"];
+function mockApps(query: string): AppMatch[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  return MOCK_APPS.filter((n) => n.toLowerCase().includes(q)).slice(0, 6).map((n) => ({ name: n, path: n }));
+}
 
 export type SearchMode = "name" | "text" | "semantic";
 export interface Hit { file_path: string; snippet: string; score: number; char_start: number; }

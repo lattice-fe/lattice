@@ -22,8 +22,8 @@
       {
         "label": "spotlight",
         "url": "index.html",
-        "width": 640,
-        "height": 440,
+        "width": 680,
+        "height": 84,
         "transparent": true,
         "decorations": false,
         "alwaysOnTop": true,

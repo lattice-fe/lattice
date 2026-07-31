@@ -212,6 +212,73 @@ fn collections(state: State<IndexState>) -> Vec<CollectionInfo> {
     state.collections.lock().unwrap().clone()
 }
 
+// ---------- app launcher (Start Menu shortcuts) ----------
+
+#[derive(Serialize, Clone)]
+struct AppMatch {
+    name: String,
+    path: String,
+}
+
+fn all_apps() -> &'static Vec<AppMatch> {
+    static APPS: std::sync::OnceLock<Vec<AppMatch>> = std::sync::OnceLock::new();
+    APPS.get_or_init(|| {
+        let mut out = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+        let roots = [
+            std::env::var("ProgramData").ok().map(|p| PathBuf::from(p).join(r"Microsoft\Windows\Start Menu\Programs")),
+            std::env::var("APPDATA").ok().map(|p| PathBuf::from(p).join(r"Microsoft\Windows\Start Menu\Programs")),
+        ];
+        for root in roots.into_iter().flatten() {
+            collect_lnks(&root, &mut out, &mut seen);
+        }
+        out
+    })
+}
+
+fn collect_lnks(dir: &Path, out: &mut Vec<AppMatch>, seen: &mut std::collections::HashSet<String>) {
+    let Ok(rd) = std::fs::read_dir(dir) else { return };
+    for e in rd.flatten() {
+        let p = e.path();
+        if p.is_dir() {
+            collect_lnks(&p, out, seen);
+        } else if p.extension().and_then(|x| x.to_str()).is_some_and(|x| x.eq_ignore_ascii_case("lnk")) {
+            if let Some(stem) = p.file_stem().and_then(|s| s.to_str()) {
+                // skip uninstallers and noise
+                let low = stem.to_lowercase();
+                if low.contains("uninstall") || low.contains("readme") {
+                    continue;
+                }
+                if seen.insert(low) {
+                    out.push(AppMatch { name: stem.to_string(), path: p.to_string_lossy().into_owned() });
+                }
+            }
+        }
+    }
+}
+
+#[tauri::command]
+fn search_apps(query: String) -> Vec<AppMatch> {
+    let q = query.trim().to_lowercase();
+    if q.is_empty() {
+        return Vec::new();
+    }
+    let mut scored: Vec<(u8, &AppMatch)> = all_apps()
+        .iter()
+        .filter_map(|a| {
+            let n = a.name.to_lowercase();
+            let rank = if n == q { 0 }
+                else if n.starts_with(&q) { 1 }
+                else if n.split(|c: char| !c.is_alphanumeric()).any(|w| w.starts_with(&q)) { 2 }
+                else if n.contains(&q) { 3 }
+                else { return None };
+            Some((rank, a))
+        })
+        .collect();
+    scored.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.name.len().cmp(&b.1.name.len())));
+    scored.into_iter().take(6).map(|(_, a)| a.clone()).collect()
+}
+
 // ---------- windows / tray ----------
 
 fn show_main(app: &AppHandle) {
@@ -317,6 +384,7 @@ pub fn run() {
             new_folder, rename, copy_items, move_items, delete_items,
             open_path, reveal,
             search, index_folder, reindex, remove_collection, set_semantic, collections,
+            search_apps,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
