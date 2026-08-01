@@ -66,7 +66,7 @@ pub fn run_text_search(
                 bm25(chunk_fts) AS score,
                 c.char_start
          FROM chunk_fts
-         JOIN chunks c ON c.id = chunk_fts.chunk_id
+         JOIN chunks c ON c.id = chunk_fts.rowid
          JOIN files  f ON f.id = c.file_id
          WHERE chunk_fts MATCH ?1
          ORDER BY score

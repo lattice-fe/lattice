@@ -88,12 +88,25 @@ fn migrate(conn: &Connection) -> rusqlite::Result<()> {
         );
         CREATE INDEX IF NOT EXISTS idx_chunks_file ON chunks(file_id);
 
-        CREATE VIRTUAL TABLE IF NOT EXISTS chunk_fts USING fts5(text, chunk_id UNINDEXED);
+        CREATE VIRTUAL TABLE IF NOT EXISTS chunk_fts USING fts5(text);
 
         CREATE VIRTUAL TABLE IF NOT EXISTS vec_chunks USING vec0(embedding float[{EMBED_DIM}]);",
     ))?;
     // Migrate existing DBs (created before directories were indexed).
     let _ = conn.execute("ALTER TABLE files ADD COLUMN is_dir INTEGER NOT NULL DEFAULT 0", []);
+
+    // Migrate the old chunk_fts (text, chunk_id UNINDEXED) — where deletes were an
+    // O(n) full scan — to one keyed by rowid = chunk_id (O(1) deletes). Rebuild
+    // preserves the indexed text, so no re-index is needed.
+    let old_format = conn.prepare("SELECT chunk_id FROM chunk_fts LIMIT 0").is_ok();
+    if old_format {
+        conn.execute_batch(
+            "ALTER TABLE chunk_fts RENAME TO chunk_fts_old;
+             CREATE VIRTUAL TABLE chunk_fts USING fts5(text);
+             INSERT INTO chunk_fts(rowid, text) SELECT chunk_id, text FROM chunk_fts_old;
+             DROP TABLE chunk_fts_old;",
+        )?;
+    }
     Ok(())
 }
 
@@ -168,12 +181,11 @@ pub fn list_collections(conn: &Connection) -> rusqlite::Result<Vec<CollectionInf
 /// Remove a collection and all of its indexed data, including the virtual-table
 /// rows (FTS5/vec0 aren't covered by foreign-key cascade, so clean them first).
 pub fn delete_collection(conn: &Connection, id: i64) -> rusqlite::Result<()> {
-    // `chunk_fts.chunk_id` is UNINDEXED, so deleting per-chunk is a full FTS scan
-    // each time (O(n²) — hangs for big collections). One subquery delete scans
-    // each virtual table once.
+    // chunk_fts and vec_chunks are keyed by rowid = chunk_id, so deletes are
+    // O(1) per row. One subquery delete removes an entire collection's rows.
     let sub = "SELECT c.id FROM chunks c JOIN files f ON f.id = c.file_id WHERE f.collection_id = ?1";
     let tx = conn.unchecked_transaction()?;
-    tx.execute(&format!("DELETE FROM chunk_fts WHERE chunk_id IN ({sub})"), [id])?;
+    tx.execute(&format!("DELETE FROM chunk_fts WHERE rowid IN ({sub})"), [id])?;
     tx.execute(&format!("DELETE FROM vec_chunks WHERE rowid IN ({sub})"), [id])?;
     tx.execute("DELETE FROM collections WHERE id = ?1", [id])?; // cascades files + chunks
     tx.commit()
@@ -201,9 +213,9 @@ pub fn collection_chunk_texts(
     collection_id: i64,
 ) -> rusqlite::Result<Vec<(i64, String)>> {
     let mut stmt = conn.prepare(
-        "SELECT cf.chunk_id, cf.text
+        "SELECT cf.rowid, cf.text
          FROM chunk_fts cf
-         JOIN chunks c ON c.id = cf.chunk_id
+         JOIN chunks c ON c.id = cf.rowid
          JOIN files  f ON f.id = c.file_id
          WHERE f.collection_id = ?1",
     )?;
@@ -214,7 +226,7 @@ pub fn collection_chunk_texts(
 /// Fetch a single chunk's text (for showing a semantic result's snippet).
 pub fn chunk_text(conn: &Connection, chunk_id: i64) -> rusqlite::Result<Option<String>> {
     conn.query_row(
-        "SELECT text FROM chunk_fts WHERE chunk_id = ?1",
+        "SELECT text FROM chunk_fts WHERE rowid = ?1",
         [chunk_id],
         |r| r.get(0),
     )
@@ -304,14 +316,13 @@ fn delete_chunk_index_rows(conn: &Connection, chunk_ids: &[i64]) -> rusqlite::Re
     if chunk_ids.is_empty() {
         return Ok(());
     }
-    // One IN-list delete per virtual table (single scan). Per-chunk deletes scan
-    // the whole FTS each time (chunk_id is UNINDEXED) — O(n²). Chunk lists here are
-    // per-file (small), well under SQLite's parameter limit.
+    // chunk_fts and vec_chunks are both keyed by rowid = chunk_id, so each delete
+    // is an O(1) rowid lookup. Batch the IN-lists under SQLite's parameter limit.
     let tx = conn.unchecked_transaction()?;
     for batch in chunk_ids.chunks(512) {
         let placeholders = batch.iter().map(|_| "?").collect::<Vec<_>>().join(",");
         let params: Vec<&dyn rusqlite::ToSql> = batch.iter().map(|id| id as &dyn rusqlite::ToSql).collect();
-        tx.execute(&format!("DELETE FROM chunk_fts WHERE chunk_id IN ({placeholders})"), params.as_slice())?;
+        tx.execute(&format!("DELETE FROM chunk_fts WHERE rowid IN ({placeholders})"), params.as_slice())?;
         tx.execute(&format!("DELETE FROM vec_chunks WHERE rowid IN ({placeholders})"), params.as_slice())?;
     }
     tx.commit()
@@ -331,9 +342,10 @@ pub fn insert_chunk(
         rusqlite::params![file_id, ordinal, char_start, char_end],
     )?;
     let chunk_id = conn.last_insert_rowid();
+    // rowid = chunk_id keeps FTS deletes O(1) (see delete_chunk_index_rows).
     conn.execute(
-        "INSERT INTO chunk_fts(text, chunk_id) VALUES (?1, ?2)",
-        rusqlite::params![text, chunk_id],
+        "INSERT INTO chunk_fts(rowid, text) VALUES (?1, ?2)",
+        rusqlite::params![chunk_id, text],
     )?;
     Ok(chunk_id)
 }
@@ -351,6 +363,44 @@ pub fn insert_embedding(conn: &Connection, chunk_id: i64, vector: &[f32]) -> rus
 mod tests {
     use super::*;
     use rusqlite::params;
+
+    #[test]
+    fn reindex_scale() {
+        use std::time::Instant;
+        let conn = open_in_memory().unwrap();
+        let cid = insert_collection(&conn, "C:/x").unwrap();
+        let files = 3000i64;
+        let per = 10i64;
+
+        // fresh index
+        let t0 = Instant::now();
+        for f in 0..files {
+            let fid = upsert_file(&conn, cid, &format!("C:/x/f{f}.txt"), 1, 1, 0, false).unwrap();
+            for c in 0..per {
+                insert_chunk(&conn, fid, c, 0, 5, "sample text content").unwrap();
+            }
+        }
+        let fts: i64 = conn.query_row("SELECT count(*) FROM chunk_fts", [], |r| r.get(0)).unwrap();
+        eprintln!("[reidx] fresh index {files} files ({fts} fts rows) in {:?}", t0.elapsed());
+
+        // re-index: clear each file's chunks then re-insert (what index_one_file does
+        // for a changed file). This is the path that runs on re-add / reindex.
+        let t1 = Instant::now();
+        for f in 0..files {
+            let fid: i64 = conn
+                .query_row("SELECT id FROM files WHERE collection_id=?1 AND path=?2", params![cid, format!("C:/x/f{f}.txt")], |r| r.get(0))
+                .unwrap();
+            clear_file_chunks(&conn, fid).unwrap();
+            for c in 0..per {
+                insert_chunk(&conn, fid, c, 0, 5, "sample text content").unwrap();
+            }
+        }
+        let reidx = t1.elapsed();
+        eprintln!("[reidx] RE-index {files} files (clear+reinsert) in {:?}", reidx);
+        // Before the rowid=chunk_id fix this clear-per-file path was an O(files×fts)
+        // FTS scan that hung indefinitely. Guard against that regression.
+        assert!(reidx.as_secs() < 30, "re-index too slow (O(n²) FTS delete?): {reidx:?}");
+    }
 
     #[test]
     fn delete_collection_scale() {
@@ -387,6 +437,34 @@ mod tests {
     }
 
     #[test]
+    fn migrates_old_unindexed_fts_to_rowid_keyed() {
+        // Simulate a pre-existing DB whose chunk_fts still uses the old
+        // (text, chunk_id UNINDEXED) layout, then run migrate() and confirm the
+        // rebuilt table is keyed by rowid = chunk_id with its text preserved.
+        register_sqlite_vec();
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE VIRTUAL TABLE chunk_fts USING fts5(text, chunk_id UNINDEXED);
+             INSERT INTO chunk_fts(rowid, text, chunk_id) VALUES (1, 'the quick brown fox', 42);",
+        )
+        .unwrap();
+
+        migrate(&conn).unwrap();
+
+        // Old column is gone; row is now addressable by rowid = the old chunk_id.
+        assert!(conn.prepare("SELECT chunk_id FROM chunk_fts LIMIT 0").is_err());
+        let text: String = conn
+            .query_row("SELECT text FROM chunk_fts WHERE rowid = 42", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(text, "the quick brown fox");
+        // MATCH still works against the rebuilt index.
+        let hit: i64 = conn
+            .query_row("SELECT rowid FROM chunk_fts WHERE chunk_fts MATCH 'brown'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(hit, 42);
+    }
+
+    #[test]
     fn schema_applies_and_sqlite_vec_loads() {
         // This is the critical smoke test: if vec0 didn't load, creating the
         // virtual table in migrate() would already have failed.
@@ -414,14 +492,14 @@ mod tests {
         .unwrap();
         let chunk_id = conn.last_insert_rowid();
         conn.execute(
-            "INSERT INTO chunk_fts(text, chunk_id) VALUES (?, ?)",
-            params!["the quick brown fox", chunk_id],
+            "INSERT INTO chunk_fts(rowid, text) VALUES (?, ?)",
+            params![chunk_id, "the quick brown fox"],
         )
         .unwrap();
 
         let hit: i64 = conn
             .query_row(
-                "SELECT chunk_id FROM chunk_fts WHERE chunk_fts MATCH ?",
+                "SELECT rowid FROM chunk_fts WHERE chunk_fts MATCH ?",
                 params!["brown"],
                 |r| r.get(0),
             )
