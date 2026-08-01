@@ -389,7 +389,9 @@ body.is-spotlight #root { padding: 16px; }
 
 /* custom titlebar (native decorations disabled) — tabs + window controls */
 .titlebar { display: flex; align-items: stretch; height: 40px; background: var(--ink); user-select: none; }
-.titlebar-tabs { display: flex; align-items: flex-end; gap: 3px; padding: 0 6px 0 10px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.titlebar-logo { display: flex; align-items: center; padding: 0 6px 0 12px; flex: none; }
+.titlebar-logo svg { width: 21px; height: 21px; }
+.titlebar-tabs { display: flex; align-items: flex-end; gap: 3px; padding: 0 6px 0 4px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 .titlebar-tabs::-webkit-scrollbar { height: 0; }
 .titlebar-drag { flex: 1; align-self: stretch; }
 .winctrls { display: flex; align-self: stretch; }

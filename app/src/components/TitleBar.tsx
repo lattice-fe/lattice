@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Explorer } from "../hooks/useExplorer";
 import { baseName } from "../lib/format";
+import { Mark } from "../lib/icons";
 import { isTauri } from "../lib/api";
 
 function tabTitle(path: string): string {
@@ -11,10 +12,10 @@ function tabTitle(path: string): string {
 const win = () => getCurrentWindow();
 
 // Window-control glyphs (10×10, stroked so they inherit the theme colour).
-const MinIcon = () => (<svg width="11" height="11" viewBox="0 0 11 11"><line x1="1.5" y1="5.5" x2="9.5" y2="5.5" stroke="currentColor" strokeWidth="1.1" /></svg>);
-const MaxIcon = () => (<svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.1"><rect x="1.7" y="1.7" width="7.6" height="7.6" rx="1.2" /></svg>);
-const RestoreIcon = () => (<svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.1"><rect x="1.4" y="3.1" width="6.1" height="6.1" rx="1" /><path d="M3.5 3.1 V1.5 H9.5 V7.5 H7.6" strokeLinejoin="round" /></svg>);
-const CloseIcon = () => (<svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"><path d="M2.2 2.2 L8.8 8.8 M8.8 2.2 L2.2 8.8" /></svg>);
+const MinIcon = () => (<svg width="14" height="14" viewBox="0 0 11 11"><line x1="1.5" y1="5.5" x2="9.5" y2="5.5" stroke="currentColor" strokeWidth="1.1" /></svg>);
+const MaxIcon = () => (<svg width="14" height="14" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.1"><rect x="1.7" y="1.7" width="7.6" height="7.6" rx="1.2" /></svg>);
+const RestoreIcon = () => (<svg width="14" height="14" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.1"><rect x="1.4" y="3.1" width="6.1" height="6.1" rx="1" /><path d="M3.5 3.1 V1.5 H9.5 V7.5 H7.6" strokeLinejoin="round" /></svg>);
+const CloseIcon = () => (<svg width="14" height="14" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"><path d="M2.2 2.2 L8.8 8.8 M8.8 2.2 L2.2 8.8" /></svg>);
 
 export function TitleBar({ ex }: { ex: Explorer }) {
   const [maxed, setMaxed] = useState(false);
@@ -33,6 +34,7 @@ export function TitleBar({ ex }: { ex: Explorer }) {
 
   return (
     <div className="titlebar" data-tauri-drag-region>
+      <div className="titlebar-logo" data-tauri-drag-region title="Lattice"><Mark /></div>
       <div className="titlebar-tabs">
         {ex.tabs.map((t) => (
           <div
