@@ -98,8 +98,60 @@ pub fn run_text_search(
     Ok(out)
 }
 
-/// Match files by name/path (case-insensitive substring, all terms). Files
-/// whose *name* matches rank above those matching only in the directory path.
+// --- Name-search ranking weights (tuning knobs; see the ranking formula). ---
+const W_EXACT_BASE: f64 = 6.0; // basename == query
+const W_PREFIX_BASE: f64 = 3.5; // basename starts with query
+const W_SUBSTR_BASE: f64 = 1.8; // query is a substring of the basename
+const W_EXACT_COMP: f64 = 3.0; // a *parent* path component == query
+const W_COMP_SUBSTR: f64 = 0.6; // query is a substring of a parent component
+const W_DIR: f64 = 1.2; // directory bonus
+const W_RECENCY: f64 = 0.7; // newer items get a small boost
+const W_DEPTH: f64 = 0.15; // per-component depth penalty (prefer shallower)
+// TODO(usage_frequency): needs an opens-counter table incremented on open.
+
+/// Score one candidate against the (already-lowercased) query terms, using the
+/// tokenized path components. Basename and parent-component signals are additive
+/// so `src/` (basename==query) outranks a file merely *inside* a `src` folder.
+fn name_score(path_str: &str, is_dir: bool, mtime: i64, terms: &[String], min_mtime: i64, max_mtime: i64) -> f64 {
+    let comps: Vec<String> = path_str
+        .split(['/', '\\'])
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_lowercase())
+        .collect();
+    let name = comps.last().cloned().unwrap_or_default();
+    let parents = &comps[..comps.len().saturating_sub(1)];
+
+    let mut score = 0.0;
+    for t in terms {
+        let base_exact = name == *t;
+        if base_exact {
+            score += W_EXACT_BASE;
+        } else if name.starts_with(t.as_str()) {
+            score += W_PREFIX_BASE + W_SUBSTR_BASE * (t.len() as f64 / name.len().max(1) as f64);
+        } else if name.contains(t.as_str()) {
+            score += W_SUBSTR_BASE * (t.len() as f64 / name.len().max(1) as f64);
+        }
+        // Parent-component match only matters when the basename isn't the exact hit.
+        if !base_exact {
+            if parents.iter().any(|c| c == t) {
+                score += W_EXACT_COMP;
+            } else if parents.iter().any(|c| c.contains(t.as_str())) {
+                score += W_COMP_SUBSTR;
+            }
+        }
+    }
+    if is_dir {
+        score += W_DIR;
+    }
+    if max_mtime > min_mtime {
+        score += W_RECENCY * ((mtime - min_mtime) as f64 / (max_mtime - min_mtime) as f64);
+    }
+    score - W_DEPTH * comps.len() as f64
+}
+
+/// Match files/folders by name/path and rank with a weighted, tokenized score
+/// (exact basename ≫ exact parent component ≫ substring; folders and recency
+/// nudged up; shallower paths win ties).
 pub fn run_name_search(
     conn: &Connection,
     input: &str,
@@ -115,36 +167,43 @@ pub fn run_name_search(
         .map(|_| "lower(path) LIKE ?")
         .collect::<Vec<_>>()
         .join(" AND ");
+    // Over-fetch a candidate pool (dirs + shorter paths first) then rank precisely.
     let sql = format!(
-        "SELECT DISTINCT path, is_dir FROM files WHERE {where_clause} LIMIT {}",
-        limit * 4
+        "SELECT DISTINCT path, is_dir, mtime FROM files WHERE {where_clause} \
+         ORDER BY is_dir DESC, length(path) ASC LIMIT 1000"
     );
     let like_params: Vec<String> = terms.iter().map(|t| format!("%{t}%")).collect();
 
     let mut stmt = conn.prepare(&sql)?;
     let rows = stmt.query_map(rusqlite::params_from_iter(like_params.iter()), |r| {
-        Ok((PathBuf::from(r.get::<_, String>(0)?), r.get::<_, i64>(1)? != 0))
+        Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)? != 0, r.get::<_, i64>(2)?))
     })?;
-    let mut hits: Vec<(PathBuf, bool)> = rows.collect::<Result<_, _>>()?;
+    let cands: Vec<(String, bool, i64)> = rows.collect::<Result<_, _>>()?;
 
-    // Rank filename matches first, then folders ahead of files.
-    hits.sort_by_cached_key(|(p, is_dir)| {
-        let name = p
-            .file_name()
-            .map(|n| n.to_string_lossy().to_lowercase())
-            .unwrap_or_default();
-        let in_name = terms.iter().all(|t| name.contains(t));
-        (u8::from(!in_name), u8::from(!*is_dir), name)
+    let min_mtime = cands.iter().map(|c| c.2).min().unwrap_or(0);
+    let max_mtime = cands.iter().map(|c| c.2).max().unwrap_or(0);
+
+    let mut scored: Vec<(f64, String, bool)> = cands
+        .into_iter()
+        .map(|(path, is_dir, mtime)| {
+            (name_score(&path, is_dir, mtime, &terms, min_mtime, max_mtime), path, is_dir)
+        })
+        .collect();
+    // Highest score first; shorter path breaks ties.
+    scored.sort_by(|a, b| {
+        b.0.partial_cmp(&a.0)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| a.1.len().cmp(&b.1.len()))
     });
 
-    Ok(hits
+    Ok(scored
         .into_iter()
         .take(limit)
-        .map(|(p, is_dir)| SearchHit {
-            file_path: p,
+        .map(|(score, path, is_dir)| SearchHit {
+            file_path: PathBuf::from(path),
             is_dir,
             snippet: String::new(),
-            score: 0.0,
+            score,
             char_start: 0,
         })
         .collect())
@@ -218,6 +277,30 @@ pub fn run_semantic_search(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::index::db;
+
+    #[test]
+    fn name_ranking_prefers_basename_and_shallow_dirs() {
+        let conn = db::open_in_memory().unwrap();
+        let cid = db::insert_collection(&conn, "D:/dev").unwrap();
+        let add = |path: &str, is_dir: bool| {
+            db::upsert_file(&conn, cid, path, 0, 0, 0, is_dir).unwrap();
+        };
+        add("D:/dev/aegis", true);
+        add("D:/dev/aegis/app/src", true);
+        add("D:/dev/aegis/app/src/main/java/com/example/aegis", true);
+        add("D:/dev/aegis/app/src/main/java/com/example/aegis/AegisApplication.kt", false);
+        add("D:/dev/other/src/deep/nested/thing.txt", false);
+
+        // "src": the src *folders* must outrank files merely inside a src path.
+        let hits = run_name_search(&conn, "src", 10).unwrap();
+        assert!(hits[0].is_dir, "top src hit should be a directory, got {:?}", hits[0].file_path);
+        assert_eq!(hits[0].file_path, PathBuf::from("D:/dev/aegis/app/src"), "shallow src dir first");
+
+        // "aegis": the shallow D:/dev/aegis dir should beat the deeper same-named dir.
+        let hits = run_name_search(&conn, "aegis", 10).unwrap();
+        assert_eq!(hits[0].file_path, PathBuf::from("D:/dev/aegis"), "shallow aegis dir first, got {:?}", hits[0].file_path);
+    }
 
     #[test]
     fn build_query_quotes_and_ands_tokens() {
