@@ -94,6 +94,10 @@ export const api = {
     if (!isTauri) return;
     return invoke("reveal", { path });
   },
+  async previewFile(path: string): Promise<Preview> {
+    if (!isTauri) return mockPreview(path);
+    return invoke<Preview>("preview_file", { path });
+  },
   async openUrl(url: string): Promise<void> {
     if (!isTauri) { window.open(url, "_blank"); return; }
     return invoke("open_url", { url });
@@ -121,6 +125,14 @@ export const api = {
     return invoke<AppMatch[]>("search_apps", { query });
   },
 };
+
+export interface Preview { text: string; truncated: boolean; }
+function mockPreview(path: string): Preview {
+  return {
+    text: `// ${path}\n// (browser preview — no backend)\nfunction hello() {\n  return "gist of the file shown on hover";\n}`,
+    truncated: true,
+  };
+}
 
 export interface AppMatch { name: string; path: string; }
 const MOCK_APPS = ["Google Chrome", "Visual Studio Code", "Spotify", "Discord", "Firefox", "Notion", "Terminal"];

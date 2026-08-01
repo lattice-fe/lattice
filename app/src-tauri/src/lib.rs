@@ -176,6 +176,50 @@ fn quit_app(app: AppHandle) {
     app.exit(0);
 }
 
+#[derive(Serialize)]
+struct PreviewDto { text: String, truncated: bool }
+
+/// Read the head of a text file for the hover-preview pane. Reads at most a few
+/// KB, rejects binary content (NUL byte in the head), and caps the result to a
+/// handful of lines so the gist stays cheap even for huge files.
+#[tauri::command]
+async fn preview_file(path: String) -> Result<PreviewDto, String> {
+    use std::io::Read;
+    const READ_BYTES: usize = 16 * 1024;
+    const MAX_LINES: usize = 60;
+    const MAX_CHARS: usize = 3000;
+
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut f = std::fs::File::open(&path).map_err(|e| e.to_string())?;
+        let mut buf = vec![0u8; READ_BYTES];
+        let n = f.read(&mut buf).map_err(|e| e.to_string())?;
+        buf.truncate(n);
+        if buf.iter().any(|b| *b == 0) {
+            return Err("not a text file".to_string());
+        }
+        let file_len = f.metadata().map(|m| m.len()).unwrap_or(0);
+
+        let full = String::from_utf8_lossy(&buf);
+        let mut text = String::new();
+        let mut truncated = (file_len as usize) > n;
+        for (i, line) in full.lines().enumerate() {
+            if i >= MAX_LINES || text.len() >= MAX_CHARS {
+                truncated = true;
+                break;
+            }
+            text.push_str(line);
+            text.push('\n');
+        }
+        if text.len() > MAX_CHARS {
+            text.truncate(MAX_CHARS);
+            truncated = true;
+        }
+        Ok(PreviewDto { text: text.trim_end().to_string(), truncated })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 // ---------- search + indexing ----------
 
 struct IndexState {
@@ -400,7 +444,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             list_dir, drives, quick_access, home_dir,
             new_folder, rename, copy_items, move_items, delete_items,
-            open_path, reveal, open_url, show_main_window, quit_app,
+            open_path, reveal, open_url, preview_file, show_main_window, quit_app,
             search, index_folder, reindex, remove_collection, set_semantic, collections,
             search_apps,
         ])

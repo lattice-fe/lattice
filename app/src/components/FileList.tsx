@@ -1,9 +1,11 @@
 import { useEffect, useRef } from "react";
 import { Explorer } from "../hooks/useExplorer";
+import { useHoverPreview } from "../hooks/useHoverPreview";
 import { Entry } from "../lib/api";
 import { Glyph, TONE } from "../lib/icons";
 import { fmtSize, fmtWhen, baseName } from "../lib/format";
 import { SortCol } from "../lib/sort";
+import { HoverPreview } from "./HoverPreview";
 
 function RenameField({ entry, ex }: { entry: Entry; ex: Explorer }) {
   const ref = useRef<HTMLInputElement>(null);
@@ -31,8 +33,11 @@ export function FileList({ ex }: { ex: Explorer }) {
   // because the first click re-renders (selection), which can make the browser
   // miss the pair. A timestamp ref is reliable across re-renders.
   const lastClick = useRef<{ path: string; t: number } | null>(null);
+  const hp = useHoverPreview();
 
   const rowProps = (e: Entry, i: number) => ({
+    onMouseEnter: (ev: React.MouseEvent) => hp.onEnter(e, ev.currentTarget as HTMLElement),
+    onMouseLeave: () => hp.onLeave(),
     onClick: (ev: React.MouseEvent) => {
       ev.stopPropagation();
       const mods = { ctrl: ev.ctrlKey || ev.metaKey, shift: ev.shiftKey };
@@ -57,7 +62,7 @@ export function FileList({ ex }: { ex: Explorer }) {
   );
 
   return (
-    <main className="panel" onClick={ex.clearSel} onContextMenu={(e) => { e.preventDefault(); ex.openContext(e.clientX, e.clientY, null); }}>
+    <main className="panel" onClick={ex.clearSel} onScroll={hp.onLeave} onContextMenu={(e) => { e.preventDefault(); ex.openContext(e.clientX, e.clientY, null); }}>
       <div className="hero">
         <div>
           <h1>{baseName(ex.path) || " "}</h1>
@@ -113,6 +118,8 @@ export function FileList({ ex }: { ex: Explorer }) {
           })}
         </div>
       )}
+
+      {hp.preview && <HoverPreview state={hp.preview} />}
     </main>
   );
 }
