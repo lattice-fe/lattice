@@ -36,7 +36,8 @@ export function FileList({ ex }: { ex: Explorer }) {
   const hp = useHoverPreview();
 
   const rowProps = (e: Entry, i: number) => ({
-    onMouseEnter: (ev: React.MouseEvent) => hp.onEnter(e, ev.currentTarget as HTMLElement),
+    onMouseEnter: (ev: React.MouseEvent) => hp.onEnter(e, ev),
+    onMouseMove: hp.onMove,
     onMouseLeave: () => hp.onLeave(),
     onClick: (ev: React.MouseEvent) => {
       ev.stopPropagation();

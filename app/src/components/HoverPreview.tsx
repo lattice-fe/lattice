@@ -1,31 +1,30 @@
 import { HoverState } from "../hooks/useHoverPreview";
 
 const PANE_W = 380;
-const GAP = 12;
-const EST_H = 300; // used only to keep the pane on-screen vertically
+const OFFSET = 18; // gap between cursor and pane
+const EDGE = 10; // min gap from viewport edges
+const EST_H = 300; // pane's max height (keeps it on-screen vertically)
 
-// A floating, non-interactive gist of the hovered file. Positioned beside the
-// row (flips to the left edge when there's no room on the right).
+// A floating, non-interactive preview anchored near the cursor. Flips to the
+// other side of the cursor when it would run off the right/bottom edge. The
+// actual content is produced by the matched preview strategy.
 export function HoverPreview({ state }: { state: HoverState }) {
-  const { rect } = state;
-  const flipLeft = rect.right + GAP + PANE_W > window.innerWidth;
-  const left = flipLeft ? Math.max(GAP, rect.left - GAP - PANE_W) : rect.right + GAP;
-  const top = Math.min(rect.top, Math.max(GAP, window.innerHeight - EST_H - GAP));
+  const { x, y, strategy } = state;
+
+  let left = x + OFFSET;
+  if (left + PANE_W > window.innerWidth - EDGE) left = Math.max(EDGE, x - OFFSET - PANE_W);
+  let top = y + OFFSET;
+  if (top + EST_H > window.innerHeight - EDGE) top = Math.max(EDGE, window.innerHeight - EST_H - EDGE);
 
   return (
     <div className="hoverprev" style={{ left, top, width: PANE_W }}>
       <div className="hoverprev-head">
-        <span className="hoverprev-name">{state.name}</span>
+        <span className="hoverprev-name">{state.entry.name}</span>
       </div>
-      {state.loading || !state.data ? (
+      {state.loading || state.data == null ? (
         <div className="hoverprev-loading"><span className="spinner" />Reading…</div>
-      ) : state.data.text.length === 0 ? (
-        <div className="hoverprev-empty">Empty file</div>
       ) : (
-        <>
-          <pre className="hoverprev-body">{state.data.text}</pre>
-          {state.data.truncated && <div className="hoverprev-more">…</div>}
-        </>
+        strategy.render(state.data)
       )}
     </div>
   );

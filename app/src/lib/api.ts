@@ -128,6 +128,12 @@ export const api = {
 
 export interface Preview { text: string; truncated: boolean; }
 function mockPreview(path: string): Preview {
+  if (path.endsWith(".md")) {
+    return {
+      text: `# ${path.split("/").pop()}\n\nA **gist** of the file, shown on hover.\n\n- rendered with react-markdown\n- browser preview — no backend\n\n\`\`\`ts\nfunction hello() { return "hi"; }\n\`\`\`\n`,
+      truncated: true,
+    };
+  }
   return {
     text: `// ${path}\n// (browser preview — no backend)\nfunction hello() {\n  return "gist of the file shown on hover";\n}`,
     truncated: true,

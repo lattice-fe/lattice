@@ -1,25 +1,26 @@
 import { useCallback, useRef, useState } from "react";
-import { api, Entry, Preview } from "../lib/api";
+import { Entry } from "../lib/api";
+import { pickStrategy, PreviewStrategy } from "../lib/preview/registry";
+import "../lib/preview/strategies"; // side-effect: registers the built-in strategies
 
 // How long the pointer must rest on a file before its preview appears. The
 // original sketch said 3–4s; that's long enough to feel broken, so this is
 // tuned to the usual "intentional hover" threshold. Bump it if you want lazier.
 const HOVER_DELAY_MS = 550;
 
-// Only text-like kinds are worth reading a gist from.
-const PREVIEWABLE = new Set(["code", "document"]);
-
 export interface HoverState {
-  path: string;
-  name: string;
-  rect: DOMRect;
-  data: Preview | null;
+  entry: Entry;
+  strategy: PreviewStrategy;
+  x: number; // cursor anchor at the moment the preview fired
+  y: number;
+  data: unknown | null;
   loading: boolean;
 }
 
 export interface HoverPreviewApi {
   preview: HoverState | null;
-  onEnter: (e: Entry, el: HTMLElement) => void;
+  onEnter: (e: Entry, ev: React.MouseEvent) => void;
+  onMove: (ev: React.MouseEvent) => void;
   onLeave: () => void;
 }
 
@@ -27,6 +28,7 @@ export function useHoverPreview(): HoverPreviewApi {
   const [preview, setPreview] = useState<HoverState | null>(null);
   const timer = useRef<number | null>(null);
   const reqId = useRef(0);
+  const pos = useRef({ x: 0, y: 0 });
 
   const cancelTimer = useCallback(() => {
     if (timer.current !== null) {
@@ -35,30 +37,34 @@ export function useHoverPreview(): HoverPreviewApi {
     }
   }, []);
 
+  const onMove = useCallback((ev: React.MouseEvent) => {
+    pos.current = { x: ev.clientX, y: ev.clientY };
+  }, []);
+
   const onLeave = useCallback(() => {
     cancelTimer();
-    reqId.current++; // invalidate any in-flight request
+    reqId.current++; // invalidate any in-flight load
     setPreview(null);
   }, [cancelTimer]);
 
   const onEnter = useCallback(
-    (e: Entry, el: HTMLElement) => {
+    (e: Entry, ev: React.MouseEvent) => {
       cancelTimer();
-      if (e.is_dir || !PREVIEWABLE.has(e.kind)) {
+      pos.current = { x: ev.clientX, y: ev.clientY };
+      const strategy = pickStrategy(e);
+      if (!strategy) {
         setPreview(null);
         return;
       }
-      const rect = el.getBoundingClientRect();
       timer.current = window.setTimeout(async () => {
         const id = ++reqId.current;
-        setPreview({ path: e.path, name: e.name, rect, data: null, loading: true });
+        const { x, y } = pos.current;
+        setPreview({ entry: e, strategy, x, y, data: null, loading: true });
         try {
-          const data = await api.previewFile(e.path);
-          if (reqId.current === id) {
-            setPreview({ path: e.path, name: e.name, rect, data, loading: false });
-          }
+          const data = await strategy.load(e);
+          if (reqId.current === id) setPreview({ entry: e, strategy, x, y, data, loading: false });
         } catch {
-          // Not readable as text (binary, gone, permission) — show nothing.
+          // Not previewable (binary, gone, permission) — show nothing.
           if (reqId.current === id) setPreview(null);
         }
       }, HOVER_DELAY_MS);
@@ -66,5 +72,5 @@ export function useHoverPreview(): HoverPreviewApi {
     [cancelTimer]
   );
 
-  return { preview, onEnter, onLeave };
+  return { preview, onEnter, onMove, onLeave };
 }
