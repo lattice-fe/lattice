@@ -39,6 +39,8 @@ export function FileList({ ex }: { ex: Explorer }) {
     onMouseEnter: (ev: React.MouseEvent) => hp.onEnter(e, ev),
     onMouseMove: hp.onMove,
     onMouseLeave: () => hp.onLeave(),
+    // middle-click a folder → open in a new tab
+    onMouseDown: (ev: React.MouseEvent) => { if (ev.button === 1 && e.is_dir) { ev.preventDefault(); hp.onLeave(); ex.newTab(e.path); } },
     onClick: (ev: React.MouseEvent) => {
       ev.stopPropagation();
       const mods = { ctrl: ev.ctrlKey || ev.metaKey, shift: ev.shiftKey };

@@ -85,10 +85,13 @@ unify with the sidecar's Next.js UI. **Skipped for now** at the user's request.
 - Cutover: retire the iced `src/`, merge `tauri-rewrite` → `master`, archive iced.
 - The "ship it" milestone — best once the feature set feels complete.
 
-### Phase 8 — Tabs 🚧 (active)
-Browser-style tabs in the explorer, each with independent navigation state.
-Highest UX value but the largest piece — it touches the core navigation state
-model (`useExplorer`), so it's a dedicated stretch.
+### Phase 8 — Tabs ✅
+Browser-style tabs in the explorer, each with its own navigation stack
+(history / path). `useExplorer` refactored to a per-tab model (selection,
+entries and view prefs follow the active tab). TabBar strip with new (+) and
+close (×), keep-at-least-one. Open in new tab via context menu or middle-click
+a folder; keyboard: Ctrl+T new, Ctrl+W close, Ctrl+Tab / Ctrl+Shift+Tab cycle.
+New tabs open at the current location.
 
 ### Phase 9 — Rich file previews / code viewer ⬜
 Full previews in the inspector pane (large images, text, markdown,

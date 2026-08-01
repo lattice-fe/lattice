@@ -5,15 +5,27 @@ import { parentOf } from "../lib/format";
 
 export interface Clipboard { paths: string[]; mode: "copy" | "cut"; }
 export interface Ctx { x: number; y: number; index: number | null; }
+// Each tab owns its own navigation stack; selection, entries and view
+// preferences follow the active tab.
+interface Tab { id: number; history: string[]; hi: number; }
 
 export function useExplorer() {
   const [raw, setRaw] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [history, setHistory] = useState<string[]>([]);
-  const [hi, setHi] = useState(-1);
+  const [tabs, setTabs] = useState<Tab[]>([]);
+  const [activeId, setActiveId] = useState(-1);
+  const nextId = useRef(1);
+  const homeRef = useRef("");
+  const activeTab = tabs.find((t) => t.id === activeId);
+  const history = activeTab?.history ?? [];
+  const hi = activeTab?.hi ?? -1;
   const path = hi >= 0 ? history[hi] : "";
+
+  const patchActive = useCallback((fn: (t: Tab) => Tab) => {
+    setTabs((ts) => ts.map((t) => (t.id === activeId ? fn(t) : t)));
+  }, [activeId]);
 
   const [sel, setSel] = useState<Set<string>>(new Set());
   const anchor = useRef<number | null>(null);
@@ -45,25 +57,62 @@ export function useExplorer() {
   // reload when path or hidden-toggle changes
   useEffect(() => { if (path) load(path); }, [path, showHidden, load]);
 
-  // initial: drives + quick access + home
+  // initial: drives + quick access + home (as the first tab)
   useEffect(() => {
     api.drives().then(setDrives).catch(() => {});
     api.quickAccess().then(setQuick).catch(() => {});
-    api.homeDir().then((h) => { setHistory([h]); setHi(0); });
+    api.homeDir().then((h) => {
+      homeRef.current = h;
+      const id = nextId.current++;
+      setTabs([{ id, history: [h], hi: 0 }]);
+      setActiveId(id);
+    });
   }, []);
 
   const navigate = useCallback((p: string) => {
     setSel(new Set());
     setCtx(null);
-    const trimmed = history.slice(0, hi + 1);
-    if (trimmed[trimmed.length - 1] === p) return;
-    const next = [...trimmed, p];
-    setHistory(next);
-    setHi(next.length - 1);
-  }, [history, hi]);
+    patchActive((t) => {
+      const trimmed = t.history.slice(0, t.hi + 1);
+      if (trimmed[trimmed.length - 1] === p) return t;
+      const next = [...trimmed, p];
+      return { ...t, history: next, hi: next.length - 1 };
+    });
+  }, [patchActive]);
 
-  const back = useCallback(() => { if (hi > 0) { setSel(new Set()); setHi(hi - 1); } }, [hi]);
-  const forward = useCallback(() => { if (hi < history.length - 1) { setSel(new Set()); setHi(hi + 1); } }, [hi, history.length]);
+  const back = useCallback(() => { setSel(new Set()); patchActive((t) => (t.hi > 0 ? { ...t, hi: t.hi - 1 } : t)); }, [patchActive]);
+  const forward = useCallback(() => { setSel(new Set()); patchActive((t) => (t.hi < t.history.length - 1 ? { ...t, hi: t.hi + 1 } : t)); }, [patchActive]);
+
+  // --- tabs ---
+  const newTab = useCallback((p?: string) => {
+    const start = p || path || homeRef.current;
+    if (!start) return;
+    const id = nextId.current++;
+    setTabs((ts) => [...ts, { id, history: [start], hi: 0 }]);
+    setActiveId(id);
+    setSel(new Set());
+    setCtx(null);
+  }, [path]);
+
+  const selectTab = useCallback((id: number) => {
+    setActiveId(id);
+    setSel(new Set());
+    setCtx(null);
+  }, []);
+
+  const closeTab = useCallback((id: number) => {
+    if (tabs.length <= 1) return; // always keep one tab
+    const idx = tabs.findIndex((t) => t.id === id);
+    const next = tabs.filter((t) => t.id !== id);
+    setTabs(next);
+    if (id === activeId) {
+      setActiveId(next[Math.min(idx, next.length - 1)].id);
+      setSel(new Set());
+      setCtx(null);
+    }
+  }, [tabs, activeId]);
+
+  const tabList = useMemo(() => tabs.map((t) => ({ id: t.id, path: t.history[t.hi] ?? "" })), [tabs]);
   const up = useCallback(() => { const par = parentOf(path); if (par) navigate(par); }, [path, navigate]);
   const refresh = useCallback(() => load(path), [path, load]);
 
@@ -145,6 +194,7 @@ export function useExplorer() {
     path, entries, loading, error, drives, quick,
     canBack: hi > 0, canForward: hi < history.length - 1, canUp: !!parentOf(path),
     sel, selectedEntries, sort, view, showHidden, clipboard, renaming, ctx,
+    tabs: tabList, activeTabId: activeId, newTab, closeTab, selectTab,
     navigate, back, forward, up, refresh,
     selectAt, clearSel, selectAll, openEntry, setSort,
     toggleView: () => setView((v) => (v === "list" ? "grid" : "list")),

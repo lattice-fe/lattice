@@ -6,6 +6,7 @@ import { useIndexer } from "./hooks/useIndexer";
 import { IndexStatus } from "./components/IndexStatus";
 import { Settings } from "./components/Settings";
 import { TopBar } from "./components/TopBar";
+import { TabBar } from "./components/TabBar";
 import { Sidebar } from "./components/Sidebar";
 import { FileList } from "./components/FileList";
 import { SearchResults } from "./components/SearchResults";
@@ -40,6 +41,15 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       const ctrl = e.ctrlKey || e.metaKey;
       if (ctrl && e.key === "f") { e.preventDefault(); document.querySelector<HTMLInputElement>(".search input")?.focus(); return; }
+      if (ctrl && e.key === "t") { e.preventDefault(); ex.newTab(); return; }
+      if (ctrl && e.key === "w") { e.preventDefault(); ex.closeTab(ex.activeTabId); return; }
+      if (ctrl && e.key === "Tab" && ex.tabs.length > 1) {
+        e.preventDefault();
+        const i = ex.tabs.findIndex((t) => t.id === ex.activeTabId);
+        const n = ex.tabs.length;
+        ex.selectTab(ex.tabs[e.shiftKey ? (i - 1 + n) % n : (i + 1) % n].id);
+        return;
+      }
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       const only = ex.selectedEntries[0];
       if (ctrl && e.key === "a") { e.preventDefault(); ex.selectAll(); }
@@ -61,6 +71,7 @@ export default function App() {
 
   return (
     <div className="app">
+      <TabBar ex={ex} />
       <TopBar ex={ex} s={s} onSettings={() => setSettingsOpen(true)} />
       <div className="body">
         <Sidebar ex={ex} />
