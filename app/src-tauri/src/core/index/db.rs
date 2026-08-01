@@ -168,10 +168,15 @@ pub fn list_collections(conn: &Connection) -> rusqlite::Result<Vec<CollectionInf
 /// Remove a collection and all of its indexed data, including the virtual-table
 /// rows (FTS5/vec0 aren't covered by foreign-key cascade, so clean them first).
 pub fn delete_collection(conn: &Connection, id: i64) -> rusqlite::Result<()> {
-    let chunk_ids = collection_chunk_ids(conn, id)?;
-    delete_chunk_index_rows(conn, &chunk_ids)?;
-    conn.execute("DELETE FROM collections WHERE id = ?1", [id])?; // cascades files+chunks
-    Ok(())
+    // `chunk_fts.chunk_id` is UNINDEXED, so deleting per-chunk is a full FTS scan
+    // each time (O(n²) — hangs for big collections). One subquery delete scans
+    // each virtual table once.
+    let sub = "SELECT c.id FROM chunks c JOIN files f ON f.id = c.file_id WHERE f.collection_id = ?1";
+    let tx = conn.unchecked_transaction()?;
+    tx.execute(&format!("DELETE FROM chunk_fts WHERE chunk_id IN ({sub})"), [id])?;
+    tx.execute(&format!("DELETE FROM vec_chunks WHERE rowid IN ({sub})"), [id])?;
+    tx.execute("DELETE FROM collections WHERE id = ?1", [id])?; // cascades files + chunks
+    tx.commit()
 }
 
 /// Whether a collection has semantic (embedding) indexing enabled.
@@ -299,16 +304,15 @@ fn delete_chunk_index_rows(conn: &Connection, chunk_ids: &[i64]) -> rusqlite::Re
     if chunk_ids.is_empty() {
         return Ok(());
     }
-    // One transaction with reused prepared statements — otherwise each DELETE is
-    // its own WAL-fsync'd transaction, which hangs for large collections.
+    // One IN-list delete per virtual table (single scan). Per-chunk deletes scan
+    // the whole FTS each time (chunk_id is UNINDEXED) — O(n²). Chunk lists here are
+    // per-file (small), well under SQLite's parameter limit.
     let tx = conn.unchecked_transaction()?;
-    {
-        let mut del_fts = tx.prepare("DELETE FROM chunk_fts WHERE chunk_id = ?1")?;
-        let mut del_vec = tx.prepare("DELETE FROM vec_chunks WHERE rowid = ?1")?;
-        for id in chunk_ids {
-            del_fts.execute([id])?;
-            del_vec.execute([id])?;
-        }
+    for batch in chunk_ids.chunks(512) {
+        let placeholders = batch.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        let params: Vec<&dyn rusqlite::ToSql> = batch.iter().map(|id| id as &dyn rusqlite::ToSql).collect();
+        tx.execute(&format!("DELETE FROM chunk_fts WHERE chunk_id IN ({placeholders})"), params.as_slice())?;
+        tx.execute(&format!("DELETE FROM vec_chunks WHERE rowid IN ({placeholders})"), params.as_slice())?;
     }
     tx.commit()
 }
@@ -347,6 +351,40 @@ pub fn insert_embedding(conn: &Connection, chunk_id: i64, vector: &[f32]) -> rus
 mod tests {
     use super::*;
     use rusqlite::params;
+
+    #[test]
+    fn delete_collection_scale() {
+        use std::time::Instant;
+        let conn = open_in_memory().unwrap();
+        let cid = insert_collection(&conn, "C:/big").unwrap();
+        let files = 5000i64;
+        let chunks_per = 10i64; // 50k chunks
+        let emb = vec![0.05f32; EMBED_DIM];
+        let semantic = std::env::var("SCALE_SEMANTIC").is_ok(); // off by default (matches D:)
+
+        let t0 = Instant::now();
+        for f in 0..files {
+            let fid = upsert_file(&conn, cid, &format!("C:/big/f{f}.txt"), 0, 0, 0, false).unwrap();
+            for c in 0..chunks_per {
+                let ch = insert_chunk(&conn, fid, c, 0, 5, "hello world sample text here").unwrap();
+                if semantic { insert_embedding(&conn, ch, &emb).unwrap(); }
+            }
+        }
+        let n: i64 = conn.query_row("SELECT count(*) FROM chunks", [], |r| r.get(0)).unwrap();
+        eprintln!("[scale] setup {n} chunks in {:?}", t0.elapsed());
+
+        // The real path the worker takes.
+        let t1 = Instant::now();
+        delete_collection(&conn, cid).unwrap();
+        let elapsed = t1.elapsed();
+        eprintln!("[scale] delete_collection in {:?}", elapsed);
+
+        let left: i64 = conn.query_row("SELECT count(*) FROM chunks", [], |r| r.get(0)).unwrap();
+        let fts: i64 = conn.query_row("SELECT count(*) FROM chunk_fts", [], |r| r.get(0)).unwrap();
+        assert_eq!(left, 0, "chunks not deleted");
+        assert_eq!(fts, 0, "fts rows not deleted");
+        assert!(elapsed.as_secs() < 30, "delete_collection too slow: {elapsed:?}");
+    }
 
     #[test]
     fn schema_applies_and_sqlite_vec_loads() {
