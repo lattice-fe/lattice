@@ -368,6 +368,20 @@ body.is-spotlight #root { padding: 16px; }
 .prev-md table { border-collapse: collapse; font-size: 11px; }
 .prev-md th, .prev-md td { border: 1px solid var(--border); padding: 3px 7px; }
 
+/* highlight.js theme mapped to the Ink palette (code preview + md fences) */
+.hljs { color: var(--paper-dim); background: transparent; }
+.hljs-comment, .hljs-quote { color: var(--dim-2); font-style: italic; }
+.hljs-keyword, .hljs-selector-tag, .hljs-literal, .hljs-doctag, .hljs-name { color: var(--terracotta); }
+.hljs-string, .hljs-regexp, .hljs-addition, .hljs-meta .hljs-string { color: var(--teal); }
+.hljs-number, .hljs-meta, .hljs-symbol, .hljs-bullet, .hljs-link { color: var(--amber); }
+.hljs-title, .hljs-title.function_, .hljs-section, .hljs-attr, .hljs-attribute, .hljs-selector-id, .hljs-selector-class { color: var(--amber); }
+.hljs-built_in, .hljs-type, .hljs-class .hljs-title, .hljs-title.class_, .hljs-params { color: var(--teal); }
+.hljs-variable, .hljs-template-variable, .hljs-property, .hljs-selector-attr { color: var(--paper-dim); }
+.hljs-tag { color: var(--dim); }
+.hljs-deletion { color: var(--terracotta); }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: 600; }
+
 /* settings modal + collections manager */
 .modal-backdrop { position: fixed; inset: 0; z-index: 80; background: rgba(10, 8, 6, 0.5); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; animation: ov-in 0.14s ease; }
 @keyframes ov-in { from { opacity: 0; } to { opacity: 1; } }

@@ -4,7 +4,7 @@
     {
       "name": "lattice-vite",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": ["--prefix", "app", "run", "dev"],
       "port": 1420
     }
   ]
