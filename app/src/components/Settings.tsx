@@ -40,10 +40,10 @@ export function Settings({ ex, ind, onClose }: { ex: Explorer; ind: Indexer; onC
                 <button
                   className={"chip-toggle" + (c.semantic ? " on" : "")}
                   title={c.semantic ? "Semantic search on" : "Semantic search off"}
-                  onClick={() => api.setSemantic(c.id, !c.semantic)}
+                  onClick={() => { api.setSemantic(c.id, !c.semantic); setTimeout(ind.refresh, 300); }}
                 >semantic</button>
-                <button className="coll-btn" title="Reindex" onClick={() => api.reindex(c.id)}>↻</button>
-                <button className="coll-btn danger" title="Remove from index" onClick={() => api.removeCollection(c.id)}>×</button>
+                <button className="coll-btn" title="Reindex" onClick={() => { api.reindex(c.id); setTimeout(ind.refresh, 300); }}>↻</button>
+                <button className="coll-btn danger" title="Remove from index" onClick={() => { api.removeCollection(c.id); setTimeout(ind.refresh, 400); }}>×</button>
               </div>
             ))}
           </div>

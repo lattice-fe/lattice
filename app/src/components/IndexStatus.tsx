@@ -2,7 +2,7 @@ import { Indexer } from "../hooks/useIndexer";
 import { baseName } from "../lib/format";
 
 export function IndexStatus({ ind }: { ind: Indexer }) {
-  const { progress, status, done } = ind;
+  const { progress, status, done, indexing } = ind;
 
   if (progress) {
     const pct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
@@ -19,5 +19,7 @@ export function IndexStatus({ ind }: { ind: Indexer }) {
   }
   if (done) return <div className="index-toast done"><span className="it-check">✓</span>&nbsp;Indexed {done.total} files</div>;
   if (status) return <div className="index-toast"><span className="spinner" />{status}</div>;
+  // fallback: polled status says a folder is indexing but no progress event arrived
+  if (indexing) return <div className="index-toast"><span className="spinner" />&nbsp;Indexing {baseName(indexing.root)}…</div>;
   return null;
 }

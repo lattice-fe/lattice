@@ -204,6 +204,7 @@ fn search(state: State<IndexState>, seq: u64, query: String, mode: String) -> Re
 
 #[tauri::command]
 fn index_folder(state: State<IndexState>, path: String) -> Result<(), String> {
+    eprintln!("[cmd] index_folder {path}");
     send_cmd(&state, Command::AddCollection(PathBuf::from(path)))
 }
 
@@ -380,15 +381,17 @@ pub fn run() {
                     match ev {
                         Collections(list) => {
                             *collections.lock().unwrap() = list.clone();
+                            eprintln!("[fwd] index:collections ({} items)", list.len());
                             let _ = handle.emit("index:collections", &list);
                         }
                         Progress { collection, done, total, current } => {
+                            eprintln!("[fwd] index:progress {done}/{total}");
                             let _ = handle.emit("index:progress", ProgressDto { collection, done, total, current });
                         }
-                        Indexed(id) => { let _ = handle.emit("index:indexed", id); }
-                        Results { seq, hits } => { let _ = handle.emit("index:results", ResultsDto { seq, hits }); }
-                        Status(s) => { let _ = handle.emit("index:status", s); }
-                        Error(e) => { let _ = handle.emit("index:error", e); }
+                        Indexed(id) => { eprintln!("[fwd] index:indexed {id}"); let _ = handle.emit("index:indexed", id); }
+                        Results { seq, hits } => { eprintln!("[fwd] index:results seq={seq} ({} hits)", hits.len()); let _ = handle.emit("index:results", ResultsDto { seq, hits }); }
+                        Status(s) => { eprintln!("[fwd] index:status {s:?}"); let _ = handle.emit("index:status", s); }
+                        Error(e) => { eprintln!("[fwd] index:error {e}"); let _ = handle.emit("index:error", e); }
                     }
                 }
             });
