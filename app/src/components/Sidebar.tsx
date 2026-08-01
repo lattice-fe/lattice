@@ -29,11 +29,6 @@ export function Sidebar({ ex }: { ex: Explorer }) {
           </button>
         ))}
       </div>
-
-      <div className="storage">
-        <div className="storage-top"><b>{ex.drives[0]?.display ?? "Local Disk"}</b><span>free</span></div>
-        <div className="meter"><i style={{ width: "62%" }} /></div>
-      </div>
     </aside>
   );
 }

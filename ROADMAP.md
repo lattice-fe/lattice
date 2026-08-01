@@ -85,7 +85,7 @@ unify with the sidecar's Next.js UI. **Skipped for now** at the user's request.
 - Cutover: retire the iced `src/`, merge `tauri-rewrite` → `master`, archive iced.
 - The "ship it" milestone — best once the feature set feels complete.
 
-### Phase 8 — Tabs ⬜
+### Phase 8 — Tabs 🚧 (active)
 Browser-style tabs in the explorer, each with independent navigation state.
 Highest UX value but the largest piece — it touches the core navigation state
 model (`useExplorer`), so it's a dedicated stretch.
@@ -110,16 +110,21 @@ host for the theme picker from Phase 11.
 - **Theme system** — palettes as swappable data (tokens), not code, selected
   from the Appearance pane (Phase 10).
 - **Bring-your-own themes** — let users supply and share their own palettes.
+- **Spotlight acrylic / mica blur** — native Windows `windowEffects` for a true
+  frosted-desktop backdrop (CSS blur doesn't blur the desktop). Deferred here to
+  land alongside the theming work rather than as a one-off.
 
 ---
 
 ## Smaller enhancements
 
-- **`?` prefix — open full URLs directly** ⬜ — if the Spotlight query is a full
-  URL, open it in the browser instead of running a Google search.
+- **`?` prefix — open full URLs directly** ✅ — a full URL / `www.` / domain+path /
+  bare domain with a known TLD opens in the browser; everything else (incl.
+  `node.js`, dotted search terms) still Google-searches.
+- **Remove drive size indicator** ✅ — dropped the sidebar storage meter (it was a
+  hardcoded placeholder).
 - **Spotlight scrollbar** ⬜ — style it to match the main app's scrollbar (visual
   consistency between the two windows).
-- **Remove drive size indicator** ⬜ — drop the sidebar storage meter for now.
 - **Pin folders to Quick Access** ⬜ — let users pin arbitrary folders into the
   sidebar's Quick Access list.
 - **Folder hover preview** ⬜ (design TBD) — folders should get a hover preview
@@ -127,9 +132,6 @@ host for the theme picker from Phase 11.
   (feels distracting); a peek at the first few child items is a candidate.
 - **Usage-frequency ranking** ⬜ — the `w6` weight in the search ranking formula.
   Needs a small opens-counter table so frequently-opened files rank higher.
-- **Spotlight acrylic / mica blur** ⬜ — native Windows `windowEffects` for a
-  true frosted-desktop backdrop (CSS blur doesn't blur the desktop). Small,
-  high-polish.
 - **Restart needed for images** 🚧 — the `assetProtocol` config change requires a
   `tauri dev` restart to take effect; then verify `.png/.jpg` hover previews.
 

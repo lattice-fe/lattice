@@ -7,6 +7,7 @@ import { AppMatch, Kind, api, isTauri, SearchMode } from "../lib/api";
 import { baseName, parentOf } from "../lib/format";
 import { Glyph, TONE, kindOf } from "../lib/icons";
 import { calc, fmtNum } from "../lib/math";
+import { asUrl, webSearchUrl } from "../lib/url";
 
 const MODES: SearchMode[] = ["name", "text", "semantic"];
 type Mode = "default" | "apps" | "files" | "web" | "math" | "commands";
@@ -17,7 +18,7 @@ type Item =
   | { kind: "app"; name: string; path: string }
   | { kind: "file"; name: string; sub: string; path: string; k: Kind; isDir: boolean }
   | { kind: "math"; value: number }
-  | { kind: "web"; term: string }
+  | { kind: "web"; term: string; url: string | null }
   | { kind: "command"; name: string; sub: string; run: () => void };
 
 const AppIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>);
@@ -85,7 +86,7 @@ export function Spotlight() {
 
   const items: Item[] = useMemo(() => {
     if (mode === "math") { const v = calc(term); return v != null ? [{ kind: "math", value: v }] : []; }
-    if (mode === "web") return term.trim() ? [{ kind: "web", term: term.trim() }] : [];
+    if (mode === "web") { const q = term.trim(); return q ? [{ kind: "web", term: q, url: asUrl(q) }] : []; }
     if (mode === "commands") return commands.filter((c) => c.name.toLowerCase().includes(term.toLowerCase())).map((c) => ({ kind: "command", name: c.name, sub: c.sub, run: c.run }));
     const a: Item[] = mode === "default" || mode === "apps" ? apps.map((x) => ({ kind: "app", name: x.name, path: x.path })) : [];
     const f: Item[] = mode === "default" || mode === "files"
@@ -99,7 +100,7 @@ export function Spotlight() {
   const run = (it: Item) => {
     if (it.kind === "app") api.openPath(it.path);
     else if (it.kind === "file") { if (it.isDir) { fire("spotlight:navigate", it.path); api.showMain(); } else api.openPath(it.path); }
-    else if (it.kind === "web") api.openUrl(`https://www.google.com/search?q=${encodeURIComponent(it.term)}`);
+    else if (it.kind === "web") api.openUrl(it.url ?? webSearchUrl(it.term));
     else if (it.kind === "math") navigator.clipboard?.writeText(String(it.value)).catch(() => {});
     else if (it.kind === "command") it.run();
     hide();
@@ -141,7 +142,7 @@ export function Spotlight() {
               let tile: React.ReactNode, bg = "#26221d", fg = "#a99f8e", name = "", sub = "";
               if (it.kind === "app") { tile = <AppIcon />; bg = "#331f14"; fg = "#d8794a"; name = it.name; sub = "Application"; }
               else if (it.kind === "file") { tile = <Glyph kind={it.k} />; bg = TONE[it.k].bg; fg = TONE[it.k].fg; name = it.name; sub = it.sub; }
-              else if (it.kind === "web") { tile = <WebIcon />; bg = "#22271f"; fg = "#9db98a"; name = `Search the web for “${it.term}”`; sub = "Opens in your browser"; }
+              else if (it.kind === "web") { tile = <WebIcon />; bg = "#22271f"; fg = "#9db98a"; name = it.url ? `Open ${it.url}` : `Search the web for “${it.term}”`; sub = "Opens in your browser"; }
               else if (it.kind === "math") { tile = <EqIcon />; bg = "#33260f"; fg = "#E2A64C"; name = fmtNum(it.value); sub = "Copy to clipboard"; }
               else { tile = <CmdIcon />; bg = "#282132"; fg = "#b199d6"; name = it.name; sub = it.sub; }
               return (
