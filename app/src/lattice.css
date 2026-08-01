@@ -387,10 +387,19 @@ body.is-spotlight #root { padding: 16px; }
 .hljs-emphasis { font-style: italic; }
 .hljs-strong { font-weight: 600; }
 
+/* custom titlebar (native decorations disabled) — tabs + window controls */
+.titlebar { display: flex; align-items: stretch; height: 40px; background: var(--ink); user-select: none; }
+.titlebar-tabs { display: flex; align-items: flex-end; gap: 3px; padding: 0 6px 0 10px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.titlebar-tabs::-webkit-scrollbar { height: 0; }
+.titlebar-drag { flex: 1; align-self: stretch; }
+.winctrls { display: flex; align-self: stretch; }
+.winctrl { width: 46px; display: grid; place-items: center; color: var(--dim); transition: background 0.12s ease, color 0.12s ease; }
+.winctrl:hover { background: var(--card); color: var(--paper); }
+.winctrl:active { background: var(--card-hi); }
+.winctrl.close:hover { background: #c0392b; color: #fff; }
+.winctrl.close:active { background: #a5331f; }
+
 /* explorer tabs */
-.tabbar { display: flex; align-items: flex-end; gap: 6px; padding: 6px 10px 0; background: var(--ink); flex: none; }
-.tabs { display: flex; align-items: flex-end; gap: 3px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; }
-.tabs::-webkit-scrollbar { height: 0; }
 .tab {
   display: flex; align-items: center; gap: 8px;
   min-width: 108px; max-width: 190px; height: 34px; padding: 0 6px 0 12px;

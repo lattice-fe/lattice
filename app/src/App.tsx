@@ -6,7 +6,7 @@ import { useIndexer } from "./hooks/useIndexer";
 import { IndexStatus } from "./components/IndexStatus";
 import { Settings } from "./components/Settings";
 import { TopBar } from "./components/TopBar";
-import { TabBar } from "./components/TabBar";
+import { TitleBar } from "./components/TitleBar";
 import { Sidebar } from "./components/Sidebar";
 import { FileList } from "./components/FileList";
 import { SearchResults } from "./components/SearchResults";
@@ -71,8 +71,8 @@ export default function App() {
 
   return (
     <div className="app">
+      <TitleBar ex={ex} />
       <TopBar ex={ex} s={s} onSettings={() => setSettingsOpen(true)} />
-      <TabBar ex={ex} />
       <div className="body">
         <Sidebar ex={ex} />
         {s.active ? <SearchResults s={s} ex={ex} /> : <FileList ex={ex} />}
