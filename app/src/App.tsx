@@ -71,8 +71,8 @@ export default function App() {
 
   return (
     <div className="app">
-      <TabBar ex={ex} />
       <TopBar ex={ex} s={s} onSettings={() => setSettingsOpen(true)} />
+      <TabBar ex={ex} />
       <div className="body">
         <Sidebar ex={ex} />
         {s.active ? <SearchResults s={s} ex={ex} /> : <FileList ex={ex} />}

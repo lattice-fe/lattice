@@ -117,6 +117,23 @@ host for the theme picker from Phase 11.
   frosted-desktop backdrop (CSS blur doesn't blur the desktop). Deferred here to
   land alongside the theming work rather than as a one-off.
 
+### Phase 12 — Multi-window & drag-and-drop ⬜
+Viability notes (Tauri v2), easiest → hardest:
+- **New window (Ctrl+N)** — spawn additional explorer windows. **Easy / low
+  risk**: multi-window is already in use (main + spotlight); each window runs its
+  own explorer state, backend + index DB are shared. Just a builder + command.
+- **File drag-drop** — dropping files onto a Lattice window (from Explorer,
+  other apps, or another Lattice window) via Tauri's native drag-drop events →
+  copy/move. Dropping *in* is well-supported; dragging files *out* of the webview
+  needs a native-drag plugin (e.g. `tauri-plugin-drag`). **Medium.**
+- **Tab tear-out** — drag a tab out to spawn its own window (seeded with that
+  tab's history), and drag a tab between windows. **Viable but fiddliest**:
+  separate OS windows have separate webviews, so HTML5 drag can't cross them —
+  synthesize it via pointer tracking + a backend "spawn window with state"
+  command + close-source. State transfer is trivial (a tab is just
+  `{history, hi}` — already serializable thanks to the Phase 8 refactor); the
+  drag interaction is the real work. **Medium-hard.**
+
 ---
 
 ## Smaller enhancements

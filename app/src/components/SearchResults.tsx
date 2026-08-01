@@ -1,8 +1,10 @@
 import { Search } from "../hooks/useSearch";
 import { Explorer } from "../hooks/useExplorer";
-import { api } from "../lib/api";
+import { api, SearchMode } from "../lib/api";
 import { baseName, parentOf } from "../lib/format";
 import { Glyph, TONE, kindOf } from "../lib/icons";
+
+const MODES: SearchMode[] = ["name", "text", "semantic"];
 
 export function SearchResults({ s, ex }: { s: Search; ex: Explorer }) {
   const body = () => {
@@ -45,7 +47,12 @@ export function SearchResults({ s, ex }: { s: Search; ex: Explorer }) {
           <h1>Search</h1>
           <div className="meta">
             {s.searching && s.results.length === 0 ? "searching…" : `${s.results.length} result${s.results.length === 1 ? "" : "s"}`}
-            {" · "}<span style={{ color: "var(--terracotta)" }}>{s.mode}</span>
+            {" · "}
+            <span className="mode-switch">
+              {MODES.map((m) => (
+                <button key={m} className={"mode-mini" + (s.mode === m ? " on" : "")} onClick={() => s.setMode(m)}>{m}</button>
+              ))}
+            </span>
           </div>
         </div>
       </div>

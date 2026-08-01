@@ -259,6 +259,11 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .mode { padding: 5px 11px; border-radius: 7px; font-size: 12px; color: var(--dim); text-transform: capitalize; transition: background 0.14s ease, color 0.14s ease; }
 .mode:hover { color: var(--paper); }
 .mode.on { background: var(--card-hi); color: var(--amber); }
+/* inline mode switcher in the search-results header */
+.mode-switch { display: inline-flex; gap: 4px; vertical-align: middle; }
+.mode-mini { font-size: 12px; text-transform: capitalize; color: var(--dim); padding: 1px 8px; border-radius: 6px; transition: background 0.12s ease, color 0.12s ease; }
+.mode-mini:hover { color: var(--paper); }
+.mode-mini.on { color: var(--amber); background: var(--card-hi); }
 .search-x { color: var(--dim); font-size: 17px; line-height: 1; padding: 0 2px; transition: color 0.12s ease; }
 .search-x:hover { color: var(--paper); }
 
