@@ -296,11 +296,21 @@ pub fn clear_file_chunks(conn: &Connection, file_id: i64) -> rusqlite::Result<()
 }
 
 fn delete_chunk_index_rows(conn: &Connection, chunk_ids: &[i64]) -> rusqlite::Result<()> {
-    for id in chunk_ids {
-        conn.execute("DELETE FROM chunk_fts WHERE chunk_id = ?1", [id])?;
-        conn.execute("DELETE FROM vec_chunks WHERE rowid = ?1", [id])?;
+    if chunk_ids.is_empty() {
+        return Ok(());
     }
-    Ok(())
+    // One transaction with reused prepared statements — otherwise each DELETE is
+    // its own WAL-fsync'd transaction, which hangs for large collections.
+    let tx = conn.unchecked_transaction()?;
+    {
+        let mut del_fts = tx.prepare("DELETE FROM chunk_fts WHERE chunk_id = ?1")?;
+        let mut del_vec = tx.prepare("DELETE FROM vec_chunks WHERE rowid = ?1")?;
+        for id in chunk_ids {
+            del_fts.execute([id])?;
+            del_vec.execute([id])?;
+        }
+    }
+    tx.commit()
 }
 
 /// Insert one chunk (metadata + FTS text) and return its id.
