@@ -144,6 +144,20 @@ Viability notes (Tauri v2), easiest → hardest:
   `{history, hi}` — already serializable thanks to the Phase 8 refactor); the
   drag interaction is the real work. **Medium-hard.**
 
+### Phase 13 — Smart views 🚧
+Content-adaptive file views that reuse the hover-preview strategy engine.
+- **Adaptive Cards view** ✅ — a third view toggle (list · grid · cards). Each
+  tile renders by content: images → thumbnail (asset protocol), code/text →
+  syntax-highlighted first-lines peek, everything else → its icon. Tiles are
+  **lazy-loaded** (IntersectionObserver, 300px margin) so big folders don't read
+  or decode everything up front.
+- **Smart nudge** ⬜ — a small, dismissible corner suggestion when a folder is
+  image/code-heavy ("mostly images — view as Cards?"). Detection is a cheap
+  one-pass count over entry `kind`s (no I/O). Show once per folder, remember
+  dismissal, never re-nag.
+- **Later** — per-folder view memory; folder tiles showing a peek of contents;
+  concurrency cap on peek loads for very large folders.
+
 ---
 
 ## Smaller enhancements

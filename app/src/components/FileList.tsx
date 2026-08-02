@@ -6,6 +6,7 @@ import { Glyph, TONE } from "../lib/icons";
 import { fmtSize, fmtWhen, baseName } from "../lib/format";
 import { SortCol } from "../lib/sort";
 import { HoverPreview } from "./HoverPreview";
+import { FileCard } from "./FileCard";
 
 function RenameField({ entry, ex }: { entry: Entry; ex: Explorer }) {
   const ref = useRef<HTMLInputElement>(null);
@@ -35,10 +36,8 @@ export function FileList({ ex }: { ex: Explorer }) {
   const lastClick = useRef<{ path: string; t: number } | null>(null);
   const hp = useHoverPreview();
 
-  const rowProps = (e: Entry, i: number) => ({
-    onMouseEnter: (ev: React.MouseEvent) => hp.onEnter(e, ev),
-    onMouseMove: hp.onMove,
-    onMouseLeave: () => hp.onLeave(),
+  // select / open / context — shared by rows and cards
+  const interactProps = (e: Entry, i: number) => ({
     // middle-click a folder → open in a new tab
     onMouseDown: (ev: React.MouseEvent) => { if (ev.button === 1 && e.is_dir) { ev.preventDefault(); hp.onLeave(); ex.newTab(e.path); } },
     onClick: (ev: React.MouseEvent) => {
@@ -58,6 +57,13 @@ export function FileList({ ex }: { ex: Explorer }) {
     },
     onContextMenu: (ev: React.MouseEvent) => { ev.preventDefault(); ev.stopPropagation(); if (!sel.has(e.path)) ex.selectAt(i, { ctrl: false, shift: false }); ex.openContext(ev.clientX, ev.clientY, i); },
   });
+  // rows/grid also drive the hover-preview; cards render their own content so they don't
+  const rowProps = (e: Entry, i: number) => ({
+    onMouseEnter: (ev: React.MouseEvent) => hp.onEnter(e, ev),
+    onMouseMove: hp.onMove,
+    onMouseLeave: () => hp.onLeave(),
+    ...interactProps(e, i),
+  });
 
   const SortHead = ({ col, label, cls = "" }: { col: SortCol; label: string; cls?: string }) => (
     <span className={"s " + cls} onClick={() => ex.setSort(col)}>
@@ -74,11 +80,14 @@ export function FileList({ ex }: { ex: Explorer }) {
         </div>
         <div className="grow" />
         <div className="viewtoggle">
-          <button className={view === "list" ? "on" : ""} title="List" onClick={(e) => { e.stopPropagation(); if (view !== "list") ex.toggleView(); }}>
+          <button className={view === "list" ? "on" : ""} title="List" onClick={(e) => { e.stopPropagation(); ex.setView("list"); }}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg>
           </button>
-          <button className={view === "grid" ? "on" : ""} title="Grid" onClick={(e) => { e.stopPropagation(); if (view !== "grid") ex.toggleView(); }}>
+          <button className={view === "grid" ? "on" : ""} title="Grid" onClick={(e) => { e.stopPropagation(); ex.setView("grid"); }}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>
+          </button>
+          <button className={view === "cards" ? "on" : ""} title="Cards — content previews" onClick={(e) => { e.stopPropagation(); ex.setView("cards"); }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 14h18M9 20V14" /></svg>
           </button>
         </div>
       </div>
@@ -93,6 +102,14 @@ export function FileList({ ex }: { ex: Explorer }) {
         <div className="empty-note err">{ex.error}</div>
       ) : entries.length === 0 ? (
         <div className="empty-note">This folder is empty</div>
+      ) : view === "cards" ? (
+        <div className="filecards">
+          {entries.map((e, i) => (
+            <FileCard key={e.path} e={e} selected={sel.has(e.path)} interact={interactProps(e, i)}>
+              {renaming === e.path ? <RenameField entry={e} ex={ex} /> : <span className="filecard-name">{e.name}</span>}
+            </FileCard>
+          ))}
+        </div>
       ) : view === "list" ? (
         <div className="list">
           {entries.map((e, i) => {

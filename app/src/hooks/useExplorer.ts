@@ -45,7 +45,7 @@ export function useExplorer() {
   const anchor = useRef<number | null>(null);
   const [sort, setSortState] = useState<Sort>({ col: "name", dir: "asc" });
   const [showHidden, setShowHidden] = useState(false);
-  const [view, setView] = useState<"list" | "grid">("list");
+  const [view, setView] = useState<"list" | "grid" | "cards">("list");
   const [clipboard, setClipboard] = useState<Clipboard | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [ctx, setCtx] = useState<Ctx | null>(null);
@@ -251,6 +251,7 @@ export function useExplorer() {
     navigate, back, forward, up, refresh,
     selectAt, clearSel, selectAll, openEntry, setSort,
     toggleView: () => setView((v) => (v === "list" ? "grid" : "list")),
+    setView,
     toggleHidden: () => setShowHidden((h) => !h),
     startRename, cancelRename, commitRename,
     newFolder, copySel, cutSel, paste, deleteSel, reveal,
