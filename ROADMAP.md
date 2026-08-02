@@ -107,15 +107,22 @@ with the detail on the right. Sketch the information architecture first, then
 build. This is the home for a growing, discoverable set of options — and the
 host for the theme picker from Phase 11.
 
-### Phase 11 — Theming & custom themes ⬜
-- **Light mode** — the first alternate to the dark "Ink" palette. Prerequisite:
-  audit hard-coded colors so everything flows through CSS variables / tokens.
-- **Theme system** — palettes as swappable data (tokens), not code, selected
-  from the Appearance pane (Phase 10).
-- **Bring-your-own themes** — let users supply and share their own palettes.
+### Phase 11 — Theming & custom themes 🚧
+- **Theme system** ✅ — token schema (`lib/theme/types.ts`) + engine (seed →
+  derived CSS vars via sRGB mixing) + Ink/Paper built-ins, authored in the
+  schema. Editable: surfaces/text/borders/accents/danger, typography, radius,
+  effects (glow/shadow), file-tile tones. All former hardcoded colors tokenized.
+- **Light mode** ✅ — "Paper" theme; Appearance switcher in Settings, persists to
+  localStorage; `applyTheme` runs pre-paint.
+- **Custom theme editor** ⬜ — visual token pickers + import/export JSON so users
+  can author/share their own (the schema + engine already support it).
+- **Radius wiring** ⬜ — `--radius` is emitted but most `border-radius` values are
+  still literals; thread the token through them so the Shape knob bites.
+- **Polish** ⬜ — a few residual literal grays/focus-rings for pixel-perfect light
+  mode; theme the Spotlight surface.
 - **Spotlight acrylic / mica blur** — native Windows `windowEffects` for a true
-  frosted-desktop backdrop (CSS blur doesn't blur the desktop). Deferred here to
-  land alongside the theming work rather than as a one-off.
+  frosted-desktop backdrop (CSS blur doesn't blur the desktop). Lands with the
+  theming work.
 
 ### Phase 12 — Multi-window & drag-and-drop ⬜
 Viability notes (Tauri v2), easiest → hardest:
