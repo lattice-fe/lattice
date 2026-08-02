@@ -56,3 +56,41 @@ registerPreviewStrategy<CodePreview>({
     );
   },
 });
+
+// Folders → peek at first few child items (no hidden files).
+// Shows up to 5 items as a two-column layout: list on left, metadata on right.
+interface FolderPreview { entries: Entry[]; totalCount?: number }
+registerPreviewStrategy<FolderPreview>({
+  id: "folder",
+  match: (e: Entry) => e.is_dir,
+  load: async (e: Entry) => {
+    const entries = await api.listDir(e.path, false);
+    const preview = entries.slice(0, 5);
+    return { entries: preview, totalCount: entries.length };
+  },
+  render: (d: FolderPreview) => (
+    <div className="hoverprev-scroll" style={{ padding: "10px 12px", maxHeight: "180px", overflow: "hidden" }}>
+      {/* Header: item count and last modified */}
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px", color: "var(--dim)", fontSize: "11px", borderBottom: "1px solid var(--border-soft)", paddingBottom: "6px" }}>
+        <span>{d.totalCount !== undefined && d.totalCount > 5 ? `${d.totalCount} items` : d.entries.length === 1 ? "1 item" : `${d.entries.length} items`}</span>
+      </div>
+      {/* Two-column layout: items left, metadata right */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "4px 12px" }}>
+        {d.entries.map((e) => (
+          <div key={e.path} style={{ display: "contents" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--paper-dim)", fontSize: "12.5px", padding: "3px 0" }}>
+              <span style={{ color: "var(--dim)", width: "16px", textAlign: "center" }}>{e.is_dir ? "▤" : "▷"}</span>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.name}</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "6px", color: "var(--dim-2)", fontSize: "11px", fontFamily: "var(--mono)", padding: "3px 0", minWidth: "70px" }}>
+              {e.is_dir ? "" : <span>{e.kind}</span>}
+            </div>
+          </div>
+        ))}
+      </div>
+      {d.entries.length === 0 && (
+        <div style={{ color: "var(--dim)", fontSize: "12px", fontStyle: "italic", padding: "8px 0" }}>Empty folder</div>
+      )}
+    </div>
+  ),
+});

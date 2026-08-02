@@ -24,6 +24,11 @@ export function ContextMenu({ ex }: { ex: Explorer }) {
         {onRow && target && <>
           <Item label="Open" on={() => { ex.closeContext(); ex.openEntry(target); }} kbd="↵" />
           {target.is_dir && <Item label="Open in new tab" on={() => { ex.closeContext(); ex.newTab(target.path); }} />}
+          {target.is_dir && (
+            ex.isPinned(target.path)
+              ? <Item label="Unpin from Quick Access" on={() => { ex.closeContext(); ex.unpinFolder(target.path); }} />
+              : <Item label="Pin to Quick Access" on={() => { ex.closeContext(); ex.pinFolder(target.name, target.path); }} />
+          )}
           <Item label="Reveal in Explorer" on={() => { ex.closeContext(); ex.reveal(target.path); }} />
           {target.is_dir && <Item label="Index for search" on={() => { ex.closeContext(); api.indexFolder(target.path); }} />}
           <Sep />

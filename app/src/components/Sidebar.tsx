@@ -12,12 +12,27 @@ export function Sidebar({ ex }: { ex: Explorer }) {
     <aside className="sidebar">
       <div className="side-group">
         <div className="side-label">Quick access</div>
-        {ex.quick.map((q) => (
-          <button key={q.path} className={"side-item" + (active(q.path) ? " active" : "")} onClick={() => ex.navigate(q.path)}>
-            <span style={{ width: 18, textAlign: "center", color: active(q.path) ? "var(--terracotta)" : "var(--dim)" }}>{QUICK_ICON[q.label] ?? "▪"}</span>
-            <span style={{ flex: 1 }}>{q.label}</span>
-          </button>
-        ))}
+        {ex.quick.map((q) => {
+          const pinned = ex.isPinned(q.path);
+          return (
+            <button
+              key={q.path}
+              className={"side-item" + (active(q.path) ? " active" : "")}
+              onClick={() => ex.navigate(q.path)}
+              onContextMenu={(e) => {
+                if (pinned) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  ex.unpinFolder(q.path);
+                }
+              }}
+              title={pinned ? "Right-click to unpin" : undefined}
+            >
+              <span style={{ width: 18, textAlign: "center", color: active(q.path) ? "var(--terracotta)" : "var(--dim)" }}>{QUICK_ICON[q.label] ?? "▪"}</span>
+              <span style={{ flex: 1 }}>{q.label}</span>
+            </button>
+          );
+        })}
       </div>
 
       <div className="side-group">

@@ -122,9 +122,10 @@ host for the theme picker from Phase 11.
   still literals; thread the token through them so the Shape knob bites.
 - **Polish** ⬜ — a few residual literal grays/focus-rings for pixel-perfect light
   mode; theme the Spotlight surface.
-- **Spotlight acrylic / mica blur** — native Windows `windowEffects` for a true
-  frosted-desktop backdrop (CSS blur doesn't blur the desktop). Lands with the
-  theming work.
+- **Spotlight acrylic / mica blur** ⬜ — native Windows `windowEffects` for a true
+  frosted-desktop backdrop (CSS blur doesn't blur the desktop). **Deferred** as
+  it's Windows-only; keep universal CSS backdrop-filter for cross-platform
+  compatibility.
 
 ### Phase 12 — Multi-window & drag-and-drop ⬜
 Viability notes (Tauri v2), easiest → hardest:

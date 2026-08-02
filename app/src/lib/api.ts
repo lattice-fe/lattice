@@ -90,6 +90,10 @@ export const api = {
     if (!isTauri) return;
     return invoke("open_path", { path });
   },
+  async selectFolder(): Promise<string | null> {
+    if (!isTauri) return null;
+    return invoke<string>("select_folder");
+  },
   async reveal(path: string): Promise<void> {
     if (!isTauri) return;
     return invoke("reveal", { path });

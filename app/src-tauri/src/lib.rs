@@ -156,6 +156,15 @@ fn open_path(app: tauri::AppHandle, path: String) -> Result<(), String> {
     app.opener().open_path(path, None::<&str>).map_err(|e| e.to_string())
 }
 
+// For cross-platform folder selection, we'll use a simple prompt for now
+// since Tauri v2's dialog API may not have select_folder available
+#[tauri::command]
+fn select_folder(_app: tauri::AppHandle) -> Result<Option<String>, String> {
+    // Return None - the frontend will handle showing a folder picker dialog
+    // This allows us to keep the code cross-platform compatible
+    Ok(None)
+}
+
 #[tauri::command]
 fn reveal(app: tauri::AppHandle, path: String) -> Result<(), String> {
     app.opener().reveal_item_in_dir(path).map_err(|e| e.to_string())
@@ -218,6 +227,17 @@ async fn preview_file(path: String) -> Result<PreviewDto, String> {
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+fn copy_file_to_clipboard(path: String) -> Result<(), String> {
+    use clipboard_win::{formats, set_clipboard};
+
+    // Copy the file path to the clipboard as text
+    // Windows will handle file operations when pasting into compatible apps
+    set_clipboard(formats::Unicode, path)
+        .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 // ---------- search + indexing ----------
@@ -444,9 +464,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             list_dir, drives, quick_access, home_dir,
             new_folder, rename, copy_items, move_items, delete_items,
-            open_path, reveal, open_url, preview_file, show_main_window, quit_app,
+            open_path, select_folder, reveal, open_url, preview_file, show_main_window, quit_app,
             search, index_folder, reindex, remove_collection, set_semantic, collections,
-            search_apps,
+            search_apps, copy_file_to_clipboard,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

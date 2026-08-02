@@ -41,13 +41,13 @@ export function Glyph({ kind }: { kind: Kind }) {
 
 export const Mark = () => (
   <svg viewBox="0 0 48 48">
-    <g fill="none" stroke="#C05F3C" strokeWidth="2" strokeLinecap="round" opacity="0.92">
+    <g fill="none" stroke="var(--terracotta)" strokeWidth="2" strokeLinecap="round" opacity="0.92">
       <line x1="10" y1="10" x2="38" y2="10" /><line x1="10" y1="38" x2="38" y2="38" />
       <line x1="10" y1="10" x2="10" y2="38" /><line x1="38" y1="10" x2="38" y2="38" />
       <line x1="10" y1="24" x2="38" y2="24" /><line x1="24" y1="10" x2="24" y2="38" />
     </g>
-    <g fill="#C05F3C"><circle cx="10" cy="10" r="3.1" /><circle cx="38" cy="10" r="3.1" /><circle cx="10" cy="38" r="3.1" /><circle cx="38" cy="38" r="3.1" /><circle cx="24" cy="10" r="3.1" /><circle cx="10" cy="24" r="3.1" /><circle cx="38" cy="24" r="3.1" /><circle cx="24" cy="38" r="3.1" /></g>
-    <circle cx="24" cy="24" r="7.4" fill="none" stroke="#E2A64C" strokeWidth="1.5" opacity="0.45" style={{ animation: "pulse 3.4s ease-in-out infinite", transformOrigin: "24px 24px" }} />
-    <circle cx="24" cy="24" r="4.4" fill="#E2A64C" />
+    <g fill="var(--terracotta)"><circle cx="10" cy="10" r="3.1" /><circle cx="38" cy="10" r="3.1" /><circle cx="10" cy="38" r="3.1" /><circle cx="38" cy="38" r="3.1" /><circle cx="24" cy="10" r="3.1" /><circle cx="10" cy="24" r="3.1" /><circle cx="38" cy="24" r="3.1" /><circle cx="24" cy="38" r="3.1" /></g>
+    <circle cx="24" cy="24" r="7.4" fill="none" stroke="var(--amber)" strokeWidth="1.5" opacity="0.45" style={{ animation: "pulse 3.4s ease-in-out infinite", transformOrigin: "24px 24px" }} />
+    <circle cx="24" cy="24" r="4.4" fill="var(--amber)" />
   </svg>
 );

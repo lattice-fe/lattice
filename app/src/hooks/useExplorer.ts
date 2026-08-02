@@ -9,6 +9,20 @@ export interface Ctx { x: number; y: number; index: number | null; }
 // preferences follow the active tab.
 interface Tab { id: number; history: string[]; hi: number; }
 
+// localStorage key for pinned folders
+const PINNED_KEY = "lattice:pinned-folders";
+
+function loadPinned(): Shortcut[] {
+  try {
+    const raw = localStorage.getItem(PINNED_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function savePinned(items: Shortcut[]) {
+  localStorage.setItem(PINNED_KEY, JSON.stringify(items));
+}
+
 export function useExplorer() {
   const [raw, setRaw] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,9 +49,42 @@ export function useExplorer() {
   const [clipboard, setClipboard] = useState<Clipboard | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [ctx, setCtx] = useState<Ctx | null>(null);
+  const [hoverPreviewPath, setHoverPreviewPath] = useState<string | null>(null);
+  const hoverPreviewPos = useRef({ x: 0, y: 0 });
+  const [previewCollapsed, setPreviewCollapsed] = useState(false);
 
   const [drives, setDrives] = useState<Drive[]>([]);
   const [quick, setQuick] = useState<Shortcut[]>([]);
+  const [pinned, setPinned] = useState<Shortcut[]>(loadPinned);
+
+  // Merge built-in quick access with pinned folders
+  const allQuick = useMemo(() => {
+    const pinnedPaths = new Set(pinned.map((p) => p.path.toLowerCase()));
+    const filtered = quick.filter((q) => !pinnedPaths.has(q.path.toLowerCase()));
+    return [...pinned, ...filtered];
+  }, [pinned, quick]);
+
+  // Pin/unpin actions
+  const pinFolder = useCallback((label: string, path: string) => {
+    setPinned((prev) => {
+      if (prev.some((p) => p.path.toLowerCase() === path.toLowerCase())) return prev;
+      const next = [...prev, { label, path }];
+      savePinned(next);
+      return next;
+    });
+  }, []);
+
+  const unpinFolder = useCallback((path: string) => {
+    setPinned((prev) => {
+      const next = prev.filter((p) => p.path.toLowerCase() !== path.toLowerCase());
+      savePinned(next);
+      return next;
+    });
+  }, []);
+
+  const isPinned = useCallback((path: string) => {
+    return pinned.some((p) => p.path.toLowerCase() === path.toLowerCase());
+  }, [pinned]);
 
   const entries = useMemo(() => sortEntries(raw, sort), [raw, sort]);
 
@@ -72,6 +119,8 @@ export function useExplorer() {
   const navigate = useCallback((p: string) => {
     setSel(new Set());
     setCtx(null);
+    // Clear hover preview by setting to null
+    setHoverPreviewPath(null);
     patchActive((t) => {
       const trimmed = t.history.slice(0, t.hi + 1);
       if (trimmed[trimmed.length - 1] === p) return t;
@@ -118,6 +167,10 @@ export function useExplorer() {
 
   const selectAt = useCallback((i: number, mods: { ctrl: boolean; shift: boolean }) => {
     setCtx(null);
+    // Auto-expand collapsed preview when selecting something
+    if (previewCollapsed) {
+      setPreviewCollapsed(false);
+    }
     setSel((prev) => {
       const next = new Set(prev);
       if (mods.shift && anchor.current != null) {
@@ -135,7 +188,7 @@ export function useExplorer() {
       }
       return next;
     });
-  }, [entries]);
+  }, [entries, previewCollapsed]);
 
   const clearSel = useCallback(() => { setSel(new Set()); setCtx(null); }, []);
   const selectAll = useCallback(() => setSel(new Set(entries.map((e) => e.path))), [entries]);
@@ -191,7 +244,7 @@ export function useExplorer() {
   const reveal = useCallback((p: string) => api.reveal(p), []);
 
   return {
-    path, entries, loading, error, drives, quick,
+    path, entries, loading, error, drives, quick: allQuick,
     canBack: hi > 0, canForward: hi < history.length - 1, canUp: !!parentOf(path),
     sel, selectedEntries, sort, view, showHidden, clipboard, renaming, ctx,
     tabs: tabList, activeTabId: activeId, newTab, closeTab, selectTab,
@@ -203,6 +256,10 @@ export function useExplorer() {
     newFolder, copySel, cutSel, paste, deleteSel, reveal,
     openContext: (x: number, y: number, index: number | null) => setCtx({ x, y, index }),
     closeContext: () => setCtx(null),
+    pinFolder, unpinFolder, isPinned,
+    hoverPreviewPath, hoverPreviewPos,
+    previewCollapsed,
+    togglePreview: () => setPreviewCollapsed((prev) => !prev),
   };
 }
 export type Explorer = ReturnType<typeof useExplorer>;

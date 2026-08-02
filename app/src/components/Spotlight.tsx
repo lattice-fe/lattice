@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getCurrentWindow, Effect } from "@tauri-apps/api/window";
 import { LogicalSize } from "@tauri-apps/api/dpi";
 import { emit } from "@tauri-apps/api/event";
 import { useSearch } from "../hooks/useSearch";
@@ -43,6 +43,13 @@ export function Spotlight() {
   const term = mode === "default" ? raw : raw.slice(1).replace(/^\s+/, "");
 
   const hide = () => { setRaw(""); setApps([]); s.clear(); win?.hide(); };
+
+  useEffect(() => {
+    // Apply native Windows acrylic blur to Spotlight window
+    if (isTauri && win) {
+      win.setEffects({ effects: [Effect.Acrylic] }).catch(() => {});
+    }
+  }, [win]);
 
   useEffect(() => {
     inputRef.current?.focus();

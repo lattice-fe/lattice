@@ -75,10 +75,15 @@ export default function App() {
     <div className="app">
       <TitleBar ex={ex} />
       <TopBar ex={ex} s={s} onSettings={() => setSettingsOpen(true)} />
-      <div className="body">
+      <div className={"body" + (ex.previewCollapsed ? " no-preview" : "")}>
         <Sidebar ex={ex} />
         {s.active ? <SearchResults s={s} ex={ex} /> : <FileList ex={ex} />}
-        <Inspector ex={ex} />
+        {!ex.previewCollapsed && <Inspector ex={ex} onCollapse={() => ex.togglePreview()} />}
+        {ex.previewCollapsed && (
+          <button className="preview-reveal" onClick={() => ex.togglePreview()} title="Show preview pane">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+          </button>
+        )}
       </div>
       <ContextMenu ex={ex} />
       <IndexStatus ind={ind} />

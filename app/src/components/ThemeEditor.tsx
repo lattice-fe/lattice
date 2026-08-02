@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Theme, ThemeTokens } from "../lib/theme/types";
+import { Theme, ThemeTokens, Tone } from "../lib/theme/types";
 import { ThemeApi } from "../hooks/useTheme";
 import { applyTheme } from "../lib/theme/engine";
 import { parseThemeJson, themeToJson } from "../lib/theme/validate";
@@ -15,7 +15,16 @@ const COLOR_FIELDS: { key: keyof ThemeTokens; label: string; group: string }[] =
   { group: "Accents", key: "accent3", label: "Accent 3" },
   { group: "Semantic", key: "danger", label: "Danger" },
 ];
-const GROUPS = ["Surfaces", "Text", "Accents", "Semantic"];
+const GROUPS = ["Surfaces", "Text", "Accents", "Semantic", "File Icons"];
+const TONES: Tone[] = ["rust", "amber", "green", "violet", "red", "neutral"];
+const TONE_LABELS: Record<Tone, string> = {
+  rust: "Rust (code)",
+  amber: "Amber (folders)",
+  green: "Green (images)",
+  violet: "Violet (audio)",
+  red: "Red (video/exe)",
+  neutral: "Neutral (docs)",
+};
 
 function fork(base: Theme, isNew: boolean): Theme {
   return {
@@ -59,6 +68,8 @@ export function ThemeEditor({ th, base, isNew, onClose }: { th: ThemeApi; base: 
     setDraft((d) => ({ ...d, effects: { ...d.effects, [k]: v } }));
   const setFont = (k: "ui" | "display" | "mono", v: string) =>
     setDraft((d) => ({ ...d, fonts: { ...d.fonts, [k]: v || undefined } }));
+  const setTile = (tone: Tone, prop: "bg" | "fg", v: string) =>
+    setDraft((d) => ({ ...d, tiles: { ...d.tiles, [tone]: { ...d.tiles?.[tone], [prop]: v } } }));
 
   const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(null), 1800); };
 
@@ -98,23 +109,34 @@ export function ThemeEditor({ th, base, isNew, onClose }: { th: ThemeApi; base: 
             <span className="tf-label">Name</span>
             <input className="te-input" value={draft.name} onChange={(e) => patch({ name: e.target.value })} />
           </label>
-          <label className="tf-field">
-            <span className="tf-label">Base</span>
-            <select className="te-input" value={draft.appearance} onChange={(e) => patch({ appearance: e.target.value as "dark" | "light" })}>
-              <option value="dark">Dark</option>
-              <option value="light">Light</option>
-            </select>
-          </label>
         </div>
 
         {GROUPS.map((g) => (
           <div key={g}>
             <div className="modal-sec">{g}</div>
-            <div className="tf-grid">
-              {COLOR_FIELDS.filter((f) => f.group === g).map((f) => (
-                <ColorField key={f.key} label={f.label} value={draft.tokens[f.key] ?? "#000000"} onChange={(v) => setToken(f.key, v)} />
-              ))}
-            </div>
+            {g === "File Icons" ? (
+              <div className="tf-grid">
+                {TONES.map((tone) => {
+                  const bg = draft.tiles?.[tone]?.bg ?? "";
+                  const fg = draft.tiles?.[tone]?.fg ?? "";
+                  return (
+                    <div key={tone} style={{ gridColumn: "span 2" }}>
+                      <div className="modal-subsec">{TONE_LABELS[tone]}</div>
+                      <div className="tf-grid" style={{ marginTop: "8px" }}>
+                        <ColorField label="Background" value={bg} onChange={(v) => setTile(tone, "bg", v)} />
+                        <ColorField label="Foreground" value={fg} onChange={(v) => setTile(tone, "fg", v)} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="tf-grid">
+                {COLOR_FIELDS.filter((f) => f.group === g).map((f) => (
+                  <ColorField key={f.key} label={f.label} value={draft.tokens[f.key] ?? "#000000"} onChange={(v) => setToken(f.key, v)} />
+                ))}
+              </div>
+            )}
           </div>
         ))}
 

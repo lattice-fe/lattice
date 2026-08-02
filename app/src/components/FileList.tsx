@@ -49,6 +49,7 @@ export function FileList({ ex }: { ex: Explorer }) {
       const prev = lastClick.current;
       if (prev && prev.path === e.path && now - prev.t < 400) {
         lastClick.current = null;
+        hp.onLeave();  // Clear preview before opening folder
         ex.openEntry(e);
       } else {
         lastClick.current = { path: e.path, t: now };
