@@ -114,8 +114,10 @@ host for the theme picker from Phase 11.
   effects (glow/shadow), file-tile tones. All former hardcoded colors tokenized.
 - **Light mode** ✅ — "Paper" theme; Appearance switcher in Settings, persists to
   localStorage; `applyTheme` runs pre-paint.
-- **Custom theme editor** ⬜ — visual token pickers + import/export JSON so users
-  can author/share their own (the schema + engine already support it).
+- **Custom theme editor** ✅ — fork a base and edit the seed live: per-token
+  colour pickers, radius/glow/shadow sliders, optional fonts; save/delete custom
+  themes (localStorage); import (paste+validate JSON) and export (copy/download).
+  Custom themes sync across windows via the full-theme broadcast.
 - **Radius wiring** ⬜ — `--radius` is emitted but most `border-radius` values are
   still literals; thread the token through them so the Shape knob bites.
 - **Polish** ⬜ — a few residual literal grays/focus-rings for pixel-perfect light
