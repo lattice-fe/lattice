@@ -54,6 +54,9 @@ export function themeVars(theme: Theme): Record<string, string> {
     "--shadow": `0 18px 50px -24px ${alpha("#000000", shadowStrength)}`,
     "--shadow-soft": `0 8px 24px -14px ${alpha("#000000", shadowStrength * 0.82)}`,
     "--glow": alpha(glow, glowStrength),
+    // spotlight surface (translucent, blurred)
+    "--spot-bg": alpha(t.bg, 0.82),
+    "--spot-border": alpha(t.text, 0.1),
     // shape
     "--radius": `${radius}px`,
     "--radius-sm": `${Math.max(4, radius - 4)}px`,
