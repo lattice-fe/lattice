@@ -1,15 +1,23 @@
+import { useState } from "react";
 import { Explorer } from "../hooks/useExplorer";
 import { Indexer } from "../hooks/useIndexer";
 import { ThemeApi } from "../hooks/useTheme";
+import { Theme } from "../lib/theme/types";
 import { api } from "../lib/api";
 import { baseName } from "../lib/format";
 import { themeVars } from "../lib/theme/engine";
+import { ThemeEditor } from "./ThemeEditor";
 
 function Switch({ on, onClick }: { on: boolean; onClick: () => void }) {
   return <button className={"switch" + (on ? " on" : "")} onClick={onClick} role="switch" aria-checked={on}><span /></button>;
 }
 
 export function Settings({ ex, ind, th, onClose }: { ex: Explorer; ind: Indexer; th: ThemeApi; onClose: () => void }) {
+  // editing: a theme to edit, "new" to fork the active one, or null
+  const [editing, setEditing] = useState<Theme | "new" | null>(null);
+  if (editing) {
+    return <ThemeEditor th={th} base={editing === "new" ? th.theme : editing} isNew={editing === "new"} onClose={() => setEditing(null)} />;
+  }
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -30,12 +38,14 @@ export function Settings({ ex, ind, th, onClose }: { ex: Explorer; ind: Indexer;
         <div className="theme-grid">
           {th.themes.map((t) => {
             const v = themeVars(t);
+            const active = t.id === th.theme.id;
+            const custom = !th.isBuiltin(t.id);
             return (
-              <button
+              <div
                 key={t.id}
-                className={"theme-card" + (t.id === th.theme.id ? " on" : "")}
+                className={"theme-card" + (active ? " on" : "")}
                 onClick={() => th.setTheme(t.id)}
-                style={{ background: v["--ink"], borderColor: t.id === th.theme.id ? v["--terracotta"] : v["--border"] }}
+                style={{ background: v["--ink"], borderColor: active ? v["--terracotta"] : v["--border"] }}
               >
                 <div className="theme-swatches">
                   {["--card", "--terracotta", "--amber", "--teal"].map((k) => (
@@ -44,9 +54,18 @@ export function Settings({ ex, ind, th, onClose }: { ex: Explorer; ind: Indexer;
                 </div>
                 <div className="theme-name" style={{ color: v["--paper"] }}>{t.name}</div>
                 <div className="theme-appear" style={{ color: v["--dim"] }}>{t.appearance}</div>
-              </button>
+                <div className="theme-card-actions">
+                  <button title="Duplicate & edit" style={{ color: v["--dim"] }} onClick={(e) => { e.stopPropagation(); setEditing(custom ? t : "new"); }}>✎</button>
+                  {custom && <button title="Delete theme" style={{ color: v["--dim"] }} onClick={(e) => { e.stopPropagation(); th.deleteTheme(t.id); }}>×</button>}
+                </div>
+              </div>
             );
           })}
+          <button className="theme-card theme-new" onClick={() => setEditing("new")}>
+            <span className="theme-new-plus">+</span>
+            <div className="theme-name">New theme</div>
+            <div className="theme-appear">customize colours</div>
+          </button>
         </div>
 
         <div className="modal-sec">Indexed folders</div>

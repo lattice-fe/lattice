@@ -6,18 +6,16 @@ import { Spotlight } from "./components/Spotlight";
 import { isTauri } from "./lib/api";
 import { applyTheme } from "./lib/theme/engine";
 import { initialTheme, THEME_EVENT } from "./hooks/useTheme";
-import { themeById } from "./lib/theme/themes";
+import type { Theme } from "./lib/theme/types";
 
 // Apply the persisted theme before first paint (both windows) to avoid a flash.
 applyTheme(initialTheme());
 
-// Keep every window (main + spotlight) in sync when the theme changes.
+// Keep every window (main + spotlight) in sync when the theme changes. The
+// event carries the full theme, so custom themes propagate too.
 if (isTauri) {
   import("@tauri-apps/api/event").then(({ listen }) => {
-    listen<string>(THEME_EVENT, (e) => {
-      const t = themeById(e.payload);
-      if (t) applyTheme(t);
-    });
+    listen<Theme>(THEME_EVENT, (e) => { if (e.payload) applyTheme(e.payload); });
   });
 }
 
