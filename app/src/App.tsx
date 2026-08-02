@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { useExplorer } from "./hooks/useExplorer";
 import { useSearch } from "./hooks/useSearch";
 import { useIndexer } from "./hooks/useIndexer";
+import { useTheme } from "./hooks/useTheme";
 import { IndexStatus } from "./components/IndexStatus";
 import { Settings } from "./components/Settings";
 import { TopBar } from "./components/TopBar";
@@ -19,6 +20,7 @@ export default function App() {
   const ex = useExplorer();
   const s = useSearch();
   const ind = useIndexer();
+  const th = useTheme();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const exRef = useRef(ex);
   exRef.current = ex;
@@ -80,7 +82,7 @@ export default function App() {
       </div>
       <ContextMenu ex={ex} />
       <IndexStatus ind={ind} />
-      {settingsOpen && <Settings ex={ex} ind={ind} onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && <Settings ex={ex} ind={ind} th={th} onClose={() => setSettingsOpen(false)} />}
       {!isTauri && <div className="scaffold-note">preview · mock data — run <b style={{ color: "var(--paper-dim)" }}>npm run tauri dev</b> for live files</div>}
     </div>
   );

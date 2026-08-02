@@ -4,6 +4,11 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import App from "./App";
 import { Spotlight } from "./components/Spotlight";
 import { isTauri } from "./lib/api";
+import { applyTheme } from "./lib/theme/engine";
+import { initialTheme } from "./hooks/useTheme";
+
+// Apply the persisted theme before first paint (both windows) to avoid a flash.
+applyTheme(initialTheme());
 
 // The Spotlight window loads the same bundle; branch on the window label so it
 // renders only the launcher (never the full explorer).

@@ -1,13 +1,15 @@
 import { Explorer } from "../hooks/useExplorer";
 import { Indexer } from "../hooks/useIndexer";
+import { ThemeApi } from "../hooks/useTheme";
 import { api } from "../lib/api";
 import { baseName } from "../lib/format";
+import { themeVars } from "../lib/theme/engine";
 
 function Switch({ on, onClick }: { on: boolean; onClick: () => void }) {
   return <button className={"switch" + (on ? " on" : "")} onClick={onClick} role="switch" aria-checked={on}><span /></button>;
 }
 
-export function Settings({ ex, ind, onClose }: { ex: Explorer; ind: Indexer; onClose: () => void }) {
+export function Settings({ ex, ind, th, onClose }: { ex: Explorer; ind: Indexer; th: ThemeApi; onClose: () => void }) {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -22,6 +24,29 @@ export function Settings({ ex, ind, onClose }: { ex: Explorer; ind: Indexer; onC
             <div className="setting-desc">Reveal dotfiles and system-hidden items</div>
           </div>
           <Switch on={ex.showHidden} onClick={ex.toggleHidden} />
+        </div>
+
+        <div className="modal-sec">Appearance</div>
+        <div className="theme-grid">
+          {th.themes.map((t) => {
+            const v = themeVars(t);
+            return (
+              <button
+                key={t.id}
+                className={"theme-card" + (t.id === th.theme.id ? " on" : "")}
+                onClick={() => th.setTheme(t.id)}
+                style={{ background: v["--ink"], borderColor: t.id === th.theme.id ? v["--terracotta"] : v["--border"] }}
+              >
+                <div className="theme-swatches">
+                  {["--card", "--terracotta", "--amber", "--teal"].map((k) => (
+                    <span key={k} style={{ background: v[k] }} />
+                  ))}
+                </div>
+                <div className="theme-name" style={{ color: v["--paper"] }}>{t.name}</div>
+                <div className="theme-appear" style={{ color: v["--dim"] }}>{t.appearance}</div>
+              </button>
+            );
+          })}
         </div>
 
         <div className="modal-sec">Indexed folders</div>

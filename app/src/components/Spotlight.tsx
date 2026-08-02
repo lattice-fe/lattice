@@ -139,12 +139,12 @@ export function Spotlight() {
             items.map((it, i) => {
               const showApps = mode === "default" && it.kind === "app" && i === 0;
               const showFiles = mode === "default" && it.kind === "file" && i === appCount;
-              let tile: React.ReactNode, bg = "#26221d", fg = "#a99f8e", name = "", sub = "";
-              if (it.kind === "app") { tile = <AppIcon />; bg = "#331f14"; fg = "#d8794a"; name = it.name; sub = "Application"; }
+              let tile: React.ReactNode, bg = "var(--tile-neutral-bg)", fg = "var(--tile-neutral-fg)", name = "", sub = "";
+              if (it.kind === "app") { tile = <AppIcon />; bg = "var(--tile-rust-bg)"; fg = "var(--tile-rust-fg)"; name = it.name; sub = "Application"; }
               else if (it.kind === "file") { tile = <Glyph kind={it.k} />; bg = TONE[it.k].bg; fg = TONE[it.k].fg; name = it.name; sub = it.sub; }
-              else if (it.kind === "web") { tile = <WebIcon />; bg = "#22271f"; fg = "#9db98a"; name = it.url ? `Open ${it.url}` : `Search the web for “${it.term}”`; sub = "Opens in your browser"; }
-              else if (it.kind === "math") { tile = <EqIcon />; bg = "#33260f"; fg = "#E2A64C"; name = fmtNum(it.value); sub = "Copy to clipboard"; }
-              else { tile = <CmdIcon />; bg = "#282132"; fg = "#b199d6"; name = it.name; sub = it.sub; }
+              else if (it.kind === "web") { tile = <WebIcon />; bg = "var(--tile-green-bg)"; fg = "var(--tile-green-fg)"; name = it.url ? `Open ${it.url}` : `Search the web for “${it.term}”`; sub = "Opens in your browser"; }
+              else if (it.kind === "math") { tile = <EqIcon />; bg = "var(--tile-amber-bg)"; fg = "var(--tile-amber-fg)"; name = fmtNum(it.value); sub = "Copy to clipboard"; }
+              else { tile = <CmdIcon />; bg = "var(--tile-violet-bg)"; fg = "var(--tile-violet-fg)"; name = it.name; sub = it.sub; }
               return (
                 <div key={it.kind + i}>
                   {showApps && <div className="spot-sec">Applications</div>}

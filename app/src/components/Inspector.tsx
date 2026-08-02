@@ -13,7 +13,7 @@ export function Inspector({ ex }: { ex: Explorer }) {
     return (
       <aside className="inspector">
         <div className="insp-in">
-          <div className="preview" style={{ background: "linear-gradient(150deg, #2a251f, #1b1712)", color: "var(--amber)" }}>
+          <div className="preview" style={{ background: "linear-gradient(150deg, var(--card-hi), var(--ink))", color: "var(--amber)" }}>
             <div style={{ fontFamily: "var(--serif)", fontSize: 40, fontWeight: 600 }}>{items.length}</div>
           </div>
           <div><div className="insp-name">{items.length} items</div><div className="insp-sub">selected · {fmtSize(total)}</div></div>
@@ -27,7 +27,7 @@ export function Inspector({ ex }: { ex: Explorer }) {
   return (
     <aside className="inspector">
       <div className="insp-in" key={e.path}>
-        <div className="preview" style={{ background: `linear-gradient(150deg, ${t.bg}, #1b1712)`, color: t.fg }}><Glyph kind={e.kind} /></div>
+        <div className="preview" style={{ background: `linear-gradient(150deg, ${t.bg}, var(--ink))`, color: t.fg }}><Glyph kind={e.kind} /></div>
         <div>
           <div className="insp-name">{e.name}</div>
           <div className="insp-sub">{e.type_label} · {fmtSize(e.size, e.is_dir)}</div>

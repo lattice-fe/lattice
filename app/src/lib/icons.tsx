@@ -1,15 +1,16 @@
 import { Kind } from "./api";
+import { KIND_TONE } from "./theme/types";
 
+// File-kind tile colours resolve to themeable CSS vars (set by the theme
+// engine). Each kind maps to a tone; the tone's bg/fg come from the theme.
+const tile = (kind: Kind) => {
+  const tone = KIND_TONE[kind] ?? "neutral";
+  return { bg: `var(--tile-${tone}-bg)`, fg: `var(--tile-${tone}-fg)` };
+};
 export const TONE: Record<Kind, { bg: string; fg: string }> = {
-  folder: { bg: "#33260f", fg: "#E2A64C" },
-  archive: { bg: "#33260f", fg: "#E2A64C" },
-  code: { bg: "#331f14", fg: "#d8794a" },
-  image: { bg: "#22271f", fg: "#9db98a" },
-  audio: { bg: "#282132", fg: "#b199d6" },
-  video: { bg: "#301c1a", fg: "#cf6f5b" },
-  executable: { bg: "#301c1a", fg: "#cf6f5b" },
-  document: { bg: "#26221d", fg: "#a99f8e" },
-  other: { bg: "#26221d", fg: "#a99f8e" },
+  folder: tile("folder"), archive: tile("archive"), code: tile("code"),
+  image: tile("image"), audio: tile("audio"), video: tile("video"),
+  executable: tile("executable"), document: tile("document"), other: tile("other"),
 };
 
 export const kindOf = (name: string): Kind => {
