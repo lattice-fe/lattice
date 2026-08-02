@@ -1,8 +1,8 @@
 # Rust build output
 /target
 
-# Local model / embedding caches
-/.fastembed_cache
+# Local model / embedding caches (match at any depth, not just repo root)
+.fastembed_cache/
 
 # Backups / editor / OS cruft
 **/*.rs.bk
