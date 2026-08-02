@@ -54,9 +54,14 @@ export function themeVars(theme: Theme): Record<string, string> {
     "--shadow": `0 18px 50px -24px ${alpha("#000000", shadowStrength)}`,
     "--shadow-soft": `0 8px 24px -14px ${alpha("#000000", shadowStrength * 0.82)}`,
     "--glow": alpha(glow, glowStrength),
-    // spotlight surface (translucent, blurred)
-    "--spot-bg": alpha(t.bg, 0.82),
-    "--spot-border": alpha(t.text, 0.1),
+    // spotlight surface (translucent, blurred). Light themes wash out over a
+    // light desktop, so they get a more opaque fill, a stronger border, and a
+    // faint inner ring; dark themes keep a soft top highlight.
+    "--spot-bg": alpha(t.bg, dark ? 0.82 : 0.9),
+    "--spot-border": alpha(t.text, dark ? 0.1 : 0.18),
+    "--spot-inset": dark
+      ? "inset 0 1px 0 rgba(255, 255, 255, 0.045)"
+      : "inset 0 0 0 1px rgba(0, 0, 0, 0.05)",
     // shape
     "--radius": `${radius}px`,
     "--radius-sm": `${Math.max(4, radius - 4)}px`,

@@ -22,6 +22,7 @@
   --danger: #c0392b;
   --glow: rgba(224, 166, 76, 0.035);
   --spot-bg: rgba(26, 24, 21, 0.82); --spot-border: rgba(244, 238, 226, 0.1);
+  --spot-inset: inset 0 1px 0 rgba(255, 255, 255, 0.045);
   --radius: 11px; --radius-sm: 7px; --radius-lg: 13px;
   --tile-rust-bg: #331f14; --tile-rust-fg: #d8794a;
   --tile-amber-bg: #33260f; --tile-amber-fg: #e2a64c;
@@ -294,7 +295,7 @@ body.is-spotlight #root { padding: 16px; }
   -webkit-backdrop-filter: blur(30px) saturate(1.5);
   backdrop-filter: blur(30px) saturate(1.5);
   border: 1px solid var(--spot-border);
-  box-shadow: 0 30px 90px -20px rgba(0, 0, 0, 0.82);
+  box-shadow: var(--spot-inset), 0 30px 90px -20px rgba(0, 0, 0, 0.82);
   animation: spot-in 0.16s cubic-bezier(0.2, 0.9, 0.3, 1);
 }
 @keyframes spot-in { from { opacity: 0; transform: translateY(-8px) scale(0.99); } to { opacity: 1; transform: none; } }
