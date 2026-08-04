@@ -42,9 +42,14 @@ impl EntryKind {
                 EntryKind::Archive
             }
             "txt" | "pdf" | "doc" | "docx" | "xls" | "xlsx" | "ppt" | "pptx" | "md" | "rtf"
-            | "odt" | "csv" => EntryKind::Document,
-            "rs" | "c" | "cpp" | "h" | "hpp" | "py" | "js" | "ts" | "go" | "java" | "cs" | "rb"
-            | "php" | "html" | "css" | "json" | "toml" | "yaml" | "yml" | "xml" | "sh" | "lua" => {
+            | "odt" | "csv" | "markdown" | "mdx" => EntryKind::Document,
+            // Code files (synchronized with frontend PREVIEW_EXTS)
+            "rs" | "c" | "cpp" | "h" | "hpp" | "py" | "js" | "ts" | "jsx" | "tsx" | "mjs" | "cjs"
+            | "go" | "java" | "cs" | "rb" | "php" | "html" | "htm" | "css" | "scss" | "sass"
+            | "less" | "styl" | "json" | "toml" | "yaml" | "yml" | "xml" | "sh" | "bash"
+            | "zsh" | "lua" | "swift" | "kt" | "r" | "scala" | "pl" | "pm" | "vim" | "sql"
+            | "graphql" | "prisma" | "proto" | "ex" | "exs" | "erl" | "hrl" | "ini" | "cfg"
+            | "conf" | "log" | "gitignore" | "dockerignore" | "env" | "dockerfile" | "makefile" => {
                 EntryKind::Code
             }
             "exe" | "msi" | "bat" | "cmd" | "com" | "scr" => EntryKind::Executable,
@@ -88,10 +93,24 @@ pub fn classify(path: &Path, is_dir: bool) -> EntryKind {
     if is_dir {
         return EntryKind::Folder;
     }
-    match path.extension().and_then(|e| e.to_str()) {
-        Some(ext) => EntryKind::from_extension(&ext.to_ascii_lowercase()),
-        None => EntryKind::Other,
+
+    // Check extension first
+    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+        return EntryKind::from_extension(&ext.to_ascii_lowercase());
     }
+
+    // For files without extensions, check if the filename matches known patterns
+    if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
+        let lower = filename.to_ascii_lowercase();
+        match lower.as_str() {
+            ".gitignore" | ".dockerignore" | ".env" | ".gitattributes" | ".editorconfig"
+            | ".prettierrc" | ".eslintrc" | ".babelrc" | "dockerfile" | "makefile"
+            | ".npmrc" | ".yarnrc" | ".nvmrc" => return EntryKind::Code,
+            _ => {}
+        }
+    }
+
+    EntryKind::Other
 }
 
 #[cfg(test)]

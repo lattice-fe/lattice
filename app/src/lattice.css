@@ -40,6 +40,10 @@ body {
   background: var(--ink);
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 }
 button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
 ::selection { background: color-mix(in srgb, var(--amber) 28%, transparent); }
@@ -295,29 +299,85 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .card-label { font-size: 13px; text-align: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* cards view — content-adaptive tiles (thumbnails / code peeks), lazy-loaded */
-.filecards { flex: 1; overflow-y: auto; padding: 14px 16px 24px; display: grid; grid-template-columns: repeat(auto-fill, minmax(184px, 1fr)); gap: 14px; align-content: start; }
+/* scrollable grid with auto-fill: code files get 2-column span for better info density */
+.filecards {
+  flex: 1; min-height: 0; overflow-y: auto; padding: 14px 16px 24px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px; align-content: start;
+}
 .filecard {
   display: flex; flex-direction: column; text-align: left; overflow: hidden;
   border-radius: var(--radius-lg); border: 1px solid var(--border-soft); background: var(--card);
   transition: border-color 0.14s ease, transform 0.12s ease, box-shadow 0.14s ease;
+  height: 208px; /* 80% of 260px */
+  padding: 0;
 }
 .filecard:hover { border-color: var(--border); transform: translateY(-2px); box-shadow: var(--shadow-soft); }
 .filecard.sel { border-color: var(--terracotta); }
-.filecard-preview { height: 118px; display: grid; place-items: center; overflow: hidden; background: var(--ink-3); position: relative; }
-.filecard-img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.filecard-code {
-  margin: 0; padding: 10px 12px; width: 100%; height: 100%; overflow: hidden;
-  font-family: var(--mono); font-size: 10px; line-height: 1.5; color: var(--paper-dim);
-  white-space: pre; tab-size: 2;
-  -webkit-mask-image: linear-gradient(180deg, #000 68%, transparent);
-  mask-image: linear-gradient(180deg, #000 68%, transparent);
+.filecard[data-kind="code"] { grid-column: span 2; }
+.filecard[data-kind="document"] { grid-column: span 2; }
+.filecard[data-kind="config"] { height: 208px; }
+/* Sensitive files (env, credentials) get blurred for screen recording safety */
+.filecard.sensitive .filecard-preview { filter: blur(8px); }
+.filecard.sensitive.unblurable:hover .filecard-preview { filter: blur(8px); }
+.filecard.sensitive:not(.unblurable):hover .filecard-preview { filter: blur(0); }
+.filecard-preview { height: 180px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: var(--ink-3); position: relative; border-top-left-radius: calc(var(--radius-lg) - 5px); border-top-right-radius: calc(var(--radius-lg) - 5px); margin: 4px 4px 0; }
+/* images: show full image, centered with dim background */
+.filecard-img {
+  max-width: 100%; max-height: 180px; object-fit: contain; display: block;
+  padding: 8px 8px; box-sizing: border-box;
 }
+.filecard-code {
+  margin: 0; padding: 8px 8px; width: 100%; height: 100%; overflow: hidden;
+  font-family: var(--mono); font-size: 11px; line-height: 1.55; color: var(--paper-dim);
+  white-space: pre; tab-size: 2;
+  -webkit-mask-image: linear-gradient(180deg, #000 60%, transparent);
+  mask-image: linear-gradient(180deg, #000 60%, transparent);
+}
+.filecard-md {
+  margin: 0; padding: 8px 8px; width: 100%; height: 100%; overflow: hidden;
+  font-family: var(--sans); font-size: 12px; line-height: 1.4; color: var(--paper-dim);
+  -webkit-mask-image: linear-gradient(180deg, #000 60%, transparent);
+  mask-image: linear-gradient(180deg, #000 60%, transparent);
+}
+/* double-width code and doc cards show more content */
+.filecard[data-kind="code"] .filecard-preview { height: 260px; }
+.filecard[data-kind="code"] .filecard-code { font-size: 12px; line-height: 1.5; -webkit-mask-image: linear-gradient(180deg, #000 75%, transparent); mask-image: linear-gradient(180deg, #000 75%, transparent); }
+.filecard[data-kind="document"] .filecard-preview { height: 260px; }
+.filecard[data-kind="document"] .filecard-md { font-size: 13px; line-height: 1.5; -webkit-mask-image: linear-gradient(180deg, #000 75%, transparent); mask-image: linear-gradient(180deg, #000 75%, transparent); }
 .filecard-tile { width: 50px; height: 50px; border-radius: var(--radius); display: grid; place-items: center; }
 .filecard-tile svg { width: 25px; height: 25px; }
 .filecard-foot { display: flex; align-items: center; gap: 8px; padding: 9px 11px; min-width: 0; }
 .filecard-ic { width: 22px; height: 22px; border-radius: 6px; flex: none; display: grid; place-items: center; }
 .filecard-ic svg { width: 13px; height: 13px; }
 .filecard-name { font-size: 12.5px; color: var(--paper); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* wrapper for folder strip + cards grid (single scrollable container) */
+.cards-wrapper {
+  flex: 1; overflow-y: auto; min-height: 0;
+}
+
+/* compact folder strip at top of cards view */
+.folderstrip {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px;
+  padding: 12px 16px; border-bottom: 1px solid var(--border-soft);
+}
+.folder-item {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 6px;
+  border-radius: var(--radius); color: var(--paper-dim);
+  transition: background 0.14s ease, color 0.14s ease;
+}
+.folder-item:hover { background: var(--card); color: var(--paper); }
+.folder-icon { width: 32px; height: 32px; border-radius: var(--radius); display: grid; place-items: center; flex: none; color: var(--dim); }
+.folder-icon svg { width: 16px; height: 16px; }
+.folder-name { font-size: 11px; color: inherit; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; text-align: center; }
+
+/* cards view — flows naturally after folder strip */
+.cards-view {
+  padding: 14px 16px 24px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px; align-content: start;
+}
 
 /* search mode chips + clear */
 .modes { display: flex; gap: 3px; padding: 3px; background: var(--ink-3); border: 1px solid var(--border); border-radius: var(--radius); flex: none; }
@@ -569,6 +629,12 @@ body.is-spotlight #root { padding: 16px; }
 .switch.on { background: var(--teal); }
 .switch > span { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--paper); transition: transform 0.16s cubic-bezier(0.2, 0.8, 0.3, 1); }
 .switch.on > span { transform: translateX(18px); }
+.radio-option { padding: 12px; background: var(--card); border: 1px solid var(--border-soft); border-radius: var(--radius); transition: all 0.14s ease; margin-bottom: 8px; }
+.radio-option:hover { border-color: var(--border); }
+.radio-option.checked { border-color: var(--amber); background: color-mix(in srgb, var(--amber) 8%, var(--card)); }
+.radio-circle { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--dim-2); flex: none; display: grid; place-items: center; transition: border-color 0.14s ease; }
+.radio-option.checked .radio-circle { border-color: var(--amber); }
+.radio-circle span { width: 10px; height: 10px; border-radius: 50%; background: var(--amber); }
 .coll-list { display: flex; flex-direction: column; gap: 8px; }
 .coll { display: flex; align-items: center; gap: 10px; padding: 11px 13px; background: var(--card); border: 1px solid var(--border-soft); border-radius: var(--radius); }
 .coll-info { flex: 1; min-width: 0; }
@@ -580,6 +646,17 @@ body.is-spotlight #root { padding: 16px; }
 .coll-btn { width: 30px; height: 30px; border-radius: var(--radius); color: var(--dim); font-size: 15px; transition: background 0.14s ease, color 0.14s ease; }
 .coll-btn:hover { background: var(--ink-3); color: var(--paper); }
 .coll-btn.danger:hover { background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); }
+
+/* rubber band selection */
+.rubber-band {
+  position: fixed;
+  border: 2px solid var(--amber);
+  background: color-mix(in srgb, var(--amber) 15%, transparent);
+  z-index: 1000;
+  pointer-events: none;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 0 0 2px var(--ink);
+}
 
 @keyframes rise { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: none; } }
 @keyframes growbar { from { transform: scaleY(0); } to { transform: scaleY(1); } }

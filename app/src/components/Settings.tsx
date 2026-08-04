@@ -12,6 +12,11 @@ import { ThemeEditor } from "./ThemeEditor";
 const HOVER_DELAY_KEY = "lattice:hover-delay";
 const PERSISTENCE_KEY = "lattice:preview-persistence";
 
+// Sensitive preview settings (localStorage keys)
+const NEVER_BLUR_KEY = "lattice:never-blur";
+const NEVER_UNBLUR_KEY = "lattice:never-unblur";
+const BLUR_PATTERNS_KEY = "lattice:blur-patterns";
+
 function Switch({ on, onClick }: { on: boolean; onClick: () => void }) {
   return <button className={"switch" + (on ? " on" : "")} onClick={onClick} role="switch" aria-checked={on}><span /></button>;
 }
@@ -35,6 +40,25 @@ function NumberSlider({ label, desc, value, onChange, min, max, step, suffix = "
         />
       </div>
     </div>
+  );
+}
+
+// Radio option for mutually exclusive settings
+function RadioOption({ label, desc, checked, onClick }: { label: string; desc?: string; checked: boolean; onClick: () => void }) {
+  return (
+    <button
+      className={"radio-option" + (checked ? " checked" : "")}
+      onClick={onClick}
+      style={{ textAlign: "left", width: "100%" }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <div className="radio-circle">{checked && <span />}</div>
+        <div>
+          <div className="setting-name">{label}</div>
+          {desc && <div className="setting-desc">{desc}</div>}
+        </div>
+      </div>
+    </button>
   );
 }
 
@@ -82,6 +106,31 @@ export function Settings({ ex, ind, th, onClose }: { ex: Explorer; ind: Indexer;
   // editing: a theme to edit, "new" to fork the active one, or null
   const [editing, setEditing] = useState<Theme | "new" | null>(null);
   const [activeSection, setActiveSection] = useState<Section>("general");
+
+  // Sensitive preview settings
+  const [neverBlur, setNeverBlur] = useState(() => localStorage.getItem(NEVER_BLUR_KEY) === "true");
+  const [neverUnblur, setNeverUnblur] = useState(() => localStorage.getItem(NEVER_UNBLUR_KEY) === "true");
+  const [blurPatterns, setBlurPatterns] = useState(() => localStorage.getItem(BLUR_PATTERNS_KEY) || "");
+
+  // Handle blur mode change (mutually exclusive with never unblur)
+  const handleBlurModeChange = (mode: "blur" | "neverBlur") => {
+    if (mode === "neverBlur") {
+      setNeverBlur(true);
+      setNeverUnblur(false);
+      localStorage.setItem(NEVER_BLUR_KEY, "true");
+      localStorage.setItem(NEVER_UNBLUR_KEY, "false");
+    } else {
+      setNeverBlur(false);
+      localStorage.setItem(NEVER_BLUR_KEY, "false");
+    }
+  };
+
+
+  // Handle patterns change
+  const handlePatternsChange = (value: string) => {
+    setBlurPatterns(value);
+    localStorage.setItem(BLUR_PATTERNS_KEY, value);
+  };
 
   if (editing) {
     return <ThemeEditor th={th} base={editing === "new" ? th.theme : editing} isNew={editing === "new"} onClose={() => setEditing(null)} />;
@@ -237,11 +286,60 @@ export function Settings({ ex, ind, th, onClose }: { ex: Explorer; ind: Indexer;
               </div>
             </section>
 
-            {/* Advanced (placeholder) */}
+            {/* Advanced */}
             <section className={activeSection === "advanced" ? "active" : ""}>
+              {/* Sensitive preview settings */}
               <div className="setting-group">
-                <div className="setting-desc" style={{ fontStyle: "italic" }}>
-                  Advanced settings coming soon...
+                <div className="settings-section-title">Sensitive preview</div>
+                <div className="setting-desc" style={{ marginBottom: "12px" }}>
+                  Control how sensitive files (env, credentials) are displayed in previews
+                </div>
+
+                <div style={{ marginBottom: "16px" }}>
+                  <RadioOption
+                    label="Blur by default"
+                    desc="Blur sensitive files; hover to unblur"
+                    checked={!neverBlur && !neverUnblur}
+                    onClick={() => { setNeverBlur(false); setNeverUnblur(false); localStorage.setItem(NEVER_BLUR_KEY, "false"); localStorage.setItem(NEVER_UNBLUR_KEY, "false"); }}
+                  />
+                  <RadioOption
+                    label="Never blur"
+                    desc="Show sensitive files normally (screen recording caution!)"
+                    checked={neverBlur}
+                    onClick={() => handleBlurModeChange("neverBlur")}
+                  />
+                  <RadioOption
+                    label="Blur and never unblur"
+                    desc="Blur sensitive files; hover does not unblur"
+                    checked={neverUnblur}
+                    onClick={() => { setNeverBlur(false); setNeverUnblur(true); localStorage.setItem(NEVER_BLUR_KEY, "false"); localStorage.setItem(NEVER_UNBLUR_KEY, "true"); }}
+                  />
+                </div>
+
+                <div className="setting-row" style={{ flexDirection: "column", alignItems: "stretch", gap: "8px" }}>
+                  <div>
+                    <div className="setting-name">Additional blur patterns</div>
+                    <div className="setting-desc">Comma-separated regex patterns for files to blur (e.g. "password, secret, api_key")</div>
+                  </div>
+                  <input
+                    type="text"
+                    value={blurPatterns}
+                    onChange={(e) => handlePatternsChange(e.target.value)}
+                    placeholder="password, secret, api_key, ..."
+                    disabled={neverBlur}
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: "var(--radius)",
+                      border: "1px solid var(--border)",
+                      background: neverBlur ? "var(--ink-3)" : "var(--card)",
+                      color: "var(--paper)",
+                      fontFamily: "var(--mono)",
+                      fontSize: "13px",
+                      boxSizing: "border-box",
+                      opacity: neverBlur ? 0.5 : 1,
+                    }}
+                  />
                 </div>
               </div>
             </section>

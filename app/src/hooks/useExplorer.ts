@@ -167,10 +167,6 @@ export function useExplorer() {
 
   const selectAt = useCallback((i: number, mods: { ctrl: boolean; shift: boolean }) => {
     setCtx(null);
-    // Auto-expand collapsed preview when selecting something
-    if (previewCollapsed) {
-      setPreviewCollapsed(false);
-    }
     setSel((prev) => {
       const next = new Set(prev);
       if (mods.shift && anchor.current != null) {
@@ -188,10 +184,11 @@ export function useExplorer() {
       }
       return next;
     });
-  }, [entries, previewCollapsed]);
+  }, [entries]);
 
   const clearSel = useCallback(() => { setSel(new Set()); setCtx(null); }, []);
   const selectAll = useCallback(() => setSel(new Set(entries.map((e) => e.path))), [entries]);
+  const selectSet = useCallback((paths: Set<string>) => { setSel(paths); setCtx(null); }, []);
 
   const openEntry = useCallback((e: Entry) => {
     if (e.is_dir) navigate(e.path);
@@ -249,7 +246,7 @@ export function useExplorer() {
     sel, selectedEntries, sort, view, showHidden, clipboard, renaming, ctx,
     tabs: tabList, activeTabId: activeId, newTab, closeTab, selectTab,
     navigate, back, forward, up, refresh,
-    selectAt, clearSel, selectAll, openEntry, setSort,
+    selectAt, clearSel, selectAll, selectSet, openEntry, setSort,
     toggleView: () => setView((v) => (v === "list" ? "grid" : "list")),
     setView,
     toggleHidden: () => setShowHidden((h) => !h),

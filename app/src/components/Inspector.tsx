@@ -1,18 +1,93 @@
+import { useEffect, useState } from "react";
 import { Explorer } from "../hooks/useExplorer";
 import { Glyph, TONE } from "../lib/icons";
-import { fmtSize, fmtWhen, parentOf } from "../lib/format";
-import { isTauri } from "../lib/api";
+import { fmtSize, fmtWhen, parentOf, baseName } from "../lib/format";
+import { Entry, api, isTauri } from "../lib/api";
+
+// Normalize Windows paths to forward slashes for display consistency
+function normalizePath(path: string): string {
+  return path.replace(/\\/g, "/");
+}
+
+function FolderTree({ path }: { path: string }) {
+  const [entries, setEntries] = useState<Entry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    api.listDir(path, false).then((ents) => {
+      // Sort: folders first, then files, alphabetically
+      const sorted = [...ents].sort((a, b) => {
+        if (a.is_dir && !b.is_dir) return -1;
+        if (!a.is_dir && b.is_dir) return 1;
+        return a.name.localeCompare(b.name);
+      });
+      setEntries(sorted);
+      setLoading(false);
+    });
+  }, [path]);
+
+  if (loading) {
+    return <div style={{ padding: "12px", color: "var(--dim)", fontSize: "13px" }}>Loading…</div>;
+  }
+
+  const total = entries.length;
+  const displayEntries = entries.slice(0, 40);
+
+  return (
+    <div style={{ padding: "8px 0" }}>
+      <div style={{ padding: "8px 12px", fontSize: "11px", fontWeight: 600, color: "var(--dim-2)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+        Contents ({total})
+      </div>
+      <div style={{ padding: "0 4px" }}>
+        {displayEntries.map((e) => {
+          const t = TONE[e.kind];
+          const ext = e.name.includes('.') ? e.name.split('.').pop() || '' : '';
+          const displayName = e.is_dir ? `${e.name}/` : `${e.name}${ext ? `.${ext}` : ''}`;
+          return (
+            <div key={e.path} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 12px", cursor: "default" }}>
+              <span style={{ width: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center", color: t.fg, flexShrink: 0 }}>
+                <Glyph kind={e.kind} />
+              </span>
+              <span style={{ fontSize: "13px", color: "var(--paper-dim)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+                {displayName}
+              </span>
+            </div>
+          );
+        })}
+        {total > 40 && (
+          <div style={{ padding: "8px 12px", fontSize: "12px", color: "var(--dim)", fontStyle: "italic" }}>
+            …and {total - 40} more
+          </div>
+        )}
+        {total === 0 && (
+          <div style={{ padding: "12px", fontSize: "13px", color: "var(--dim)" }}>
+            Empty folder
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export function Inspector({ ex, onCollapse }: { ex: Explorer; onCollapse: () => void }) {
   const items = ex.selectedEntries;
 
   if (items.length === 0)
     return (
-      <aside className="inspector empty">
+      <aside className="inspector">
         <button className="inspector-collapse" onClick={onCollapse} title="Collapse preview pane">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
         </button>
-        Select an item<br />to see details
+        <div style={{ padding: "16px 0" }}>
+          <div style={{ fontFamily: "var(--serif)", fontSize: "18px", fontWeight: 600, marginBottom: "4px" }}>
+            {baseName(ex.path) || "/"}
+          </div>
+          <div style={{ fontSize: "12px", color: "var(--dim)", fontFamily: "var(--mono)", marginBottom: "16px" }}>
+            {normalizePath(ex.path)}
+          </div>
+          <FolderTree path={ex.path} />
+        </div>
       </aside>
     );
 

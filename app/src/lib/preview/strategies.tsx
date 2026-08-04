@@ -40,9 +40,17 @@ registerPreviewStrategy({
 // Fallback for any text-like kind not claimed above (binary files fail load()
 // and show nothing). load() carries the extension so render() can highlight.
 interface CodePreview extends Preview { ext: string }
+const CODE_EXTS = new Set([
+  "js", "ts", "jsx", "tsx", "mjs", "cjs", "json", "yaml", "yml", "toml",
+  "ini", "cfg", "conf", "log", "gitignore", "env", "dockerfile", "makefile",
+  "sh", "bash", "zsh", "py", "rb", "php", "java", "c", "cpp", "h", "hpp",
+  "rs", "go", "swift", "kt", "lua", "r", "scala", "pl", "pm", "vim",
+  "css", "scss", "sass", "less", "styl", "html", "htm", "xml", "svg",
+  "sql", "graphql", "prisma", "proto", "graphql", "ex", "exs", "erl", "hrl"
+]);
 registerPreviewStrategy<CodePreview>({
   id: "text",
-  match: (e: Entry) => !e.is_dir && (e.kind === "code" || e.kind === "document"),
+  match: (e: Entry) => !e.is_dir && (e.kind === "code" || e.kind === "document" || CODE_EXTS.has(extOf(e.name))),
   load: async (e: Entry) => ({ ...(await api.previewFile(e.path)), ext: extOf(e.name) }),
   render: (d: CodePreview) => {
     const { html } = highlightCode(d.text, d.ext);

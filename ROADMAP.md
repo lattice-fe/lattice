@@ -132,6 +132,10 @@ Viability notes (Tauri v2), easiest → hardest:
 - **New window (Ctrl+N)** — spawn additional explorer windows. **Easy / low
   risk**: multi-window is already in use (main + spotlight); each window runs its
   own explorer state, backend + index DB are shared. Just a builder + command.
+- **Rubber band selection** 🚧 — drag to select multiple files in a rectangular
+  region. **Implemented for list/grid views** (commit `<tbd>`). Disabled in cards
+  view due to complex layout (folder strip + cards grid with different scrolling
+  contexts); cards-view rubber band **deferred** pending layout unification.
 - **File drag-drop** — dropping files onto a Lattice window (from Explorer,
   other apps, or another Lattice window) via Tauri's native drag-drop events →
   copy/move. Dropping *in* is well-supported; dragging files *out* of the webview
@@ -157,6 +161,12 @@ Content-adaptive file views that reuse the hover-preview strategy engine.
   dismissal, never re-nag.
 - **Later** — per-folder view memory; folder tiles showing a peek of contents;
   concurrency cap on peek loads for very large folders.
+- **Known issue:** Backend file classification — Files like `.gitignore`, `.mjs`,
+  `.json` etc. are not classified as `kind: "code"` by the Rust backend, so they
+  don't show previews in Cards view. Need to update file type detection logic.
+- **Layout edge case:** When folder count is <60% but still covers significant
+  vertical space, the two-scroll layout (folder strip + cards) is inefficient.
+  Need to collapse into a single scrollable area for better UX.
 
 ---
 

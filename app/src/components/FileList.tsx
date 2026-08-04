@@ -1,6 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Explorer } from "../hooks/useExplorer";
 import { useHoverPreview } from "../hooks/useHoverPreview";
+import { useRubberBand } from "../hooks/useRubberBand";
 import { Entry } from "../lib/api";
 import { Glyph, TONE } from "../lib/icons";
 import { fmtSize, fmtWhen, baseName } from "../lib/format";
@@ -35,6 +36,88 @@ export function FileList({ ex }: { ex: Explorer }) {
   // miss the pair. A timestamp ref is reliable across re-renders.
   const lastClick = useRef<{ path: string; t: number } | null>(null);
   const hp = useHoverPreview();
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Get all entry elements (rows/cards/filecards) — only in list/grid views
+  const getElements = useCallback(() => {
+    if (!panelRef.current || view === "cards") return []; // Disable rubber band in cards view
+    const items = panelRef.current.querySelectorAll(".row, .card");
+    return Array.from(items);
+  }, [view]);
+
+  // Rubber band selection handlers
+  const handleRubberBand = useCallback((indices: number[], additive: boolean) => {
+    console.log("[RB] Selection update:", { indices, additive, count: indices.length });
+    if (!additive) {
+      // Clear selection and add only these items
+      const newSel = new Set<string>();
+      indices.forEach(i => {
+        if (entries[i]) newSel.add(entries[i].path);
+      });
+      console.log("[RB] Setting new selection (non-additive):", { size: newSel.size, paths: Array.from(newSel).slice(0, 3) });
+      ex.selectSet(newSel);
+    } else {
+      // Toggle items in selection
+      const newSel = new Set(sel);
+      indices.forEach(i => {
+        if (entries[i]) {
+          const p = entries[i].path;
+          if (sel.has(p)) newSel.delete(p);
+          else newSel.add(p);
+        }
+      });
+      console.log("[RB] Setting new selection (additive):", { size: newSel.size, paths: Array.from(newSel).slice(0, 3) });
+      ex.selectSet(newSel);
+    }
+  }, [entries, sel, ex]);
+
+  const rb = useRubberBand({
+    onSelect: handleRubberBand,
+    getElements,
+  });
+
+  // Mouse down to start rubber band selection
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    console.log("[FileList.handleMouseDown] button:", e.button, "target:", e.target, "view:", view);
+    if (e.button !== 0) return; // Only left click
+    if (view === "cards") return; // Disable rubber band in cards view
+    const target = e.target as HTMLElement;
+    // Only start if clicking on empty space (not on an item)
+    if (target === e.currentTarget || target.closest(".panel") === e.currentTarget) {
+      console.log("[FileList.handleMouseDown] Starting rubber band");
+      e.preventDefault(); // Prevent text selection
+      rb.start(e.clientX, e.clientY, e.ctrlKey || e.metaKey);
+    } else {
+      console.log("[FileList.handleMouseDown] Not starting - clicked on item");
+    }
+  }, [rb, view]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (rb.state.active) {
+      e.preventDefault(); // Prevent text selection while dragging
+      rb.update(e.clientX, e.clientY);
+    }
+  }, [rb]);
+
+  const handleMouseUp = useCallback(() => {
+    console.log("[FileList.handleMouseUp] rb.state.active:", rb.state.active);
+    if (rb.state.active) {
+      console.log("[FileList.handleMouseUp] Ending rubber band");
+      rb.end();
+    }
+  }, [rb]);
+
+  // Only clear selection on click if we're not rubber-banding
+  const handleClick = useCallback(() => {
+    console.log("[FileList.handleClick] rb.state:", { active: rb.state.active, justFinished: rb.state.justFinished }, "current sel size:", sel.size);
+    // Don't clear if actively rubber-banding OR just finished (onClick fires after onMouseUp)
+    if (!rb.state.active && !rb.state.justFinished) {
+      console.log("[FileList.handleClick] Clearing selection");
+      ex.clearSel();
+    } else {
+      console.log("[FileList.handleClick] Skipping clear - rubber band is active or just finished");
+    }
+  }, [ex, rb.state.active, rb.state.justFinished, sel]);
 
   // select / open / context — shared by rows and cards
   const interactProps = (e: Entry, i: number) => ({
@@ -71,8 +154,36 @@ export function FileList({ ex }: { ex: Explorer }) {
     </span>
   );
 
+  // Calculate rubber band rectangle for display
+  const bandRect = rb.state.active && rb.state.band ? (() => {
+    const { startX, startY, endX, endY } = rb.state.band;
+    const left = Math.min(startX, endX);
+    const top = Math.min(startY, endY);
+    const width = Math.abs(endX - startX);
+    const height = Math.abs(endY - startY);
+    return { left, top, width, height };
+  })() : null;
+
   return (
-    <main className="panel" onClick={ex.clearSel} onScroll={hp.onLeave} onContextMenu={(e) => { e.preventDefault(); ex.openContext(e.clientX, e.clientY, null); }}>
+    <main
+      ref={panelRef}
+      className="panel"
+      onClick={handleClick}
+      onScroll={hp.onLeave}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      onContextMenu={(e) => { e.preventDefault(); ex.openContext(e.clientX, e.clientY, null); }}
+    >
+      {bandRect && (
+        <div className="rubber-band" style={{
+          left: `${bandRect.left}px`,
+          top: `${bandRect.top}px`,
+          width: `${bandRect.width}px`,
+          height: `${bandRect.height}px`,
+        }} />
+      )}
       <div className="hero">
         <div>
           <h1>{baseName(ex.path) || " "}</h1>
@@ -102,15 +213,55 @@ export function FileList({ ex }: { ex: Explorer }) {
         <div className="empty-note err">{ex.error}</div>
       ) : entries.length === 0 ? (
         <div className="empty-note">This folder is empty</div>
-      ) : view === "cards" ? (
-        <div className="filecards">
-          {entries.map((e, i) => (
-            <FileCard key={e.path} e={e} selected={sel.has(e.path)} interact={interactProps(e, i)}>
-              {renaming === e.path ? <RenameField entry={e} ex={ex} /> : <span className="filecard-name">{e.name}</span>}
-            </FileCard>
-          ))}
-        </div>
-      ) : view === "list" ? (
+      ) : view === "cards" ? (() => {
+        const dirs = entries.filter(e => e.is_dir);
+        const files = entries.filter(e => !e.is_dir);
+        const dirRatio = dirs.length / entries.length;
+        // If >60% folders, fall back to grid view for consistency
+        if (dirRatio > 0.6) {
+          return (
+            <div className="list grid">
+              {entries.map((e, i) => {
+                const t = TONE[e.kind];
+                return (
+                  <button key={e.path} className={"card" + (sel.has(e.path) ? " sel" : "")} style={{ animationDelay: `${Math.min(i * 16, 240)}ms` }} {...rowProps(e, i)}>
+                    <span className="card-tile" style={{ background: t.bg, color: t.fg }}><Glyph kind={e.kind} /></span>
+                    {renaming === e.path ? <RenameField entry={e} ex={ex} /> : <span className="card-label">{e.name}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          );
+        }
+        return (
+          <div className="cards-wrapper">
+            {dirs.length > 0 && (
+              <div className="folderstrip">
+                {dirs.map((e) => {
+                  const i = entries.findIndex(ent => ent.path === e.path);
+                  return (
+                    <button key={e.path} className="folder-item" {...rowProps(e, i)}>
+                      <span className="folder-icon" style={{ background: TONE.folder.bg, color: TONE.folder.fg }}><Glyph kind="folder" /></span>
+                      <span className="folder-name">{e.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {/* Files in cards grid */}
+            <div className="cards-view">
+              {files.map((e) => {
+                const i = entries.findIndex(ent => ent.path === e.path);
+                return (
+                  <FileCard key={e.path} e={e} selected={sel.has(e.path)} interact={interactProps(e, i)}>
+                    {renaming === e.path ? <RenameField entry={e} ex={ex} /> : <span className="filecard-name">{e.name}</span>}
+                  </FileCard>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })() : view === "list" ? (
         <div className="list">
           {entries.map((e, i) => {
             const t = TONE[e.kind];
