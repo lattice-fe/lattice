@@ -5,6 +5,8 @@
 .fastembed_cache/
 
 # Backups / editor / OS cruft
+.claude/
+.vscode/
 **/*.rs.bk
 *.swp
 .DS_Store
