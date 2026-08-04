@@ -136,10 +136,10 @@ export function useRubberBand({ onSelect, getElements, panelRef }: UseRubberBand
     }
 
     // Only commit selection if the user actually dragged (moved at least 5px)
-    const didDrag = startRef.current && state.band && (
+    const didDrag = !!(startRef.current && state.band && (
       Math.abs(state.band.endX - state.band.startX) > 5 ||
       Math.abs(state.band.endY - state.band.startY) > 5
-    );
+    ));
 
     // Commit final selection on mouseup if user actually dragged
     if (didDrag && startRef.current && selectedIndicesRef.current.size > 0) {

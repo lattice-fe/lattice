@@ -685,6 +685,19 @@ body.is-spotlight #root { padding: 16px; }
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--amber) 40%, transparent);
 }
 
+/* Drag and drop visual feedback */
+.row.drag-over,
+.card.drag-over,
+.filecard.drag-over,
+.folder-item.drag-over {
+  border-color: var(--terracotta) !important;
+  background: color-mix(in srgb, var(--terracotta) 20%, transparent) !important;
+}
+
+.panel.drag-over {
+  background: color-mix(in srgb, var(--blue) 5%, var(--ink));
+}
+
 @keyframes rise { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: none; } }
 @keyframes growbar { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 @keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }

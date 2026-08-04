@@ -184,7 +184,7 @@ export function FileCard({
   // unblurable = neverUnblur is TRUE (should stay blurred on hover)
   const isUnblurable = neverUnblur && isSensitive;
   return (
-    <button ref={ref} className={"filecard" + (selected ? " sel" : "") + (intersecting ? " rubber-band-hover" : "") + (isSensitive ? " sensitive" : "") + (isUnblurable ? " unblurable" : "")} data-kind={gridKind} {...interact}>
+    <button ref={ref} draggable className={"filecard" + (selected ? " sel" : "") + (intersecting ? " rubber-band-hover" : "") + (isSensitive ? " sensitive" : "") + (isUnblurable ? " unblurable" : "")} data-kind={gridKind} {...interact}>
       <div className="filecard-preview">
         {peek?.type === "img" ? (
           <img className="filecard-img" src={peek.src} alt="" loading="lazy" />
