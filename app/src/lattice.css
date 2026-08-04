@@ -364,10 +364,11 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .folder-item {
   display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 6px;
-  border-radius: var(--radius); color: var(--paper-dim);
-  transition: background 0.14s ease, color 0.14s ease;
+  border-radius: var(--radius); color: var(--paper-dim); border: 1px solid transparent;
+  transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
 }
 .folder-item:hover { background: var(--card); color: var(--paper); }
+.folder-item.sel { border-color: var(--terracotta); background: color-mix(in srgb, var(--terracotta) 15%, transparent); color: var(--paper); }
 .folder-icon { width: 32px; height: 32px; border-radius: var(--radius); display: grid; place-items: center; flex: none; color: var(--dim); }
 .folder-icon svg { width: 16px; height: 16px; }
 .folder-name { font-size: 11px; color: inherit; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; text-align: center; }
@@ -656,6 +657,32 @@ body.is-spotlight #root { padding: 16px; }
   pointer-events: none;
   border-radius: var(--radius-sm);
   box-shadow: 0 0 0 2px var(--ink);
+  will-change: transform;
+}
+
+.rubber-band-count {
+  position: absolute;
+  background: var(--amber);
+  color: var(--ink);
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  z-index: 1001;
+  pointer-events: none;
+  font-weight: 500;
+  white-space: nowrap;
+  transform: translateY(-50%);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  animation: fadein 0.15s ease-out;
+}
+
+/* Visual feedback for items intersecting with rubber band */
+.row.rubber-band-hover,
+.card.rubber-band-hover,
+.filecard.rubber-band-hover,
+.folder-item.rubber-band-hover {
+  border-color: var(--amber) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--amber) 40%, transparent);
 }
 
 @keyframes rise { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: none; } }

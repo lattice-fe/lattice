@@ -38,12 +38,12 @@ export function FileList({ ex }: { ex: Explorer }) {
   const hp = useHoverPreview();
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // Get all entry elements (rows/cards/filecards) — only in list/grid views
+  // Get all entry elements (rows/cards/filecards) — all views
   const getElements = useCallback(() => {
-    if (!panelRef.current || view === "cards") return []; // Disable rubber band in cards view
-    const items = panelRef.current.querySelectorAll(".row, .card");
+    if (!panelRef.current) return [];
+    const items = panelRef.current.querySelectorAll(".row, .card, .filecard, .folder-item");
     return Array.from(items);
-  }, [view]);
+  }, []);
 
   // Rubber band selection handlers
   const handleRubberBand = useCallback((indices: number[], additive: boolean) => {
@@ -74,13 +74,13 @@ export function FileList({ ex }: { ex: Explorer }) {
   const rb = useRubberBand({
     onSelect: handleRubberBand,
     getElements,
+    panelRef,
   });
 
   // Mouse down to start rubber band selection
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     console.log("[FileList.handleMouseDown] button:", e.button, "target:", e.target, "view:", view);
     if (e.button !== 0) return; // Only left click
-    if (view === "cards") return; // Disable rubber band in cards view
     const target = e.target as HTMLElement;
     // Only start if clicking on empty space (not on an item)
     if (target === e.currentTarget || target.closest(".panel") === e.currentTarget) {
@@ -90,7 +90,7 @@ export function FileList({ ex }: { ex: Explorer }) {
     } else {
       console.log("[FileList.handleMouseDown] Not starting - clicked on item");
     }
-  }, [rb, view]);
+  }, [rb]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (rb.state.active) {
@@ -142,8 +142,8 @@ export function FileList({ ex }: { ex: Explorer }) {
   });
   // rows/grid also drive the hover-preview; cards render their own content so they don't
   const rowProps = (e: Entry, i: number) => ({
-    onMouseEnter: (ev: React.MouseEvent) => hp.onEnter(e, ev),
-    onMouseMove: hp.onMove,
+    onMouseEnter: (ev: React.MouseEvent) => { if (!rb.state.active) hp.onEnter(e, ev); },
+    onMouseMove: rb.state.active ? undefined : hp.onMove,
     onMouseLeave: () => hp.onLeave(),
     ...interactProps(e, i),
   });
@@ -154,7 +154,7 @@ export function FileList({ ex }: { ex: Explorer }) {
     </span>
   );
 
-  // Calculate rubber band rectangle for display
+  // Calculate rubber band rectangle for display (viewport coordinates for fixed positioning)
   const bandRect = rb.state.active && rb.state.band ? (() => {
     const { startX, startY, endX, endY } = rb.state.band;
     const left = Math.min(startX, endX);
@@ -163,6 +163,11 @@ export function FileList({ ex }: { ex: Explorer }) {
     const height = Math.abs(endY - startY);
     return { left, top, width, height };
   })() : null;
+
+  // Check if an entry is currently intersecting with the rubber band
+  const isIntersecting = (index: number) => {
+    return rb.state.intersectingIndices.includes(index);
+  };
 
   return (
     <main
@@ -177,12 +182,22 @@ export function FileList({ ex }: { ex: Explorer }) {
       onContextMenu={(e) => { e.preventDefault(); ex.openContext(e.clientX, e.clientY, null); }}
     >
       {bandRect && (
-        <div className="rubber-band" style={{
-          left: `${bandRect.left}px`,
-          top: `${bandRect.top}px`,
-          width: `${bandRect.width}px`,
-          height: `${bandRect.height}px`,
-        }} />
+        <>
+          <div className="rubber-band" style={{
+            left: `${bandRect.left}px`,
+            top: `${bandRect.top}px`,
+            width: `${bandRect.width}px`,
+            height: `${bandRect.height}px`,
+          }} />
+          {rb.state.intersectingIndices.length > 0 && (
+            <div className="rubber-band-count" style={{
+              left: `${bandRect.left + bandRect.width + 8}px`,
+              top: `${bandRect.top}px`,
+            }}>
+              {rb.state.intersectingIndices.length} selected
+            </div>
+          )}
+        </>
       )}
       <div className="hero">
         <div>
@@ -224,7 +239,7 @@ export function FileList({ ex }: { ex: Explorer }) {
               {entries.map((e, i) => {
                 const t = TONE[e.kind];
                 return (
-                  <button key={e.path} className={"card" + (sel.has(e.path) ? " sel" : "")} style={{ animationDelay: `${Math.min(i * 16, 240)}ms` }} {...rowProps(e, i)}>
+                  <button key={e.path} className={"card" + (sel.has(e.path) ? " sel" : "") + (isIntersecting(i) ? " rubber-band-hover" : "")} style={{ animationDelay: `${Math.min(i * 16, 240)}ms` }} {...rowProps(e, i)}>
                     <span className="card-tile" style={{ background: t.bg, color: t.fg }}><Glyph kind={e.kind} /></span>
                     {renaming === e.path ? <RenameField entry={e} ex={ex} /> : <span className="card-label">{e.name}</span>}
                   </button>
@@ -240,7 +255,7 @@ export function FileList({ ex }: { ex: Explorer }) {
                 {dirs.map((e) => {
                   const i = entries.findIndex(ent => ent.path === e.path);
                   return (
-                    <button key={e.path} className="folder-item" {...rowProps(e, i)}>
+                    <button key={e.path} className={"folder-item" + (sel.has(e.path) ? " sel" : "") + (isIntersecting(i) ? " rubber-band-hover" : "")} {...rowProps(e, i)}>
                       <span className="folder-icon" style={{ background: TONE.folder.bg, color: TONE.folder.fg }}><Glyph kind="folder" /></span>
                       <span className="folder-name">{e.name}</span>
                     </button>
@@ -253,7 +268,7 @@ export function FileList({ ex }: { ex: Explorer }) {
               {files.map((e) => {
                 const i = entries.findIndex(ent => ent.path === e.path);
                 return (
-                  <FileCard key={e.path} e={e} selected={sel.has(e.path)} interact={interactProps(e, i)}>
+                  <FileCard key={e.path} e={e} selected={sel.has(e.path)} intersecting={isIntersecting(i)} interact={interactProps(e, i)}>
                     {renaming === e.path ? <RenameField entry={e} ex={ex} /> : <span className="filecard-name">{e.name}</span>}
                   </FileCard>
                 );
@@ -266,7 +281,7 @@ export function FileList({ ex }: { ex: Explorer }) {
           {entries.map((e, i) => {
             const t = TONE[e.kind];
             return (
-              <button key={e.path} className={"row" + (sel.has(e.path) ? " sel" : "")} style={{ animationDelay: `${Math.min(i * 18, 260)}ms` }} {...rowProps(e, i)}>
+              <button key={e.path} className={"row" + (sel.has(e.path) ? " sel" : "") + (isIntersecting(i) ? " rubber-band-hover" : "")} style={{ animationDelay: `${Math.min(i * 18, 260)}ms` }} {...rowProps(e, i)}>
                 <span className="nm">
                   <span className="tile" style={{ background: t.bg, color: t.fg }}><Glyph kind={e.kind} /></span>
                   {renaming === e.path ? <RenameField entry={e} ex={ex} /> : <span className="label">{e.name}</span>}
@@ -282,7 +297,7 @@ export function FileList({ ex }: { ex: Explorer }) {
           {entries.map((e, i) => {
             const t = TONE[e.kind];
             return (
-              <button key={e.path} className={"card" + (sel.has(e.path) ? " sel" : "")} style={{ animationDelay: `${Math.min(i * 16, 240)}ms` }} {...rowProps(e, i)}>
+              <button key={e.path} className={"card" + (sel.has(e.path) ? " sel" : "") + (isIntersecting(i) ? " rubber-band-hover" : "")} style={{ animationDelay: `${Math.min(i * 16, 240)}ms` }} {...rowProps(e, i)}>
                 <span className="card-tile" style={{ background: t.bg, color: t.fg }}><Glyph kind={e.kind} /></span>
                 {renaming === e.path ? <RenameField entry={e} ex={ex} /> : <span className="card-label">{e.name}</span>}
               </button>

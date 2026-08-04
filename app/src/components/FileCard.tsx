@@ -130,10 +130,11 @@ function peekKind(e: Entry): "img" | "code" | "md" | null {
 // code peek) is loaded lazily — only once the card scrolls near the viewport —
 // so a folder of hundreds of files doesn't read/decode everything up front.
 export function FileCard({
-  e, selected, interact, children,
+  e, selected, intersecting = false, interact, children,
 }: {
   e: Entry;
   selected: boolean;
+  intersecting?: boolean;
   interact: React.HTMLAttributes<HTMLButtonElement>;
   children: ReactNode; // label or rename field
 }) {
@@ -183,7 +184,7 @@ export function FileCard({
   // unblurable = neverUnblur is TRUE (should stay blurred on hover)
   const isUnblurable = neverUnblur && isSensitive;
   return (
-    <button ref={ref} className={"filecard" + (selected ? " sel" : "") + (isSensitive ? " sensitive" : "") + (isUnblurable ? " unblurable" : "")} data-kind={gridKind} {...interact}>
+    <button ref={ref} className={"filecard" + (selected ? " sel" : "") + (intersecting ? " rubber-band-hover" : "") + (isSensitive ? " sensitive" : "") + (isUnblurable ? " unblurable" : "")} data-kind={gridKind} {...interact}>
       <div className="filecard-preview">
         {peek?.type === "img" ? (
           <img className="filecard-img" src={peek.src} alt="" loading="lazy" />

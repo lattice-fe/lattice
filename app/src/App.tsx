@@ -71,6 +71,21 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [ex]);
 
+  // Global click handler to deselect when clicking outside file list
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      // Don't deselect if clicking on context menu, modal, or input
+      if (target.closest(".context-menu, .modal, input, textarea")) return;
+      // Deselect if anything is selected
+      if (exRef.current.sel.size > 0) {
+        exRef.current.clearSel();
+      }
+    };
+    window.addEventListener("click", onClick);
+    return () => window.removeEventListener("click", onClick);
+  }, []);
+
   return (
     <div className="app">
       <TitleBar ex={ex} />
