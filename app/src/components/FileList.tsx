@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { Explorer } from "../hooks/useExplorer";
 import { useHoverPreview } from "../hooks/useHoverPreview";
 import { useRubberBand } from "../hooks/useRubberBand";
-import { api, Entry } from "../lib/api";
+import { Entry } from "../lib/api";
 import { Glyph, TONE } from "../lib/icons";
 import { fmtSize, fmtWhen, baseName } from "../lib/format";
 import { SortCol } from "../lib/sort";
@@ -55,9 +55,7 @@ export function FileList({ ex }: { ex: Explorer }) {
         if (entries[i]) newSel.add(entries[i].path);
       });
       console.log("[RB] Setting new selection (non-additive):", { size: newSel.size, paths: Array.from(newSel).slice(0, 3) });
-      console.log("[RB] Current sel before:", sel);
       ex.selectSet(newSel);
-      console.log("[RB] selectSet called, should have set selection to:", newSel);
     } else {
       // Toggle items in selection
       const newSel = new Set(sel);
@@ -85,13 +83,12 @@ export function FileList({ ex }: { ex: Explorer }) {
     if (e.button !== 0) return; // Only left click
     const target = e.target as HTMLElement;
     // Only start if clicking on empty space (not on an item)
-    const clickedOnItem = target.closest(".row, .card, .filecard, .folder-item");
-    if (!clickedOnItem && (target === e.currentTarget || target.closest(".panel") === e.currentTarget)) {
+    if (target === e.currentTarget || target.closest(".panel") === e.currentTarget) {
       console.log("[FileList.handleMouseDown] Starting rubber band");
       e.preventDefault(); // Prevent text selection
       rb.start(e.clientX, e.clientY, e.ctrlKey || e.metaKey);
     } else {
-      console.log("[FileList.handleMouseDown] Not starting - clicked on item:", clickedOnItem?.className);
+      console.log("[FileList.handleMouseDown] Not starting - clicked on item");
     }
   }, [rb]);
 
@@ -112,7 +109,7 @@ export function FileList({ ex }: { ex: Explorer }) {
 
   // Only clear selection on click if we're not rubber-banding
   const handleClick = useCallback(() => {
-    console.log("[FileList.handleClick] rb.state:", { active: rb.state.active, justFinished: rb.state.justFinished }, "current sel size:", sel.size, "sel contents:", Array.from(sel));
+    console.log("[FileList.handleClick] rb.state:", { active: rb.state.active, justFinished: rb.state.justFinished }, "current sel size:", sel.size);
     // Don't clear if actively rubber-banding OR just finished (onClick fires after onMouseUp)
     if (!rb.state.active && !rb.state.justFinished) {
       console.log("[FileList.handleClick] Clearing selection");
@@ -122,24 +119,12 @@ export function FileList({ ex }: { ex: Explorer }) {
     }
   }, [ex, rb.state.active, rb.state.justFinished, sel]);
 
-  // Track drag vs click intent
-  const dragStartPos = useRef<{ x: number; y: number } | null>(null);
-  const isDragging = useRef(false);
-
   // select / open / context — shared by rows and cards
   const interactProps = (e: Entry, i: number) => ({
     // middle-click a folder → open in a new tab
-    onMouseDown: (ev: React.MouseEvent) => {
-      if (ev.button === 1 && e.is_dir) { ev.preventDefault(); hp.onLeave(); ex.newTab(e.path); return; }
-      if (ev.button === 0) {
-        dragStartPos.current = { x: ev.clientX, y: ev.clientY };
-        isDragging.current = false;
-      }
-    },
+    onMouseDown: (ev: React.MouseEvent) => { if (ev.button === 1 && e.is_dir) { ev.preventDefault(); hp.onLeave(); ex.newTab(e.path); } },
     onClick: (ev: React.MouseEvent) => {
       ev.stopPropagation();
-      dragStartPos.current = null;
-      isDragging.current = false;
       const mods = { ctrl: ev.ctrlKey || ev.metaKey, shift: ev.shiftKey };
       if (mods.ctrl || mods.shift) { lastClick.current = null; ex.selectAt(i, mods); return; }
       const now = Date.now();
@@ -154,83 +139,11 @@ export function FileList({ ex }: { ex: Explorer }) {
       }
     },
     onContextMenu: (ev: React.MouseEvent) => { ev.preventDefault(); ev.stopPropagation(); if (!sel.has(e.path)) ex.selectAt(i, { ctrl: false, shift: false }); ex.openContext(ev.clientX, ev.clientY, i); },
-    onDragStart: (ev: React.DragEvent) => {
-      // Prevent drag if user is trying to rubber band select
-      if (!isDragging.current) {
-        ev.preventDefault();
-        return;
-      }
-      // If item not selected, select it first
-      if (!sel.has(e.path)) {
-        ex.selectAt(i, { ctrl: false, shift: false });
-      }
-      // Set drag data with all selected paths
-      const selectedPaths = Array.from(sel);
-      ev.dataTransfer.effectAllowed = "copyMove";
-      ev.dataTransfer.setData("text/uri-list", selectedPaths.join("\n"));
-      // Show custom drag image with count
-      const dragImg = document.createElement("div");
-      dragImg.style.position = "absolute";
-      dragImg.style.top = "-1000px";
-      dragImg.style.left = "-1000px";
-      dragImg.style.background = "var(--card)";
-      dragImg.style.border = "1px solid var(--border)";
-      dragImg.style.borderRadius = "var(--radius)";
-      dragImg.style.padding = "6px 10px";
-      dragImg.style.fontSize = "12px";
-      dragImg.style.fontWeight = "500";
-      dragImg.style.color = "var(--paper)";
-      dragImg.style.whiteSpace = "nowrap";
-      dragImg.textContent = `${selectedPaths.length} item${selectedPaths.length === 1 ? "" : "s"}`;
-      document.body.appendChild(dragImg);
-      ev.dataTransfer.setDragImage(dragImg, 0, 0);
-      setTimeout(() => document.body.removeChild(dragImg), 0);
-    },
-    onDragEnd: () => {
-      dragStartPos.current = null;
-      isDragging.current = false;
-    },
-    onDragOver: (ev: React.DragEvent) => {
-      if (!e.is_dir) return;
-      ev.preventDefault();
-      ev.stopPropagation();
-      ev.dataTransfer.dropEffect = ev.ctrlKey || ev.metaKey ? "copy" : "move";
-      ev.currentTarget.classList.add("drag-over");
-    },
-    onDragLeave: (ev: React.DragEvent) => {
-      ev.currentTarget.classList.remove("drag-over");
-    },
-    onDrop: (ev: React.DragEvent) => {
-      if (!e.is_dir) return;
-      ev.preventDefault();
-      ev.stopPropagation();
-      ev.currentTarget.classList.remove("drag-over");
-      const paths = ev.dataTransfer.getData("text/uri-list").split("\n").filter(p => p);
-      if (paths.length === 0) return;
-      const mode = ev.ctrlKey || ev.metaKey ? "copy" : "move";
-      console.log(`[DND] ${mode} ${paths.length} items to ${e.path}`);
-      if (mode === "copy") {
-        api.copyItems(paths, e.path).then(() => ex.refresh()).catch(e => console.error(e));
-      } else {
-        api.moveItems(paths, e.path).then(() => ex.refresh()).catch(e => console.error(e));
-      }
-    },
   });
   // rows/grid also drive the hover-preview; cards render their own content so they don't
   const rowProps = (e: Entry, i: number) => ({
     onMouseEnter: (ev: React.MouseEvent) => { if (!rb.state.active) hp.onEnter(e, ev); },
-    onMouseMove: (ev: React.MouseEvent) => {
-      // Handle hover preview
-      if (!rb.state.active) hp.onMove(ev);
-      // Handle drag detection
-      if (dragStartPos.current && !isDragging.current) {
-        const dx = Math.abs(ev.clientX - dragStartPos.current.x);
-        const dy = Math.abs(ev.clientY - dragStartPos.current.y);
-        if (dx > 5 || dy > 5) {
-          isDragging.current = true;
-        }
-      }
-    },
+    onMouseMove: rb.state.active ? undefined : hp.onMove,
     onMouseLeave: () => hp.onLeave(),
     ...interactProps(e, i),
   });
@@ -256,20 +169,6 @@ export function FileList({ ex }: { ex: Explorer }) {
     return rb.state.intersectingIndices.includes(index);
   };
 
-  // Empty space drop handler
-  const handleDrop = useCallback((ev: React.DragEvent) => {
-    ev.preventDefault();
-    const paths = ev.dataTransfer.getData("text/uri-list").split("\n").filter(p => p);
-    if (paths.length === 0) return;
-    const mode = ev.ctrlKey || ev.metaKey ? "copy" : "move";
-    console.log(`[DND] ${mode} ${paths.length} items to current dir`);
-    if (mode === "copy") {
-      api.copyItems(paths, ex.path).then(() => ex.refresh()).catch(e => console.error(e));
-    } else {
-      api.moveItems(paths, ex.path).then(() => ex.refresh()).catch(e => console.error(e));
-    }
-  }, [ex.path, ex.refresh]);
-
   return (
     <main
       ref={panelRef}
@@ -281,8 +180,6 @@ export function FileList({ ex }: { ex: Explorer }) {
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
       onContextMenu={(e) => { e.preventDefault(); ex.openContext(e.clientX, e.clientY, null); }}
-      onDragOver={(ev) => { ev.preventDefault(); }} // Enable drop on panel
-      onDrop={handleDrop}
     >
       {bandRect && (
         <>
@@ -342,7 +239,7 @@ export function FileList({ ex }: { ex: Explorer }) {
               {entries.map((e, i) => {
                 const t = TONE[e.kind];
                 return (
-                  <button key={e.path} draggable className={"card" + (sel.has(e.path) ? " sel" : "") + (isIntersecting(i) ? " rubber-band-hover" : "")} style={{ animationDelay: `${Math.min(i * 16, 240)}ms` }} {...rowProps(e, i)}>
+                  <button key={e.path} className={"card" + (sel.has(e.path) ? " sel" : "") + (isIntersecting(i) ? " rubber-band-hover" : "")} style={{ animationDelay: `${Math.min(i * 16, 240)}ms` }} {...rowProps(e, i)}>
                     <span className="card-tile" style={{ background: t.bg, color: t.fg }}><Glyph kind={e.kind} /></span>
                     {renaming === e.path ? <RenameField entry={e} ex={ex} /> : <span className="card-label">{e.name}</span>}
                   </button>
@@ -358,7 +255,7 @@ export function FileList({ ex }: { ex: Explorer }) {
                 {dirs.map((e) => {
                   const i = entries.findIndex(ent => ent.path === e.path);
                   return (
-                    <button key={e.path} draggable className={"folder-item" + (sel.has(e.path) ? " sel" : "") + (isIntersecting(i) ? " rubber-band-hover" : "")} {...rowProps(e, i)}>
+                    <button key={e.path} className={"folder-item" + (sel.has(e.path) ? " sel" : "") + (isIntersecting(i) ? " rubber-band-hover" : "")} {...rowProps(e, i)}>
                       <span className="folder-icon" style={{ background: TONE.folder.bg, color: TONE.folder.fg }}><Glyph kind="folder" /></span>
                       <span className="folder-name">{e.name}</span>
                     </button>
@@ -383,10 +280,8 @@ export function FileList({ ex }: { ex: Explorer }) {
         <div className="list">
           {entries.map((e, i) => {
             const t = TONE[e.kind];
-            const isSel = sel.has(e.path);
-            if (isSel) console.log("[RENDER] Item", i, "should be selected, path:", e.path, "sel has:", Array.from(sel).slice(0,3));
             return (
-              <button key={e.path} draggable className={"row" + (isSel ? " sel" : "") + (isIntersecting(i) ? " rubber-band-hover" : "")} style={{ animationDelay: `${Math.min(i * 18, 260)}ms` }} {...rowProps(e, i)}>
+              <button key={e.path} className={"row" + (sel.has(e.path) ? " sel" : "") + (isIntersecting(i) ? " rubber-band-hover" : "")} style={{ animationDelay: `${Math.min(i * 18, 260)}ms` }} {...rowProps(e, i)}>
                 <span className="nm">
                   <span className="tile" style={{ background: t.bg, color: t.fg }}><Glyph kind={e.kind} /></span>
                   {renaming === e.path ? <RenameField entry={e} ex={ex} /> : <span className="label">{e.name}</span>}
@@ -402,7 +297,7 @@ export function FileList({ ex }: { ex: Explorer }) {
           {entries.map((e, i) => {
             const t = TONE[e.kind];
             return (
-              <button key={e.path} draggable className={"card" + (sel.has(e.path) ? " sel" : "") + (isIntersecting(i) ? " rubber-band-hover" : "")} style={{ animationDelay: `${Math.min(i * 16, 240)}ms` }} {...rowProps(e, i)}>
+              <button key={e.path} className={"card" + (sel.has(e.path) ? " sel" : "") + (isIntersecting(i) ? " rubber-band-hover" : "")} style={{ animationDelay: `${Math.min(i * 16, 240)}ms` }} {...rowProps(e, i)}>
                 <span className="card-tile" style={{ background: t.bg, color: t.fg }}><Glyph kind={e.kind} /></span>
                 {renaming === e.path ? <RenameField entry={e} ex={ex} /> : <span className="card-label">{e.name}</span>}
               </button>

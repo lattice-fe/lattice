@@ -75,8 +75,8 @@ export default function App() {
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      // Don't deselect if clicking on context menu, modal, input, or file list panel
-      if (target.closest(".context-menu, .modal, input, textarea, .panel")) return;
+      // Don't deselect if clicking on context menu, modal, or input
+      if (target.closest(".context-menu, .modal, input, textarea")) return;
       // Deselect if anything is selected
       if (exRef.current.sel.size > 0) {
         exRef.current.clearSel();
