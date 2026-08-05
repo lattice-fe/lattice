@@ -17,6 +17,16 @@ const NEVER_BLUR_KEY = "lattice:never-blur";
 const NEVER_UNBLUR_KEY = "lattice:never-unblur";
 const BLUR_PATTERNS_KEY = "lattice:blur-patterns";
 
+const ICON_SIZE_KEY = "lattice:icon-size";
+
+function getIconSize(): number {
+  try { return parseInt(localStorage.getItem(ICON_SIZE_KEY) || "100", 10); } catch { return 100; }
+}
+
+export function applyIconSize(val: number) {
+  document.documentElement.style.setProperty("--icon-scale", String(val / 100));
+}
+
 function Switch({ on, onClick }: { on: boolean; onClick: () => void }) {
   return <button className={"switch" + (on ? " on" : "")} onClick={onClick} role="switch" aria-checked={on}><span /></button>;
 }
@@ -112,6 +122,15 @@ export function Settings({ ex, ind, th, onClose }: { ex: Explorer; ind: Indexer;
   const [neverUnblur, setNeverUnblur] = useState(() => localStorage.getItem(NEVER_UNBLUR_KEY) === "true");
   const [blurPatterns, setBlurPatterns] = useState(() => localStorage.getItem(BLUR_PATTERNS_KEY) || "");
 
+  // Icon size setting
+  const [iconSize, setIconSize] = useState(getIconSize);
+
+  const handleIconSizeChange = (val: number) => {
+    setIconSize(val);
+    localStorage.setItem(ICON_SIZE_KEY, String(val));
+    applyIconSize(val);
+  };
+
   // Handle blur mode change (mutually exclusive with never unblur)
   const handleBlurModeChange = (mode: "blur" | "neverBlur") => {
     if (mode === "neverBlur") {
@@ -166,6 +185,16 @@ export function Settings({ ex, ind, th, onClose }: { ex: Explorer; ind: Indexer;
                   </div>
                   <Switch on={ex.showHidden} onClick={ex.toggleHidden} />
                 </div>
+                <NumberSlider
+                  label="Icon size"
+                  desc="Adjust display size of file and folder icons"
+                  value={iconSize}
+                  onChange={handleIconSizeChange}
+                  min={75}
+                  max={150}
+                  step={5}
+                  suffix="%"
+                />
               </div>
             </section>
 

@@ -1,4 +1,5 @@
 :root {
+  --icon-scale: 1;
   --ink: #1a1815;
   --ink-2: #201d19;
   --ink-3: #1c1915;
@@ -186,12 +187,12 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .row .nm { display: flex; align-items: center; gap: 13px; min-width: 0; }
 .tile {
-  width: 40px; height: 40px; border-radius: var(--radius); flex: none;
+  width: calc(40px * var(--icon-scale, 1)); height: calc(40px * var(--icon-scale, 1)); border-radius: var(--radius); flex: none;
   display: grid; place-items: center;
   transition: transform 0.16s cubic-bezier(0.2, 0.8, 0.3, 1);
 }
 .row:hover .tile { transform: scale(1.06) rotate(-2deg); }
-.tile svg { width: 21px; height: 21px; }
+.tile svg { width: calc(21px * var(--icon-scale, 1)); height: calc(21px * var(--icon-scale, 1)); }
 .row .label { font-size: 14.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .row .col { font-size: 12.5px; color: var(--dim); font-family: var(--mono); }
 .row .col.r { text-align: right; }
@@ -294,8 +295,8 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .card:hover { background: var(--card); transform: translateY(-2px); }
 .card:hover .card-tile { transform: scale(1.06) rotate(-2deg); }
 .card.sel { background: color-mix(in srgb, var(--terracotta) 16%, transparent); border-color: color-mix(in srgb, var(--terracotta) 40%, transparent); }
-.card-tile { width: 56px; height: 56px; border-radius: var(--radius-lg); display: grid; place-items: center; transition: transform 0.16s cubic-bezier(0.2, 0.8, 0.3, 1); }
-.card-tile svg { width: 28px; height: 28px; }
+.card-tile { width: calc(56px * var(--icon-scale, 1)); height: calc(56px * var(--icon-scale, 1)); border-radius: var(--radius-lg); display: grid; place-items: center; transition: transform 0.16s cubic-bezier(0.2, 0.8, 0.3, 1); }
+.card-tile svg { width: calc(28px * var(--icon-scale, 1)); height: calc(28px * var(--icon-scale, 1)); }
 .card-label { font-size: 13px; text-align: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* cards view — content-adaptive tiles (thumbnails / code peeks), lazy-loaded */
@@ -345,11 +346,11 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .filecard[data-kind="code"] .filecard-code { font-size: 12px; line-height: 1.5; -webkit-mask-image: linear-gradient(180deg, #000 75%, transparent); mask-image: linear-gradient(180deg, #000 75%, transparent); }
 .filecard[data-kind="document"] .filecard-preview { height: 260px; }
 .filecard[data-kind="document"] .filecard-md { font-size: 13px; line-height: 1.5; -webkit-mask-image: linear-gradient(180deg, #000 75%, transparent); mask-image: linear-gradient(180deg, #000 75%, transparent); }
-.filecard-tile { width: 50px; height: 50px; border-radius: var(--radius); display: grid; place-items: center; }
-.filecard-tile svg { width: 25px; height: 25px; }
+.filecard-tile { width: calc(50px * var(--icon-scale, 1)); height: calc(50px * var(--icon-scale, 1)); border-radius: var(--radius); display: grid; place-items: center; }
+.filecard-tile svg { width: calc(25px * var(--icon-scale, 1)); height: calc(25px * var(--icon-scale, 1)); }
 .filecard-foot { display: flex; align-items: center; gap: 8px; padding: 9px 11px; min-width: 0; }
-.filecard-ic { width: 22px; height: 22px; border-radius: 6px; flex: none; display: grid; place-items: center; }
-.filecard-ic svg { width: 13px; height: 13px; }
+.filecard-ic { width: calc(22px * var(--icon-scale, 1)); height: calc(22px * var(--icon-scale, 1)); border-radius: 6px; flex: none; display: grid; place-items: center; }
+.filecard-ic svg { width: calc(13px * var(--icon-scale, 1)); height: calc(13px * var(--icon-scale, 1)); }
 .filecard-name { font-size: 12.5px; color: var(--paper); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* wrapper for folder strip + cards grid (single scrollable container) */
@@ -369,8 +370,8 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .folder-item:hover { background: var(--card); color: var(--paper); }
 .folder-item.sel { border-color: var(--terracotta); background: color-mix(in srgb, var(--terracotta) 15%, transparent); color: var(--paper); }
-.folder-icon { width: 32px; height: 32px; border-radius: var(--radius); display: grid; place-items: center; flex: none; color: var(--dim); }
-.folder-icon svg { width: 16px; height: 16px; }
+.folder-icon { width: calc(32px * var(--icon-scale, 1)); height: calc(32px * var(--icon-scale, 1)); border-radius: var(--radius); display: grid; place-items: center; flex: none; color: var(--dim); }
+.folder-icon svg { width: calc(16px * var(--icon-scale, 1)); height: calc(16px * var(--icon-scale, 1)); }
 .folder-name { font-size: 11px; color: inherit; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; text-align: center; }
 
 /* cards view — flows naturally after folder strip */

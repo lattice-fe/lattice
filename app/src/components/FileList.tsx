@@ -38,23 +38,21 @@ export function FileList({ ex }: { ex: Explorer }) {
   const hp = useHoverPreview();
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // Get all entry elements (rows/cards/filecards) — all views
+  // Get all entry elements using data-index attribute — all views
   const getElements = useCallback(() => {
     if (!panelRef.current) return [];
-    const items = panelRef.current.querySelectorAll(".row, .card, .filecard, .folder-item");
+    const items = panelRef.current.querySelectorAll("[data-index]");
     return Array.from(items);
   }, []);
 
   // Rubber band selection handlers
   const handleRubberBand = useCallback((indices: number[], additive: boolean) => {
-    console.log("[RB] Selection update:", { indices, additive, count: indices.length });
     if (!additive) {
       // Clear selection and add only these items
       const newSel = new Set<string>();
       indices.forEach(i => {
         if (entries[i]) newSel.add(entries[i].path);
       });
-      console.log("[RB] Setting new selection (non-additive):", { size: newSel.size, paths: Array.from(newSel).slice(0, 3) });
       ex.selectSet(newSel);
     } else {
       // Toggle items in selection
@@ -66,7 +64,6 @@ export function FileList({ ex }: { ex: Explorer }) {
           else newSel.add(p);
         }
       });
-      console.log("[RB] Setting new selection (additive):", { size: newSel.size, paths: Array.from(newSel).slice(0, 3) });
       ex.selectSet(newSel);
     }
   }, [entries, sel, ex]);
@@ -79,16 +76,13 @@ export function FileList({ ex }: { ex: Explorer }) {
 
   // Mouse down to start rubber band selection
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    console.log("[FileList.handleMouseDown] button:", e.button, "target:", e.target, "view:", view);
     if (e.button !== 0) return; // Only left click
     const target = e.target as HTMLElement;
-    // Only start if clicking on empty space (not on an item)
-    if (target === e.currentTarget || target.closest(".panel") === e.currentTarget) {
-      console.log("[FileList.handleMouseDown] Starting rubber band");
+    // Don't start rubber band if clicking directly on an item or interactive element
+    const itemEl = target.closest(".row, .card, .filecard, .folder-item, button, input, textarea, a, .viewtoggle, .collabel");
+    if (!itemEl) {
       e.preventDefault(); // Prevent text selection
       rb.start(e.clientX, e.clientY, e.ctrlKey || e.metaKey);
-    } else {
-      console.log("[FileList.handleMouseDown] Not starting - clicked on item");
     }
   }, [rb]);
 
@@ -100,27 +94,22 @@ export function FileList({ ex }: { ex: Explorer }) {
   }, [rb]);
 
   const handleMouseUp = useCallback(() => {
-    console.log("[FileList.handleMouseUp] rb.state.active:", rb.state.active);
     if (rb.state.active) {
-      console.log("[FileList.handleMouseUp] Ending rubber band");
       rb.end();
     }
   }, [rb]);
 
   // Only clear selection on click if we're not rubber-banding
   const handleClick = useCallback(() => {
-    console.log("[FileList.handleClick] rb.state:", { active: rb.state.active, justFinished: rb.state.justFinished }, "current sel size:", sel.size);
     // Don't clear if actively rubber-banding OR just finished (onClick fires after onMouseUp)
     if (!rb.state.active && !rb.state.justFinished) {
-      console.log("[FileList.handleClick] Clearing selection");
       ex.clearSel();
-    } else {
-      console.log("[FileList.handleClick] Skipping clear - rubber band is active or just finished");
     }
-  }, [ex, rb.state.active, rb.state.justFinished, sel]);
+  }, [ex, rb.state.active, rb.state.justFinished]);
 
   // select / open / context — shared by rows and cards
   const interactProps = (e: Entry, i: number) => ({
+    "data-index": i,
     // middle-click a folder → open in a new tab
     onMouseDown: (ev: React.MouseEvent) => { if (ev.button === 1 && e.is_dir) { ev.preventDefault(); hp.onLeave(); ex.newTab(e.path); } },
     onClick: (ev: React.MouseEvent) => {
@@ -140,6 +129,7 @@ export function FileList({ ex }: { ex: Explorer }) {
     },
     onContextMenu: (ev: React.MouseEvent) => { ev.preventDefault(); ev.stopPropagation(); if (!sel.has(e.path)) ex.selectAt(i, { ctrl: false, shift: false }); ex.openContext(ev.clientX, ev.clientY, i); },
   });
+
   // rows/grid also drive the hover-preview; cards render their own content so they don't
   const rowProps = (e: Entry, i: number) => ({
     onMouseEnter: (ev: React.MouseEvent) => { if (!rb.state.active) hp.onEnter(e, ev); },
@@ -201,7 +191,7 @@ export function FileList({ ex }: { ex: Explorer }) {
       )}
       <div className="hero">
         <div>
-          <h1>{baseName(ex.path) || " "}</h1>
+          <h1>{baseName(ex.path) || " "}</h1>
           <div className="meta">{entries.length} item{entries.length === 1 ? "" : "s"}</div>
         </div>
         <div className="grow" />
@@ -210,7 +200,7 @@ export function FileList({ ex }: { ex: Explorer }) {
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg>
           </button>
           <button className={view === "grid" ? "on" : ""} title="Grid" onClick={(e) => { e.stopPropagation(); ex.setView("grid"); }}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /></svg>
           </button>
           <button className={view === "cards" ? "on" : ""} title="Cards — content previews" onClick={(e) => { e.stopPropagation(); ex.setView("cards"); }}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 14h18M9 20V14" /></svg>

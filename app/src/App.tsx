@@ -5,7 +5,7 @@ import { useSearch } from "./hooks/useSearch";
 import { useIndexer } from "./hooks/useIndexer";
 import { useTheme } from "./hooks/useTheme";
 import { IndexStatus } from "./components/IndexStatus";
-import { Settings } from "./components/Settings";
+import { Settings, applyIconSize } from "./components/Settings";
 import { TopBar } from "./components/TopBar";
 import { TitleBar } from "./components/TitleBar";
 import { Sidebar } from "./components/Sidebar";
@@ -24,6 +24,14 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const exRef = useRef(ex);
   exRef.current = ex;
+
+  // apply persisted icon size on mount
+  useEffect(() => {
+    try {
+      const val = parseInt(localStorage.getItem("lattice:icon-size") || "100", 10);
+      applyIconSize(val);
+    } catch { /* ignore */ }
+  }, []);
 
   // browsing to a new folder ends an active search
   useEffect(() => { s.clear(); }, [ex.path, s.clear]);
@@ -71,12 +79,12 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [ex]);
 
-  // Global click handler to deselect when clicking outside file list
+  // Global click handler to deselect when clicking outside file panel
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      // Don't deselect if clicking on context menu, modal, or input
-      if (target.closest(".context-menu, .modal, input, textarea")) return;
+      // Don't deselect if clicking inside file panel, context menu, modal, or input
+      if (target.closest(".panel, .context-menu, .modal, input, textarea")) return;
       // Deselect if anything is selected
       if (exRef.current.sel.size > 0) {
         exRef.current.clearSel();

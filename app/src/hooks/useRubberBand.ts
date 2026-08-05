@@ -10,60 +10,55 @@ export interface RubberBand {
 export interface RubberBandState {
   active: boolean;
   band: RubberBand | null;
-  justFinished: boolean; // Flag to prevent immediate onClick from clearing selection
-  intersectingIndices: number[]; // Current intersecting indices for visual feedback
+  justFinished: boolean;
+  intersectingIndices: number[];
 }
 
 interface UseRubberBandOptions {
   onSelect: (indices: number[], additive: boolean) => void;
   getElements: () => Element[];
-  panelRef: React.RefObject<HTMLElement | null>;
+  panelRef?: React.RefObject<HTMLElement | null>;
 }
 
-export function useRubberBand({ onSelect, getElements, panelRef }: UseRubberBandOptions) {
+export function useRubberBand({ onSelect, getElements }: UseRubberBandOptions) {
   const [state, setState] = useState<RubberBandState>({
     active: false,
     band: null,
     justFinished: false,
     intersectingIndices: []
   });
+
   const startRef = useRef<{ x: number; y: number; additive: boolean } | null>(null);
+  const lastPosRef = useRef<{ x: number; y: number } | null>(null);
   const selectedIndicesRef = useRef<Set<number>>(new Set());
   const justFinishedTimeoutRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
-  const elementPositionsRef = useRef<{ el: Element; rect: DOMRect }[]>([]);
+  const elementPositionsRef = useRef<{ index: number; rect: DOMRect }[]>([]);
   const lastUpdateTimeRef = useRef<number>(0);
-  const panelOffsetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
-  // Throttle collision detection to ~15fps (every ~67ms) during drag
-  const THROTTLE_MS = 67;
+  const THROTTLE_MS = 35; // Responsive 35ms collision sampling
 
   const start = useCallback((x: number, y: number, additive: boolean) => {
-    console.log("[RB.start] Starting rubber band at:", { x, y, additive });
-    // Clear any pending justFinished timeout
     if (justFinishedTimeoutRef.current) {
       clearTimeout(justFinishedTimeoutRef.current);
+      justFinishedTimeoutRef.current = null;
     }
     if (rafRef.current) {
       cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
     }
 
     startRef.current = { x, y, additive };
+    lastPosRef.current = { x, y };
     selectedIndicesRef.current = new Set();
     lastUpdateTimeRef.current = Date.now();
 
-    // Get panel offset relative to viewport
-    if (panelRef.current) {
-      const rect = panelRef.current.getBoundingClientRect();
-      panelOffsetRef.current = { x: rect.left, y: rect.top };
-    }
-
-    // Cache element positions once at drag start
+    // Cache element positions with their data-index attribute
     const elements = getElements();
     elementPositionsRef.current = elements.map(el => ({
-      el,
+      index: Number(el.getAttribute("data-index") ?? -1),
       rect: el.getBoundingClientRect()
-    }));
+    })).filter(item => item.index >= 0);
 
     setState({
       active: true,
@@ -71,13 +66,31 @@ export function useRubberBand({ onSelect, getElements, panelRef }: UseRubberBand
       justFinished: false,
       intersectingIndices: []
     });
-  }, [getElements, panelRef]);
+  }, [getElements]);
+
+  const computeCollisions = useCallback((x: number, y: number) => {
+    if (!startRef.current) return [];
+    const { x: startX, y: startY } = startRef.current;
+    const left = Math.min(startX, x);
+    const right = Math.max(startX, x);
+    const top = Math.min(startY, y);
+    const bottom = Math.max(startY, y);
+
+    const indices: number[] = [];
+    elementPositionsRef.current.forEach(({ index, rect }) => {
+      if (!(rect.right < left || rect.left > right || rect.bottom < top || rect.top > bottom)) {
+        indices.push(index);
+      }
+    });
+    return indices;
+  }, []);
 
   const update = useCallback((x: number, y: number) => {
     if (!startRef.current) return;
-    const { x: startX, y: startY } = startRef.current;
+    lastPosRef.current = { x, y };
+    const startX = startRef.current.x;
+    const startY = startRef.current.y;
 
-    // Update visual rectangle on every frame for smooth feedback
     if (rafRef.current) {
       cancelAnimationFrame(rafRef.current);
     }
@@ -88,90 +101,61 @@ export function useRubberBand({ onSelect, getElements, panelRef }: UseRubberBand
       });
     });
 
-    // Throttle collision detection
     const now = Date.now();
     if (now - lastUpdateTimeRef.current < THROTTLE_MS) {
       return;
     }
     lastUpdateTimeRef.current = now;
 
-    // Calculate bounding box
-    const left = Math.min(startX, x);
-    const right = Math.max(startX, x);
-    const top = Math.min(startY, y);
-    const bottom = Math.max(startY, y);
-
-    // Check intersection using cached positions
-    const indices: number[] = [];
-    elementPositionsRef.current.forEach(({ rect }, idx) => {
-      if (!(rect.right < left || rect.left > right || rect.bottom < top || rect.top > bottom)) {
-        indices.push(idx);
-      }
-    });
-
+    const indices = computeCollisions(x, y);
     const newSet = new Set(indices);
 
-    // Only update intersecting indices if changed
     if (!setsEqual(newSet, selectedIndicesRef.current)) {
       selectedIndicesRef.current = newSet;
-
-      // Update intersecting indices for visual feedback
       setState((prev) => ({ ...prev, intersectingIndices: indices }));
-
-      console.log("[RB.update] Detected intersection:", {
-        bbox: { left, right, top, bottom },
-        elementCount: elementPositionsRef.current.length,
-        matchCount: indices.length,
-        indices: indices.slice(0, 5)
-      });
     }
-  }, []);
+  }, [computeCollisions]);
 
   const end = useCallback(() => {
-    console.log("[RB.end] Ending rubber band, state.active:", state.active);
-
     if (rafRef.current) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     }
 
-    // Only commit selection if the user actually dragged (moved at least 5px)
-    const didDrag = startRef.current && state.band && (
-      Math.abs(state.band.endX - state.band.startX) > 5 ||
-      Math.abs(state.band.endY - state.band.startY) > 5
+    const startPos = startRef.current;
+    const lastPos = lastPosRef.current;
+    const didDrag = Boolean(
+      startPos &&
+      lastPos &&
+      (Math.abs(lastPos.x - startPos.x) > 5 || Math.abs(lastPos.y - startPos.y) > 5)
     );
 
-    // Commit final selection on mouseup if user actually dragged
-    if (didDrag && startRef.current && selectedIndicesRef.current.size > 0) {
-      console.log("[RB.end] Committing selection:", {
-        indices: Array.from(selectedIndicesRef.current),
-        additive: startRef.current.additive
-      });
-      onSelect(Array.from(selectedIndicesRef.current), startRef.current.additive);
+    if (didDrag && startPos && lastPos) {
+      const finalIndices = computeCollisions(lastPos.x, lastPos.y);
+      onSelect(finalIndices, startPos.additive);
     }
 
     startRef.current = null;
+    lastPosRef.current = null;
     elementPositionsRef.current = [];
 
     setState({
       active: false,
       band: null,
-      justFinished: didDrag, // Only set justFinished if we actually dragged
+      justFinished: didDrag,
       intersectingIndices: []
     });
 
-    // Clear the justFinished flag after 50ms (enough time for onClick to fire)
     if (didDrag) {
       if (justFinishedTimeoutRef.current) {
         clearTimeout(justFinishedTimeoutRef.current);
       }
-      justFinishedTimeoutRef.current = setTimeout(() => {
-        console.log("[RB.end] Clearing justFinished flag");
+      justFinishedTimeoutRef.current = window.setTimeout(() => {
         setState((prev) => ({ ...prev, justFinished: false }));
         justFinishedTimeoutRef.current = null;
-      }, 50);
+      }, 120);
     }
-  }, [state.active, state.band, onSelect]);
+  }, [computeCollisions, onSelect]);
 
   return {
     state,
