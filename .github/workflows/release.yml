@@ -17,10 +17,10 @@ jobs:
           - platform: 'windows-latest'
             args: ''
             target: ''
-          - platform: 'macos-14'
+          - platform: 'macos-latest'
             args: '--target aarch64-apple-darwin'
             target: 'aarch64-apple-darwin'
-          - platform: 'macos-13'
+          - platform: 'macos-latest'
             args: '--target x86_64-apple-darwin'
             target: 'x86_64-apple-darwin'
           - platform: 'ubuntu-22.04'
@@ -60,6 +60,7 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ORT_STRATEGY: download
         with:
           projectPath: './app'
           tagName: v__VERSION__
