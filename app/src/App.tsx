@@ -13,8 +13,15 @@ import { FileList } from "./components/FileList";
 import { SearchResults } from "./components/SearchResults";
 import { Inspector } from "./components/Inspector";
 import { ContextMenu } from "./components/ContextMenu";
+import { PdfViewer } from "./components/PdfViewer";
+import { TextEditor } from "./components/TextEditor";
+import { JupyterViewer } from "./components/JupyterViewer";
+import { ImageViewer } from "./components/ImageViewer";
 import { isTauri } from "./lib/api";
+import { isFilePath, baseName } from "./lib/format";
 import "./lattice.css";
+
+const isImage = (filename: string) => /\.(png|jpe?g|gif|webp|bmp|svg|ico|avif)$/i.test(filename);
 
 export default function App() {
   const ex = useExplorer();
@@ -38,15 +45,23 @@ export default function App() {
 
   // commands dispatched from the Spotlight window
   useEffect(() => {
-    if (!isTauri) return;
-    const subs = [
-      listen<string>("spotlight:navigate", (e) => exRef.current.navigate(e.payload)),
-      listen("spotlight:open-settings", () => setSettingsOpen(true)),
-    ];
-    return () => { subs.forEach((p) => p.then((u) => u())); };
-  }, []);
+    let unlistenNav: (() => void) | null = null;
+    let unlistenOpen: (() => void) | null = null;
 
-  // global keyboard shortcuts (ignored while typing in an input)
+    const handleOpenDir = (path: string) => {
+      ex.newTab(path);
+    };
+
+    listen<string>("spotlight:navigate", (ev) => handleOpenDir(ev.payload)).then((fn) => { unlistenNav = fn; });
+    listen<string>("spotlight:open", (ev) => handleOpenDir(ev.payload)).then((fn) => { unlistenOpen = fn; });
+
+    return () => {
+      if (unlistenNav) unlistenNav();
+      if (unlistenOpen) unlistenOpen();
+    };
+  }, [ex.newTab]);
+
+  // keyboard shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const ctrl = e.ctrlKey || e.metaKey;
@@ -67,13 +82,20 @@ export default function App() {
       else if (ctrl && e.key === "x") ex.cutSel();
       else if (ctrl && e.key === "v") ex.paste();
       else if (ctrl && e.key === "h") { e.preventDefault(); ex.toggleHidden(); }
-      else if (e.key === "Enter" && only) ex.openEntry(only);
+      else if (e.key === "Enter" && only) {
+        e.preventDefault();
+        if (e.shiftKey) ex.openItemSpecial(only);
+        else ex.openEntry(only);
+      }
       else if (e.key === "F2" && ex.sel.size === 1 && only) ex.startRename(only.path);
       else if (e.key === "Delete" && ex.sel.size) ex.deleteSel();
       else if (e.key === "Backspace") ex.up();
       else if (e.altKey && e.key === "ArrowLeft") ex.back();
       else if (e.altKey && e.key === "ArrowRight") ex.forward();
-      else if (e.key === "Escape") { setSettingsOpen(false); ex.closeContext(); ex.clearSel(); }
+      else if (e.key === "Escape") {
+        if (ex.splitItem) ex.closeSplitItem();
+        else { setSettingsOpen(false); ex.closeContext(); ex.clearSel(); }
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -83,9 +105,7 @@ export default function App() {
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      // Don't deselect if clicking inside file panel, context menu, modal, or input
-      if (target.closest(".panel, .context-menu, .modal, input, textarea")) return;
-      // Deselect if anything is selected
+      if (target.closest(".panel, .context-menu, .modal, input, textarea, .split-panel-container")) return;
       if (exRef.current.sel.size > 0) {
         exRef.current.clearSel();
       }
@@ -94,15 +114,60 @@ export default function App() {
     return () => window.removeEventListener("click", onClick);
   }, []);
 
+  const isFileTab = isFilePath(ex.path);
+  const activePathLower = ex.path.toLowerCase();
+
   return (
     <div className="app">
       <TitleBar ex={ex} />
       <TopBar ex={ex} s={s} onSettings={() => setSettingsOpen(true)} />
-      <div className={"body" + (ex.previewCollapsed ? " no-preview" : "")}>
-        <Sidebar ex={ex} />
-        {s.active ? <SearchResults s={s} ex={ex} /> : <FileList ex={ex} />}
-        {!ex.previewCollapsed && <Inspector ex={ex} onCollapse={() => ex.togglePreview()} />}
-        {ex.previewCollapsed && (
+      <div className={"body" + (ex.splitItem ? " split-active" : "") + (ex.previewCollapsed ? " no-preview" : "")}>
+        {!ex.splitItem && <Sidebar ex={ex} />}
+        {s.active ? (
+          <SearchResults s={s} ex={ex} />
+        ) : isFileTab ? (
+          <div className="tab-file-panel">
+            {activePathLower.endsWith(".pdf") ? (
+              <PdfViewer
+                entry={{ name: baseName(ex.path), path: ex.path, is_dir: false, size: 0, modified: null, kind: "document", type_label: "PDF File", hidden: false }}
+                onClose={() => ex.closeTab(ex.activeTabId)}
+              />
+            ) : activePathLower.endsWith(".ipynb") ? (
+              <JupyterViewer
+                entry={{ name: baseName(ex.path), path: ex.path, is_dir: false, size: 0, modified: null, kind: "code", type_label: "Jupyter Notebook", hidden: false }}
+                onClose={() => ex.closeTab(ex.activeTabId)}
+              />
+            ) : isImage(ex.path) ? (
+              <ImageViewer
+                entry={{ name: baseName(ex.path), path: ex.path, is_dir: false, size: 0, modified: null, kind: "image", type_label: "Image File", hidden: false }}
+                onClose={() => ex.closeTab(ex.activeTabId)}
+              />
+            ) : (
+              <TextEditor
+                entry={{ name: baseName(ex.path), path: ex.path, is_dir: false, size: 0, modified: null, kind: "code", type_label: "File", hidden: false }}
+                onClose={() => ex.closeTab(ex.activeTabId)}
+              />
+            )}
+          </div>
+        ) : (
+          <FileList ex={ex} />
+        )}
+
+        {ex.splitItem && (
+          <div className="split-view-panel">
+            {ex.splitItem.name.toLowerCase().endsWith(".pdf") ? (
+              <PdfViewer entry={ex.splitItem} onClose={ex.closeSplitItem} />
+            ) : ex.splitItem.name.toLowerCase().endsWith(".ipynb") ? (
+              <JupyterViewer entry={ex.splitItem} onClose={ex.closeSplitItem} />
+            ) : isImage(ex.splitItem.name) ? (
+              <ImageViewer entry={ex.splitItem} onClose={ex.closeSplitItem} />
+            ) : (
+              <TextEditor entry={ex.splitItem} onClose={ex.closeSplitItem} onErrorToast={ex.showToast} />
+            )}
+          </div>
+        )}
+        {!ex.splitItem && !isFileTab && !ex.previewCollapsed && <Inspector ex={ex} onCollapse={() => ex.togglePreview()} />}
+        {!ex.splitItem && !isFileTab && ex.previewCollapsed && (
           <button className="preview-reveal" onClick={() => ex.togglePreview()} title="Show preview pane">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
           </button>
@@ -110,6 +175,12 @@ export default function App() {
       </div>
       <ContextMenu ex={ex} />
       <IndexStatus ind={ind} />
+      {ex.toast && (
+        <div className="index-toast done" style={{ color: "var(--paper)", zIndex: 100 }}>
+          <span style={{ color: "var(--terracotta)", fontWeight: 700 }}>ℹ</span>
+          &nbsp;{ex.toast}
+        </div>
+      )}
       {settingsOpen && <Settings ex={ex} ind={ind} th={th} onClose={() => setSettingsOpen(false)} />}
       {!isTauri && <div className="scaffold-note">preview · mock data — run <b style={{ color: "var(--paper-dim)" }}>npm run tauri dev</b> for live files</div>}
     </div>

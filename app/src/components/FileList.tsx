@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { Explorer } from "../hooks/useExplorer";
 import { useHoverPreview } from "../hooks/useHoverPreview";
 import { useRubberBand } from "../hooks/useRubberBand";
 import { Entry } from "../lib/api";
 import { Glyph, TONE } from "../lib/icons";
 import { fmtSize, fmtWhen, baseName } from "../lib/format";
-import { SortCol } from "../lib/sort";
+import { SortCol, TEMPORAL_LABELS, getTemporalBucket } from "../lib/sort";
 import { HoverPreview } from "./HoverPreview";
 import { FileCard } from "./FileCard";
 
@@ -115,6 +115,12 @@ export function FileList({ ex }: { ex: Explorer }) {
     onClick: (ev: React.MouseEvent) => {
       ev.stopPropagation();
       const mods = { ctrl: ev.ctrlKey || ev.metaKey, shift: ev.shiftKey };
+      if (!e.is_dir && (mods.shift || ex.splitItem)) {
+        lastClick.current = null;
+        hp.onLeave();
+        ex.openItemSpecial(e);
+        return;
+      }
       if (mods.ctrl || mods.shift) { lastClick.current = null; ex.selectAt(i, mods); return; }
       const now = Date.now();
       const prev = lastClick.current;
@@ -270,15 +276,24 @@ export function FileList({ ex }: { ex: Explorer }) {
         <div className="list">
           {entries.map((e, i) => {
             const t = TONE[e.kind];
+            const isDownloads = ex.path.toLowerCase().endsWith("/downloads") || ex.path.toLowerCase().endsWith("\\downloads");
+            const bucket = getTemporalBucket(e.modified);
+            const prevBucket = i > 0 ? getTemporalBucket(entries[i - 1].modified) : -1;
+            const showDivider = isDownloads && (bucket !== prevBucket);
             return (
-              <button key={e.path} className={"row" + (sel.has(e.path) ? " sel" : "") + (isIntersecting(i) ? " rubber-band-hover" : "")} style={{ animationDelay: `${Math.min(i * 18, 260)}ms` }} {...rowProps(e, i)}>
-                <span className="nm">
-                  <span className="tile" style={{ background: t.bg, color: t.fg }}><Glyph kind={e.kind} /></span>
-                  {renaming === e.path ? <RenameField entry={e} ex={ex} /> : <span className="label">{e.name}</span>}
-                </span>
-                <span className="col">{fmtWhen(e.modified)}</span>
-                <span className="col r">{fmtSize(e.size, e.is_dir)}</span>
-              </button>
+              <React.Fragment key={e.path}>
+                {showDivider && (
+                  <div className="temporal-divider">{TEMPORAL_LABELS[bucket]}</div>
+                )}
+                <button className={"row" + (sel.has(e.path) ? " sel" : "") + (isIntersecting(i) ? " rubber-band-hover" : "")} style={{ animationDelay: `${Math.min(i * 18, 260)}ms` }} {...rowProps(e, i)}>
+                  <span className="nm">
+                    <span className="tile" style={{ background: t.bg, color: t.fg }}><Glyph kind={e.kind} /></span>
+                    {renaming === e.path ? <RenameField entry={e} ex={ex} /> : <span className="label">{e.name}</span>}
+                  </span>
+                  <span className="col">{fmtWhen(e.modified)}</span>
+                  <span className="col r">{fmtSize(e.size, e.is_dir)}</span>
+                </button>
+              </React.Fragment>
             );
           })}
         </div>
@@ -286,11 +301,20 @@ export function FileList({ ex }: { ex: Explorer }) {
         <div className="list grid">
           {entries.map((e, i) => {
             const t = TONE[e.kind];
+            const isDownloads = ex.path.toLowerCase().endsWith("/downloads") || ex.path.toLowerCase().endsWith("\\downloads");
+            const bucket = getTemporalBucket(e.modified);
+            const prevBucket = i > 0 ? getTemporalBucket(entries[i - 1].modified) : -1;
+            const showDivider = isDownloads && (bucket !== prevBucket);
             return (
-              <button key={e.path} className={"card" + (sel.has(e.path) ? " sel" : "") + (isIntersecting(i) ? " rubber-band-hover" : "")} style={{ animationDelay: `${Math.min(i * 16, 240)}ms` }} {...rowProps(e, i)}>
-                <span className="card-tile" style={{ background: t.bg, color: t.fg }}><Glyph kind={e.kind} /></span>
-                {renaming === e.path ? <RenameField entry={e} ex={ex} /> : <span className="card-label">{e.name}</span>}
-              </button>
+              <React.Fragment key={e.path}>
+                {showDivider && (
+                  <div className="temporal-divider">{TEMPORAL_LABELS[bucket]}</div>
+                )}
+                <button className={"card" + (sel.has(e.path) ? " sel" : "") + (isIntersecting(i) ? " rubber-band-hover" : "")} style={{ animationDelay: `${Math.min(i * 16, 240)}ms` }} {...rowProps(e, i)}>
+                  <span className="card-tile" style={{ background: t.bg, color: t.fg }}><Glyph kind={e.kind} /></span>
+                  {renaming === e.path ? <RenameField entry={e} ex={ex} /> : <span className="card-label">{e.name}</span>}
+                </button>
+              </React.Fragment>
             );
           })}
         </div>

@@ -5,6 +5,24 @@ All notable changes to Lattice will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-08-06
+
+### Added
+- **Image & Gallery Overhaul:** High-impact full-bleed cover thumbnails (`object-fit: cover`), zoom in/out/reset (25%–500%) controls, screen fit mode, floating metadata info overlay (`ℹ`), and instant copy image bytes to system clipboard (`✓`).
+- **Type-Aware Card Grid:** Smart layout that automatically differentiates between high-impact media tiles (`210px` height) and compact code/document previews (`180px` height, single column).
+- **PDF & HTML Previews:** Integrated split-panel PDF viewing via PDF.js canvas rendering and HTML iframe preview sandboxing.
+- **Native Jupyter Notebook Viewer:** Zero-dependency, native `.ipynb` viewer supporting Markdown cells, formatted code blocks with syntax highlighting (`In [N]:`), and output rendering.
+- **Markdown Renderer Extensions:** GFM Markdown table rendering (`| Header |`) with dark styled wrappers and inline bold (`**text**`) formatting.
+- **Editor Mode & Tab Persistence:** Split-panel editor state (`Source` vs `Preview`) persists across tabs and app restarts via `localStorage`.
+- **Spotlight & Navigation Enhancements:** Spotlight (`Alt+Space`) search directly opens selected directories in new tabs (`spotlight:navigate`). Added "Open preview" (`Shift ↵`) right-click context menu item.
+- **Responsive Compact Display Mode:** Automatically routes split previews to isolated new tabs on screens smaller than 768px with toast feedback.
+- **Window Controls Pinning:** Fixed right-side titlebar button clipping (`minimize`, `maximize`, `close`) on narrow displays.
+
+### Fixed
+- **Row Animation Snapping & Displacement:** Resolved microsecond leftward row displacement bug by switching row mounting animations to opacity fade-in keyframes.
+- **Toast snappings:** Decoupled toast rise keyframes to eliminate visual snapping.
+- **Image Copy Event Bubbling & SVG Scaling:** Scoped `.preview > svg` CSS to fix copy button distortion and prevented event bubbling.
+
 ## [0.1.0] - 2026-08-04
 
 ### Added

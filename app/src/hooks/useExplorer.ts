@@ -1,16 +1,26 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, Drive, Entry, Shortcut } from "../lib/api";
 import { Sort, SortCol, sortEntries } from "../lib/sort";
-import { parentOf } from "../lib/format";
+import { parentOf, isFilePath } from "../lib/format";
+import { extOf } from "../lib/preview/registry";
 
 export interface Clipboard { paths: string[]; mode: "copy" | "cut"; }
 export interface Ctx { x: number; y: number; index: number | null; }
-// Each tab owns its own navigation stack; selection, entries and view
-// preferences follow the active tab.
-interface Tab { id: number; history: string[]; hi: number; }
 
-// localStorage key for pinned folders
+interface Tab {
+  id: number;
+  history: string[];
+  hi: number;
+  splitItem?: Entry | null;
+}
+
 const PINNED_KEY = "lattice:pinned-folders";
+const HOME_DIR_KEY = "lattice:home-dir";
+const SESSION_KEY = "lattice:session-state";
+
+const AUDIO_EXTS = new Set(["mp3", "wav", "ogg", "flac", "m4a", "aac", "opus", "wma", "aiff"]);
+const VIDEO_EXTS = new Set(["mp4", "mkv", "avi", "mov", "webm", "wmv", "flv"]);
+const BINARY_EXTS = new Set(["exe", "dll", "zip", "tar", "gz", "7z", "iso", "bin", "dat", "sys", "dmg", "pkg", "rar", "msi"]);
 
 function loadPinned(): Shortcut[] {
   try {
@@ -21,6 +31,25 @@ function loadPinned(): Shortcut[] {
 
 function savePinned(items: Shortcut[]) {
   localStorage.setItem(PINNED_KEY, JSON.stringify(items));
+}
+
+function getSavedHomeDir(): string {
+  try {
+    return localStorage.getItem(HOME_DIR_KEY) || "";
+  } catch { return ""; }
+}
+
+interface SavedSession {
+  tabs: Tab[];
+  activeId: number;
+  openMode?: "split" | "tab";
+}
+
+function loadSavedSession(): SavedSession | null {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
 }
 
 export function useExplorer() {
@@ -36,6 +65,13 @@ export function useExplorer() {
   const history = activeTab?.history ?? [];
   const hi = activeTab?.hi ?? -1;
   const path = hi >= 0 ? history[hi] : "";
+  const splitItem = activeTab?.splitItem ?? null;
+
+  const [toast, setToast] = useState<string | null>(null);
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3500);
+  }, []);
 
   const patchActive = useCallback((fn: (t: Tab) => Tab) => {
     setTabs((ts) => ts.map((t) => (t.id === activeId ? fn(t) : t)));
@@ -53,18 +89,35 @@ export function useExplorer() {
   const hoverPreviewPos = useRef({ x: 0, y: 0 });
   const [previewCollapsed, setPreviewCollapsed] = useState(false);
 
+  const [homeDir, setHomeDirState] = useState<string>(getSavedHomeDir);
+  const setHomeDir = useCallback((path: string) => {
+    setHomeDirState(path);
+    localStorage.setItem(HOME_DIR_KEY, path);
+  }, []);
+
+  const [openMode, setOpenModeState] = useState<"split" | "tab">(() => {
+    try { return (localStorage.getItem("lattice:open-mode") as "split" | "tab") || "split"; } catch { return "split"; }
+  });
+
+  const setOpenMode = useCallback((mode: "split" | "tab") => {
+    setOpenModeState(mode);
+    localStorage.setItem("lattice:open-mode", mode);
+  }, []);
+
+  const closeSplitItem = useCallback(() => {
+    patchActive((t) => ({ ...t, splitItem: null }));
+  }, [patchActive]);
+
   const [drives, setDrives] = useState<Drive[]>([]);
   const [quick, setQuick] = useState<Shortcut[]>([]);
   const [pinned, setPinned] = useState<Shortcut[]>(loadPinned);
 
-  // Merge built-in quick access with pinned folders
   const allQuick = useMemo(() => {
     const pinnedPaths = new Set(pinned.map((p) => p.path.toLowerCase()));
     const filtered = quick.filter((q) => !pinnedPaths.has(q.path.toLowerCase()));
     return [...pinned, ...filtered];
   }, [pinned, quick]);
 
-  // Pin/unpin actions
   const pinFolder = useCallback((label: string, path: string) => {
     setPinned((prev) => {
       if (prev.some((p) => p.path.toLowerCase() === path.toLowerCase())) return prev;
@@ -86,9 +139,20 @@ export function useExplorer() {
     return pinned.some((p) => p.path.toLowerCase() === path.toLowerCase());
   }, [pinned]);
 
-  const entries = useMemo(() => sortEntries(raw, sort), [raw, sort]);
+  const isDownloads = useMemo(() => {
+    const p = path.toLowerCase();
+    return p.endsWith("/downloads") || p.endsWith("\\downloads");
+  }, [path]);
+
+  const entries = useMemo(() => sortEntries(raw, sort, isDownloads), [raw, sort, isDownloads]);
 
   const load = useCallback(async (p: string) => {
+    if (isFilePath(p)) {
+      setLoading(false);
+      setError(null);
+      setRaw([]);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -101,25 +165,43 @@ export function useExplorer() {
     }
   }, [showHidden]);
 
-  // reload when path or hidden-toggle changes
   useEffect(() => { if (path) load(path); }, [path, showHidden, load]);
 
-  // initial: drives + quick access + home (as the first tab)
+  // Load initial drives, quick access, and restore saved session or start at home
   useEffect(() => {
     api.drives().then(setDrives).catch(() => {});
     api.quickAccess().then(setQuick).catch(() => {});
     api.homeDir().then((h) => {
       homeRef.current = h;
-      const id = nextId.current++;
-      setTabs([{ id, history: [h], hi: 0 }]);
-      setActiveId(id);
+      const saved = loadSavedSession();
+      const customHome = getSavedHomeDir();
+      if (saved && saved.tabs && saved.tabs.length > 0) {
+        setTabs(saved.tabs);
+        setActiveId(saved.activeId);
+        const maxId = Math.max(...saved.tabs.map((t) => t.id), 0);
+        nextId.current = maxId + 1;
+        if (saved.openMode) setOpenModeState(saved.openMode);
+      } else {
+        const start = customHome || h;
+        const id = nextId.current++;
+        setTabs([{ id, history: [start], hi: 0 }]);
+        setActiveId(id);
+      }
     });
   }, []);
+
+  // Persist session state whenever tabs, activeId, or openMode changes
+  useEffect(() => {
+    if (tabs.length > 0 && activeId !== -1) {
+      try {
+        localStorage.setItem(SESSION_KEY, JSON.stringify({ tabs, activeId, openMode }));
+      } catch { /* ignore */ }
+    }
+  }, [tabs, activeId, openMode]);
 
   const navigate = useCallback((p: string) => {
     setSel(new Set());
     setCtx(null);
-    // Clear hover preview by setting to null
     setHoverPreviewPath(null);
     patchActive((t) => {
       const trimmed = t.history.slice(0, t.hi + 1);
@@ -132,16 +214,16 @@ export function useExplorer() {
   const back = useCallback(() => { setSel(new Set()); patchActive((t) => (t.hi > 0 ? { ...t, hi: t.hi - 1 } : t)); }, [patchActive]);
   const forward = useCallback(() => { setSel(new Set()); patchActive((t) => (t.hi < t.history.length - 1 ? { ...t, hi: t.hi + 1 } : t)); }, [patchActive]);
 
-  // --- tabs ---
   const newTab = useCallback((p?: string) => {
-    const start = p || path || homeRef.current;
+    const customHome = getSavedHomeDir();
+    const start = p || customHome || homeRef.current || "~";
     if (!start) return;
     const id = nextId.current++;
     setTabs((ts) => [...ts, { id, history: [start], hi: 0 }]);
     setActiveId(id);
     setSel(new Set());
     setCtx(null);
-  }, [path]);
+  }, []);
 
   const selectTab = useCallback((id: number) => {
     setActiveId(id);
@@ -150,7 +232,7 @@ export function useExplorer() {
   }, []);
 
   const closeTab = useCallback((id: number) => {
-    if (tabs.length <= 1) return; // always keep one tab
+    if (tabs.length <= 1) return;
     const idx = tabs.findIndex((t) => t.id === id);
     const next = tabs.filter((t) => t.id !== id);
     setTabs(next);
@@ -240,6 +322,32 @@ export function useExplorer() {
 
   const reveal = useCallback((p: string) => api.reveal(p), []);
 
+  const openItemSpecial = useCallback((entry: Entry) => {
+    if (entry.is_dir) {
+      navigate(entry.path);
+      return;
+    }
+    const ext = extOf(entry.name);
+    if (AUDIO_EXTS.has(ext)) {
+      showToast("Audio files open in the side Inspector panel.");
+      return;
+    }
+    if (VIDEO_EXTS.has(ext) || BINARY_EXTS.has(ext)) {
+      showToast(`Cannot preview ${ext ? ext.toUpperCase() : "binary"} files in split panel.`);
+      return;
+    }
+
+    const isCompact = window.innerWidth < 768;
+    if (openMode === "tab" || isCompact) {
+      if (isCompact && openMode === "split") {
+        showToast("Opened in new tab for compact display.");
+      }
+      newTab(entry.path);
+    } else {
+      patchActive((t) => ({ ...t, splitItem: entry }));
+    }
+  }, [navigate, newTab, openMode, patchActive, showToast]);
+
   return {
     path, entries, loading, error, drives, quick: allQuick,
     canBack: hi > 0, canForward: hi < history.length - 1, canUp: !!parentOf(path),
@@ -250,6 +358,7 @@ export function useExplorer() {
     toggleView: () => setView((v) => (v === "list" ? "grid" : "list")),
     setView,
     toggleHidden: () => setShowHidden((h) => !h),
+    setShowHidden,
     startRename, cancelRename, commitRename,
     newFolder, copySel, cutSel, paste, deleteSel, reveal,
     openContext: (x: number, y: number, index: number | null) => setCtx({ x, y, index }),
@@ -258,6 +367,8 @@ export function useExplorer() {
     hoverPreviewPath, hoverPreviewPos,
     previewCollapsed,
     togglePreview: () => setPreviewCollapsed((prev) => !prev),
+    openMode, setOpenMode, splitItem, closeSplitItem, openItemSpecial,
+    homeDir, setHomeDir, toast, showToast,
   };
 }
 export type Explorer = ReturnType<typeof useExplorer>;

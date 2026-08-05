@@ -32,6 +32,8 @@ registerPreviewStrategy({
 // PDF Documents → embedded native PDF viewer / preview.
 registerPreviewStrategy({
   id: "pdf",
+  disableHover: true,
+  disableInspector: true,
   match: byExt("pdf"),
   load: async (e: Entry) => (isTauri ? convertFileSrc(e.path) : e.path),
   render: (src: string) => (
@@ -43,13 +45,24 @@ registerPreviewStrategy({
   ),
 });
 
+// Jupyter Notebooks → rendered interactive notebook cells.
+registerPreviewStrategy({
+  id: "ipynb",
+  disableHover: true,
+  disableInspector: true,
+  match: byExt("ipynb"),
+  load: async (e: Entry) => ({ path: e.path }),
+  render: () => null,
+});
+
 // Audio files → interactive waveform visualization & player.
 const AUDIO_EXTS = ["mp3", "wav", "ogg", "flac", "m4a", "aac", "opus", "wma", "aiff"];
 registerPreviewStrategy({
   id: "audio",
+  disableHover: true,
   match: byExt(...AUDIO_EXTS),
-  load: async (e: Entry) => (isTauri ? convertFileSrc(e.path) : e.path),
-  render: (src: string) => <AudioPreview src={src} />,
+  load: async (e: Entry) => ({ src: isTauri ? convertFileSrc(e.path) : e.path, filename: e.name }),
+  render: (d: { src: string; filename: string }) => <AudioPreview src={d.src} filename={d.filename} />,
 });
 
 // Images → shown via the asset protocol (no bytes cross the IPC bridge).

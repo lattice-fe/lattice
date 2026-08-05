@@ -195,6 +195,52 @@ export function Settings({ ex, ind, th, onClose }: { ex: Explorer; ind: Indexer;
                   step={5}
                   suffix="%"
                 />
+                <div className="setting-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: "8px" }}>
+                  <div>
+                    <div className="setting-name">Shift-Open Mode</div>
+                    <div className="setting-desc">Behavior when pressing Shift+Click or Shift+Enter on a file</div>
+                  </div>
+                  <div style={{ display: "flex", gap: "10px", width: "100%" }}>
+                    <RadioOption
+                      label="Side-by-Side Split Panel"
+                      desc="Opens file in 50% split view"
+                      checked={ex.openMode === "split"}
+                      onClick={() => ex.setOpenMode("split")}
+                    />
+                    <RadioOption
+                      label="New Explorer Tab"
+                      desc="Opens file in a dedicated tab"
+                      checked={ex.openMode === "tab"}
+                      onClick={() => ex.setOpenMode("tab")}
+                    />
+                  </div>
+                </div>
+                <div className="setting-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: "8px" }}>
+                  <div>
+                    <div className="setting-name">Default Home Directory</div>
+                    <div className="setting-desc">Starting folder for new tabs and fresh application launches</div>
+                  </div>
+                  <div style={{ display: "flex", gap: "8px", width: "100%", boxSizing: "border-box" }}>
+                    <input
+                      type="text"
+                      value={ex.homeDir}
+                      onChange={(e) => ex.setHomeDir(e.target.value)}
+                      placeholder="Default (OS Home Folder)"
+                      style={{ flex: 1, minWidth: 0, padding: "6px 10px", borderRadius: "6px", background: "var(--ink-3)", border: "1px solid var(--border)", color: "var(--paper)", fontFamily: "var(--mono)", fontSize: "12px" }}
+                    />
+                    <button
+                      className="btn-ghost"
+                      type="button"
+                      onClick={async () => {
+                        const folder = await api.selectFolder();
+                        if (folder) ex.setHomeDir(folder);
+                      }}
+                      style={{ padding: "6px 14px", fontSize: "12px", border: "1px solid var(--border)", borderRadius: "6px", whiteSpace: "nowrap", flex: "none" }}
+                    >
+                      Browse…
+                    </button>
+                  </div>
+                </div>
               </div>
             </section>
 

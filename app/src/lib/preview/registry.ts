@@ -12,6 +12,10 @@ export interface PreviewStrategy<T = unknown> {
   load: (e: Entry) => Promise<T>;
   /** Render the loaded payload. Must be side-effect free (no hooks). */
   render: (data: T) => ReactNode;
+  /** If true, this strategy will not trigger floating hover previews. */
+  disableHover?: boolean;
+  /** If true, this strategy will not render inside the side-pane Inspector preview. */
+  disableInspector?: boolean;
 }
 
 const strategies: PreviewStrategy[] = [];

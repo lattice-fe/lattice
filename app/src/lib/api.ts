@@ -102,6 +102,14 @@ export const api = {
     if (!isTauri) return mockPreview(path);
     return invoke<Preview>("preview_file", { path });
   },
+  async readFile(path: string): Promise<string> {
+    if (!isTauri) return (await mockPreview(path)).text;
+    return invoke<string>("read_file", { path });
+  },
+  async writeFile(path: string, content: string): Promise<void> {
+    if (!isTauri) return;
+    return invoke("write_file", { path, content });
+  },
   async openUrl(url: string): Promise<void> {
     if (!isTauri) { window.open(url, "_blank"); return; }
     return invoke("open_url", { url });

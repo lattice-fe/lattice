@@ -23,6 +23,9 @@ export function ContextMenu({ ex }: { ex: Explorer }) {
       <div className="menu" style={style} onClick={(e) => e.stopPropagation()}>
         {onRow && target && <>
           <Item label="Open" on={() => { ex.closeContext(); ex.openEntry(target); }} kbd="↵" />
+          {!target.is_dir && (
+            <Item label="Open preview" on={() => { ex.closeContext(); ex.openItemSpecial(target); }} kbd="Shift ↵" />
+          )}
           {target.is_dir && <Item label="Open in new tab" on={() => { ex.closeContext(); ex.newTab(target.path); }} />}
           {target.is_dir && (
             ex.isPinned(target.path)

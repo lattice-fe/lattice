@@ -156,13 +156,14 @@ fn open_path(app: tauri::AppHandle, path: String) -> Result<(), String> {
     app.opener().open_path(path, None::<&str>).map_err(|e| e.to_string())
 }
 
-// For cross-platform folder selection, we'll use a simple prompt for now
-// since Tauri v2's dialog API may not have select_folder available
 #[tauri::command]
-fn select_folder(_app: tauri::AppHandle) -> Result<Option<String>, String> {
-    // Return None - the frontend will handle showing a folder picker dialog
-    // This allows us to keep the code cross-platform compatible
-    Ok(None)
+async fn select_folder() -> Result<Option<String>, String> {
+    let res = tauri::async_runtime::spawn_blocking(move || {
+        rfd::FileDialog::new().pick_folder().map(|p| p.to_string_lossy().to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    Ok(res)
 }
 
 #[tauri::command]
@@ -220,13 +221,31 @@ async fn preview_file(path: String) -> Result<PreviewDto, String> {
             text.push('\n');
         }
         if text.len() > MAX_CHARS {
-            text.truncate(MAX_CHARS);
+            let mut end = MAX_CHARS;
+            while end > 0 && !text.is_char_boundary(end) {
+                end -= 1;
+            }
+            text.truncate(end);
             truncated = true;
         }
         Ok(PreviewDto { text: text.trim_end().to_string(), truncated })
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn read_file(path: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        std::fs::read_to_string(&path).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+fn write_file(path: String, content: String) -> Result<(), String> {
+    std::fs::write(&path, content).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -471,7 +490,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             list_dir, drives, quick_access, home_dir,
             new_folder, rename, copy_items, move_items, delete_items,
-            open_path, select_folder, reveal, open_url, preview_file, show_main_window, quit_app,
+            open_path, select_folder, reveal, open_url, preview_file, read_file, write_file, show_main_window, quit_app,
             search, index_folder, reindex, remove_collection, set_semantic, collections,
             search_apps, copy_file_to_clipboard,
         ])

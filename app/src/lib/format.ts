@@ -29,6 +29,12 @@ export const baseName = (p: string) => {
   return norm.slice(norm.lastIndexOf("/") + 1) || norm;
 };
 
+export const isFilePath = (p: string): boolean => {
+  if (!p) return false;
+  const name = baseName(p);
+  return name.includes(".") && !name.startsWith(".");
+};
+
 // breadcrumb segments as [label, fullPath] pairs
 export const crumbsOf = (p: string): [string, string][] => {
   const norm = p.replace(/\\/g, "/").replace(/\/+$/, "");

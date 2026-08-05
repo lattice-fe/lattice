@@ -73,7 +73,7 @@ export function useHoverPreview(): HoverPreviewApi {
       cancelPersistTimer(); // Cancel any pending clear
       pos.current = { x: ev.clientX, y: ev.clientY };
       const strategy = pickStrategy(e);
-      if (!strategy) {
+      if (!strategy || strategy.disableHover) {
         setPreview(null);
         return;
       }

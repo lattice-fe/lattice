@@ -1,6 +1,6 @@
 [package]
 name = "lattice"
-version = "0.1.0"
+version = "0.2.0"
 description = "Lattice — a high-performance, inviting file explorer"
 authors = ["parzi-val"]
 edition = "2021"
@@ -34,6 +34,7 @@ sqlite-vec = "0.1.9"
 ignore = "0.4"
 pdf-extract = "0.12"
 fastembed = "5"
+rfd = "0.15"
 
 [target.'cfg(windows)'.dependencies]
 clipboard-win = "5"
