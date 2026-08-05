@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { Explorer } from "../hooks/useExplorer";
 import { Glyph, TONE } from "../lib/icons";
 import { fmtSize, fmtWhen, parentOf, baseName } from "../lib/format";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { Entry, api, isTauri } from "../lib/api";
+import { AudioPreview } from "./AudioPreview";
 
 // Normalize Windows paths to forward slashes for display consistency
 function normalizePath(path: string): string {
@@ -133,9 +135,16 @@ export function Inspector({ ex, onCollapse }: { ex: Explorer; onCollapse: () => 
     }
   };
 
-  // Check if it's an image
+  const ext = e.name.includes(".") ? e.name.split(".").pop()?.toLowerCase() || "" : "";
+
+  // Check file types
   const IMAGE_EXTS = ["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg", "ico", "avif"];
-  const isImage = IMAGE_EXTS.some(ext => e.name.toLowerCase().endsWith(`.${ext}`));
+  const AUDIO_EXTS = ["mp3", "wav", "ogg", "flac", "m4a", "aac", "opus", "wma", "aiff"];
+  const isImage = IMAGE_EXTS.includes(ext);
+  const isAudio = AUDIO_EXTS.includes(ext);
+  const isPdf = ext === "pdf";
+
+  const assetSrc = isTauri ? convertFileSrc(e.path) : e.path;
 
   return (
     <aside className="inspector">
@@ -143,8 +152,19 @@ export function Inspector({ ex, onCollapse }: { ex: Explorer; onCollapse: () => 
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
       </button>
       <div className="insp-in" key={e.path}>
-        <div className="preview" style={{ background: `linear-gradient(150deg, ${t.bg}, var(--ink))`, color: t.fg }}>
-          <Glyph kind={e.kind} />
+        <div className="preview" style={{ background: isImage || isPdf || isAudio ? "var(--card)" : `linear-gradient(150deg, ${t.bg}, var(--ink))`, color: t.fg, padding: isAudio ? "12px" : "0" }}>
+          {isAudio ? (
+            <AudioPreview src={assetSrc} />
+          ) : isPdf ? (
+            <object data={`${assetSrc}#toolbar=0&navpanes=0`} type="application/pdf" style={{ width: "100%", height: "100%", borderRadius: "var(--radius-lg)" }}>
+              <embed src={assetSrc} type="application/pdf" style={{ width: "100%", height: "100%" }} />
+            </object>
+          ) : isImage ? (
+            <img src={assetSrc} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", borderRadius: "var(--radius-lg)" }} />
+          ) : (
+            <Glyph kind={e.kind} />
+          )}
+
           {isImage && (
             <button className="btn-copy" onClick={copyToClipboard} title="Copy image to clipboard" style={{ position: "absolute", bottom: "8px", right: "8px" }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>

@@ -5,8 +5,10 @@ import { api, Entry, Preview, isTauri } from "../api";
 import { byExt, extOf, registerPreviewStrategy } from "./registry";
 import { highlightCode } from "./highlight";
 
+import { AudioPreview } from "../../components/AudioPreview";
+
 // --- built-in preview strategies ---
-// Order matters: markdown and image are more specific than the text fallback,
+// Order matters: markdown, pdf, audio, and image are more specific than the text fallback,
 // so they're registered first. Extend by calling registerPreviewStrategy() from
 // your own module — e.g. a CSV table renderer, a syntax-highlighted code view.
 
@@ -25,6 +27,29 @@ registerPreviewStrategy({
       <TruncMark p={d} />
     </div>
   ),
+});
+
+// PDF Documents → embedded native PDF viewer / preview.
+registerPreviewStrategy({
+  id: "pdf",
+  match: byExt("pdf"),
+  load: async (e: Entry) => (isTauri ? convertFileSrc(e.path) : e.path),
+  render: (src: string) => (
+    <div className="prev-pdf-container">
+      <object data={`${src}#toolbar=0&navpanes=0`} type="application/pdf" className="prev-pdf-frame">
+        <embed src={src} type="application/pdf" className="prev-pdf-frame" />
+      </object>
+    </div>
+  ),
+});
+
+// Audio files → interactive waveform visualization & player.
+const AUDIO_EXTS = ["mp3", "wav", "ogg", "flac", "m4a", "aac", "opus", "wma", "aiff"];
+registerPreviewStrategy({
+  id: "audio",
+  match: byExt(...AUDIO_EXTS),
+  load: async (e: Entry) => (isTauri ? convertFileSrc(e.path) : e.path),
+  render: (src: string) => <AudioPreview src={src} />,
 });
 
 // Images → shown via the asset protocol (no bytes cross the IPC bridge).

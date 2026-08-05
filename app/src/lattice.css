@@ -703,6 +703,38 @@ body.is-spotlight #root { padding: 16px; }
   border-radius: 8px; border: 3px solid transparent; background-clip: content-box;
 }
 ::-webkit-scrollbar-thumb:hover { background-color: var(--dim); background-clip: content-box; }
+/* Audio waveform & player preview */
+.audio-preview-container {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  width: 100%; height: 100%; gap: 10px; padding: 10px; box-sizing: border-box;
+}
+.waveform-canvas {
+  width: 100%; height: 56px; cursor: pointer; border-radius: var(--radius);
+  background: rgba(0, 0, 0, 0.2); transition: background 0.14s ease;
+}
+.waveform-canvas:hover { background: rgba(0, 0, 0, 0.35); }
+.audio-controls {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; gap: 12px; padding: 0 4px;
+}
+.audio-btn {
+  width: 32px; height: 32px; border-radius: 50%; border: none;
+  background: var(--terracotta); color: #fff; display: grid; place-items: center;
+  cursor: pointer; transition: transform 0.14s ease, filter 0.14s ease;
+}
+.audio-btn:hover { filter: brightness(1.1); transform: scale(1.05); }
+.audio-btn.mute-btn {
+  width: 28px; height: 28px; background: transparent; color: var(--dim);
+}
+.audio-btn.mute-btn:hover { color: var(--paper); background: var(--ink-3); }
+.audio-time {
+  font-family: var(--mono); font-size: 11.5px; color: var(--paper-dim); flex: 1; text-align: center;
+}
+
+/* PDF Preview Frame */
+.prev-pdf-container { width: 100%; height: 100%; border-radius: var(--radius-lg); overflow: hidden; }
+.prev-pdf-frame { width: 100%; height: 100%; border: none; border-radius: var(--radius-lg); background: var(--paper); }
+
 /* the tab strip keeps its hidden scrollbar */
 .titlebar-tabs::-webkit-scrollbar { width: 0; height: 0; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
