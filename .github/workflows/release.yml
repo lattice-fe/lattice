@@ -63,6 +63,6 @@ jobs:
           tagName: v__VERSION__
           releaseName: 'Lattice v__VERSION__'
           releaseBody: 'Lattice release for Windows, macOS, and Linux.'
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
