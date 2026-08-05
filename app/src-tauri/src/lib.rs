@@ -231,13 +231,17 @@ async fn preview_file(path: String) -> Result<PreviewDto, String> {
 
 #[tauri::command]
 fn copy_file_to_clipboard(path: String) -> Result<(), String> {
-    use clipboard_win::{formats, set_clipboard};
-
-    // Copy the file path to the clipboard as text
-    // Windows will handle file operations when pasting into compatible apps
-    set_clipboard(formats::Unicode, path)
-        .map_err(|e| e.to_string())?;
-    Ok(())
+    #[cfg(target_os = "windows")]
+    {
+        use clipboard_win::{formats, set_clipboard};
+        set_clipboard(formats::Unicode, path).map_err(|e| e.to_string())?;
+        Ok(())
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = path;
+        Err("Clipboard file copy is only supported on Windows".to_string())
+    }
 }
 
 // ---------- search + indexing ----------

@@ -33,5 +33,7 @@ sqlite-vec = "0.1.9"
 ignore = "0.4"
 pdf-extract = "0.12"
 fastembed = "5"
+
+[target.'cfg(windows)'.dependencies]
 clipboard-win = "5"
 
