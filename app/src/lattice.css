@@ -285,9 +285,10 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 @keyframes menu-in { from { opacity: 0; transform: translateY(-4px) scale(0.98); } to { opacity: 1; transform: none; } }
 
 /* grid view */
-.list.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; align-content: start; }
+.list.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(120px * var(--icon-scale, 1)), 1fr)); gap: calc(12px * var(--icon-scale, 1)); align-content: start; }
 .card {
-  display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 18px 12px 14px;
+  display: flex; flex-direction: column; align-items: center; gap: calc(10px * var(--icon-scale, 1));
+  padding: calc(16px * var(--icon-scale, 1)) calc(10px * var(--icon-scale, 1)) calc(12px * var(--icon-scale, 1));
   border-radius: var(--radius-lg); border: 1px solid transparent; color: var(--paper);
   transition: background 0.16s ease, border-color 0.16s ease, transform 0.14s cubic-bezier(0.2, 0.8, 0.3, 1);
   animation: rise 0.4s cubic-bezier(0.2, 0.8, 0.3, 1) backwards;
@@ -303,7 +304,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 /* scrollable grid with auto-fill: code files get 2-column span for better info density */
 .filecards {
   flex: 1; min-height: 0; overflow-y: auto; padding: 14px 16px 24px;
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(180px * var(--icon-scale, 1)), 1fr));
   gap: 14px; align-content: start;
 }
 .filecard {
@@ -360,11 +361,11 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 
 /* compact folder strip at top of cards view */
 .folderstrip {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(95px * var(--icon-scale, 1)), 1fr)); gap: calc(8px * var(--icon-scale, 1));
   padding: 12px 16px; border-bottom: 1px solid var(--border-soft);
 }
 .folder-item {
-  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 6px;
+  display: flex; flex-direction: column; align-items: center; gap: calc(4px * var(--icon-scale, 1)); padding: calc(8px * var(--icon-scale, 1)) calc(6px * var(--icon-scale, 1));
   border-radius: var(--radius); color: var(--paper-dim); border: 1px solid transparent;
   transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
 }
@@ -377,7 +378,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 /* cards view — flows naturally after folder strip */
 .cards-view {
   padding: 14px 16px 24px;
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(140px * var(--icon-scale, 1)), 1fr));
   gap: 14px; align-content: start;
 }
 
