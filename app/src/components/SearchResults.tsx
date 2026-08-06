@@ -1,18 +1,32 @@
+import { useMemo } from "react";
 import { Search } from "../hooks/useSearch";
 import { Explorer } from "../hooks/useExplorer";
-import { api, SearchMode } from "../lib/api";
+import { api, Hit, SearchMode } from "../lib/api";
 import { baseName, parentOf } from "../lib/format";
 import { Glyph, TONE, kindOf } from "../lib/icons";
 
 const MODES: SearchMode[] = ["name", "text", "semantic"];
 
 export function SearchResults({ s, ex }: { s: Search; ex: Explorer }) {
+  // Live-merge the current folder's entries into name-mode results, so files
+  // added/removed since the last index are searchable immediately. Live hits
+  // (what you're looking at) rank first; index hits fill in the rest.
+  const results = useMemo(() => {
+    const q = s.query.trim().toLowerCase();
+    if (s.mode !== "name" || !q) return s.results;
+    const live: Hit[] = ex.entries
+      .filter((e) => e.name.toLowerCase().includes(q))
+      .map((e) => ({ file_path: e.path, is_dir: e.is_dir, snippet: "", score: 1, char_start: 0 }));
+    const seen = new Set(live.map((h) => h.file_path.toLowerCase()));
+    return [...live, ...s.results.filter((h) => !seen.has(h.file_path.toLowerCase()))];
+  }, [s.mode, s.query, s.results, ex.entries]);
+
   const body = () => {
-    if (s.results.length === 0)
+    if (results.length === 0)
       return <div className="empty-note">{s.searching ? "Searching…" : `No matches for “${s.query.trim()}”`}</div>;
     return (
       <div className="list">
-        {s.results.map((h, i) => {
+        {results.map((h, i) => {
           const name = baseName(h.file_path);
           const k = h.is_dir ? "folder" : kindOf(name);
           const t = TONE[k];
@@ -46,7 +60,7 @@ export function SearchResults({ s, ex }: { s: Search; ex: Explorer }) {
         <div>
           <h1>Search</h1>
           <div className="meta">
-            {s.searching && s.results.length === 0 ? "searching…" : `${s.results.length} result${s.results.length === 1 ? "" : "s"}`}
+            {s.searching && results.length === 0 ? "searching…" : `${results.length} result${results.length === 1 ? "" : "s"}`}
             {" · "}
             <span className="mode-switch">
               {MODES.map((m) => (
