@@ -57,6 +57,8 @@ export default function App() {
     if (!cur) return;
     const col = indRef.current.collections.find((c) => { const r = norm(c.root); return cur === r || cur.startsWith(r + "/"); });
     if (!col || col.status === "indexing") return;
+    if (/^[a-z]:$/.test(norm(col.root))) return; // skip drive-root collections (e.g. D:\) — too big to auto-walk
+    if (col.file_count > 20000) return; // and any collection large enough to stall the single-threaded worker
     if (Date.now() - (lastReconcile.current.get(col.id) ?? 0) < 30000) return;
     lastReconcile.current.set(col.id, Date.now());
     api.reindex(col.id);
