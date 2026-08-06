@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { useExplorer } from "./hooks/useExplorer";
 import { useSearch } from "./hooks/useSearch";
@@ -17,7 +17,7 @@ import { PdfViewer } from "./components/PdfViewer";
 import { TextEditor } from "./components/TextEditor";
 import { JupyterViewer } from "./components/JupyterViewer";
 import { ImageViewer } from "./components/ImageViewer";
-import { isTauri } from "./lib/api";
+import { api, isTauri } from "./lib/api";
 import { isFilePath, baseName } from "./lib/format";
 import "./lattice.css";
 
@@ -42,6 +42,27 @@ export default function App() {
 
   // browsing to a new folder ends an active search
   useEffect(() => { s.clear(); }, [ex.path, s.clear]);
+
+  // Keep the current path's collection index fresh: reconcile on navigate + window
+  // focus (external edits, our own edits), guarded to once/30s per collection so
+  // idle polling can't loop it. Reuses the incremental reindex.
+  // ponytail: full-root re-walk; scope to the current subtree if it stalls search.
+  const indRef = useRef(ind);
+  indRef.current = ind;
+  const lastReconcile = useRef<Map<number, number>>(new Map());
+  const reconcileNow = useCallback(() => {
+    if (!isTauri) return;
+    const norm = (p: string) => p.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
+    const cur = norm(exRef.current.path);
+    if (!cur) return;
+    const col = indRef.current.collections.find((c) => { const r = norm(c.root); return cur === r || cur.startsWith(r + "/"); });
+    if (!col || col.status === "indexing") return;
+    if (Date.now() - (lastReconcile.current.get(col.id) ?? 0) < 30000) return;
+    lastReconcile.current.set(col.id, Date.now());
+    api.reindex(col.id);
+  }, []);
+  useEffect(() => { reconcileNow(); }, [ex.path, reconcileNow]); // navigate
+  useEffect(() => { window.addEventListener("focus", reconcileNow); return () => window.removeEventListener("focus", reconcileNow); }, [reconcileNow]);
 
   // commands dispatched from the Spotlight window
   useEffect(() => {
