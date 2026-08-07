@@ -1,4 +1,5 @@
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { api, Entry, Preview, isTauri } from "../api";
@@ -23,7 +24,9 @@ registerPreviewStrategy({
   load: (e: Entry) => api.previewFile(e.path),
   render: (d: Preview) => (
     <div className="hoverprev-scroll prev-md">
-      <ReactMarkdown rehypePlugins={[rehypeHighlight]}>{d.text}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+        {d.text}
+      </ReactMarkdown>
       <TruncMark p={d} />
     </div>
   ),

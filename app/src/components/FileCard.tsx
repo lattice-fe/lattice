@@ -1,5 +1,6 @@
 import { ReactNode, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { Entry, api, isTauri } from "../lib/api";
@@ -139,6 +140,7 @@ export function FileCard({
 
   useEffect(() => {
     if (!seen) return;
+    if (localStorage.getItem("lattice:disable-hover") === "true") return;
     const kind = peekKind(e);
     if (kind === "img") { setPeek({ type: "img", src: isTauri ? convertFileSrc(e.path) : e.path }); return; }
     if (kind === "md" || kind === "code") {
@@ -173,7 +175,7 @@ export function FileCard({
           <pre className="filecard-code hljs"><code dangerouslySetInnerHTML={{ __html: peek.html }} /></pre>
         ) : peek?.type === "md" ? (
           <div className="filecard-md prev-md">
-            <ReactMarkdown rehypePlugins={[rehypeHighlight]}>{peek.html}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>{peek.html}</ReactMarkdown>
           </div>
         ) : (
           <span className="filecard-tile" style={{ background: t.bg, color: t.fg }}><Glyph kind={e.kind} /></span>

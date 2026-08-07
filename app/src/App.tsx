@@ -10,18 +10,28 @@ import { TopBar } from "./components/TopBar";
 import { TitleBar } from "./components/TitleBar";
 import { Sidebar } from "./components/Sidebar";
 import { FileList } from "./components/FileList";
-import { SearchResults } from "./components/SearchResults";
 import { Inspector } from "./components/Inspector";
 import { ContextMenu } from "./components/ContextMenu";
 import { PdfViewer } from "./components/PdfViewer";
 import { TextEditor } from "./components/TextEditor";
 import { JupyterViewer } from "./components/JupyterViewer";
 import { ImageViewer } from "./components/ImageViewer";
+import { SpreadsheetViewer } from "./components/SpreadsheetViewer";
+import { DocumentationViewer } from "./components/DocumentationViewer";
+import { NewFileModal } from "./components/NewFileModal";
 import { api, isTauri } from "./lib/api";
 import { isFilePath, baseName } from "./lib/format";
 import "./lattice.css";
 
-const isImage = (filename: string) => /\.(png|jpe?g|gif|webp|bmp|svg|ico|avif)$/i.test(filename);
+function isSpreadsheet(path: string): boolean {
+  const l = path.toLowerCase();
+  return l.endsWith(".csv") || l.endsWith(".tsv") || l.endsWith(".xlsx") || l.endsWith(".xls") || l.endsWith(".ods");
+}
+
+function isImage(filename: string): boolean {
+  const ext = filename.split(".").pop()?.toLowerCase() || "";
+  return ["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg", "ico", "avif"].includes(ext);
+}
 
 export default function App() {
   const ex = useExplorer();
@@ -29,6 +39,8 @@ export default function App() {
   const ind = useIndexer();
   const th = useTheme();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [newFileFolder, setNewFileFolder] = useState<string | null>(null);
+  const [fileTabSidebarOpen, setFileTabSidebarOpen] = useState(false);
   const exRef = useRef(ex);
   exRef.current = ex;
 
@@ -66,13 +78,29 @@ export default function App() {
   useEffect(() => { reconcileNow(); }, [ex.path, reconcileNow]); // navigate
   useEffect(() => { window.addEventListener("focus", reconcileNow); return () => window.removeEventListener("focus", reconcileNow); }, [reconcileNow]);
 
-  // commands dispatched from the Spotlight window
+  // commands dispatched from the Spotlight window (deduplicated & checks existing tab)
+  const lastNavRef = useRef<{ path: string; time: number }>({ path: "", time: 0 });
+
   useEffect(() => {
     let unlistenNav: (() => void) | null = null;
     let unlistenOpen: (() => void) | null = null;
 
-    const handleOpenDir = (path: string) => {
-      ex.newTab(path);
+    const handleOpenDir = (targetPath: string) => {
+      if (!targetPath) return;
+      const now = Date.now();
+      const norm = targetPath.toLowerCase().replace(/[\\/]+$/, "");
+      if (lastNavRef.current.path === norm && now - lastNavRef.current.time < 500) {
+        return; // ignore duplicate event dispatched within 500ms
+      }
+      lastNavRef.current = { path: norm, time: now };
+
+      // If a tab with this path already exists, switch to it instead of creating duplicates
+      const existing = ex.tabs.find((t) => (t.path || "").toLowerCase().replace(/[\\/]+$/, "") === norm);
+      if (existing) {
+        ex.selectTab(existing.id);
+      } else {
+        ex.newTab(targetPath);
+      }
     };
 
     listen<string>("spotlight:navigate", (ev) => handleOpenDir(ev.payload)).then((fn) => { unlistenNav = fn; });
@@ -82,13 +110,29 @@ export default function App() {
       if (unlistenNav) unlistenNav();
       if (unlistenOpen) unlistenOpen();
     };
-  }, [ex.newTab]);
+  }, [ex.tabs, ex.selectTab, ex.newTab]);
 
   // keyboard shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === "F1") { e.preventDefault(); ex.openDocTab(); return; }
       const ctrl = e.ctrlKey || e.metaKey;
-      if (ctrl && e.key === "f") { e.preventDefault(); document.querySelector<HTMLInputElement>(".search input")?.focus(); return; }
+      if (ctrl && e.shiftKey && e.key.toLowerCase() === "n") {
+        e.preventDefault();
+        ex.newFolder();
+        return;
+      }
+      if (ctrl && !e.shiftKey && e.key.toLowerCase() === "n") {
+        e.preventDefault();
+        setNewFileFolder(ex.path);
+        return;
+      }
+      if (ctrl && e.key.toLowerCase() === "f") {
+        if (document.querySelector(".editor-wrapper")) return;
+        e.preventDefault();
+        document.querySelector<HTMLInputElement>(".search input")?.focus();
+        return;
+      }
       if (ctrl && e.key === "t") { e.preventDefault(); ex.newTab(); return; }
       if (ctrl && e.key === "w") { e.preventDefault(); ex.closeTab(ex.activeTabId); return; }
       if (ctrl && e.key === "Tab" && ex.tabs.length > 1) {
@@ -139,64 +183,98 @@ export default function App() {
 
   const isFileTab = isFilePath(ex.path);
   const activePathLower = ex.path.toLowerCase();
+  const isDocTab = activePathLower === "lattice://docs";
 
   return (
     <div className="app">
       <TitleBar ex={ex} />
-      <TopBar ex={ex} s={s} onSettings={() => setSettingsOpen(true)} />
-      <div className={"body" + (ex.splitItem ? " split-active" : "") + (ex.previewCollapsed ? " no-preview" : "")}>
-        {!ex.splitItem && <Sidebar ex={ex} />}
-        {s.active ? (
-          <SearchResults s={s} ex={ex} />
-        ) : isFileTab ? (
-          <div className="tab-file-panel">
+      <TopBar
+        ex={ex}
+        s={s}
+        onSettings={() => setSettingsOpen(true)}
+        onToggleSidebar={isFileTab ? () => setFileTabSidebarOpen(!fileTabSidebarOpen) : undefined}
+        sidebarOpen={fileTabSidebarOpen}
+      />
+      {isDocTab ? (
+        <DocumentationViewer />
+      ) : isFileTab ? (
+        <div className="body" style={{ gridTemplateColumns: fileTabSidebarOpen ? "232px 1fr" : "1fr" }}>
+          {fileTabSidebarOpen && <Sidebar ex={ex} />}
+          <div className="tab-file-panel isolated">
             {activePathLower.endsWith(".pdf") ? (
               <PdfViewer
+                key={ex.activeTabId + ":" + ex.path}
                 entry={{ name: baseName(ex.path), path: ex.path, is_dir: false, size: 0, modified: null, kind: "document", type_label: "PDF File", hidden: false }}
                 onClose={() => ex.closeTab(ex.activeTabId)}
               />
             ) : activePathLower.endsWith(".ipynb") ? (
               <JupyterViewer
+                key={ex.activeTabId + ":" + ex.path}
                 entry={{ name: baseName(ex.path), path: ex.path, is_dir: false, size: 0, modified: null, kind: "code", type_label: "Jupyter Notebook", hidden: false }}
+                onClose={() => ex.closeTab(ex.activeTabId)}
+              />
+            ) : isSpreadsheet(ex.path) ? (
+              <SpreadsheetViewer
+                key={ex.activeTabId + ":" + ex.path}
+                entry={{ name: baseName(ex.path), path: ex.path, is_dir: false, size: 0, modified: null, kind: "document", type_label: "Spreadsheet", hidden: false }}
                 onClose={() => ex.closeTab(ex.activeTabId)}
               />
             ) : isImage(ex.path) ? (
               <ImageViewer
+                key={ex.activeTabId + ":" + ex.path}
                 entry={{ name: baseName(ex.path), path: ex.path, is_dir: false, size: 0, modified: null, kind: "image", type_label: "Image File", hidden: false }}
                 onClose={() => ex.closeTab(ex.activeTabId)}
               />
             ) : (
               <TextEditor
+                key={ex.activeTabId + ":" + ex.path}
                 entry={{ name: baseName(ex.path), path: ex.path, is_dir: false, size: 0, modified: null, kind: "code", type_label: "File", hidden: false }}
                 onClose={() => ex.closeTab(ex.activeTabId)}
+                onOpenPath={(targetPath) => ex.newTab(targetPath)}
+                isFullTab={true}
               />
             )}
           </div>
-        ) : (
+        </div>
+      ) : (
+        <div className={"body" + (ex.splitItem ? " split-active" : "") + (ex.previewCollapsed ? " no-preview" : "")}>
+          {!ex.splitItem && <Sidebar ex={ex} />}
           <FileList ex={ex} />
-        )}
 
-        {ex.splitItem && (
-          <div className="split-view-panel">
-            {ex.splitItem.name.toLowerCase().endsWith(".pdf") ? (
-              <PdfViewer entry={ex.splitItem} onClose={ex.closeSplitItem} />
-            ) : ex.splitItem.name.toLowerCase().endsWith(".ipynb") ? (
-              <JupyterViewer entry={ex.splitItem} onClose={ex.closeSplitItem} />
-            ) : isImage(ex.splitItem.name) ? (
-              <ImageViewer entry={ex.splitItem} onClose={ex.closeSplitItem} />
-            ) : (
-              <TextEditor entry={ex.splitItem} onClose={ex.closeSplitItem} onErrorToast={ex.showToast} />
-            )}
-          </div>
-        )}
-        {!ex.splitItem && !isFileTab && !ex.previewCollapsed && <Inspector ex={ex} onCollapse={() => ex.togglePreview()} />}
-        {!ex.splitItem && !isFileTab && ex.previewCollapsed && (
-          <button className="preview-reveal" onClick={() => ex.togglePreview()} title="Show preview pane">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
-          </button>
-        )}
-      </div>
-      <ContextMenu ex={ex} />
+          {ex.splitItem && (
+            <div className="split-view-panel">
+              {ex.splitItem.name.toLowerCase().endsWith(".pdf") ? (
+                <PdfViewer entry={ex.splitItem} onClose={ex.closeSplitItem} />
+              ) : ex.splitItem.name.toLowerCase().endsWith(".ipynb") ? (
+                <JupyterViewer entry={ex.splitItem} onClose={ex.closeSplitItem} />
+              ) : isSpreadsheet(ex.splitItem.name) ? (
+                <SpreadsheetViewer entry={ex.splitItem} onClose={ex.closeSplitItem} />
+              ) : isImage(ex.splitItem.name) ? (
+                <ImageViewer entry={ex.splitItem} onClose={ex.closeSplitItem} />
+              ) : (
+                <TextEditor entry={ex.splitItem} onClose={ex.closeSplitItem} onErrorToast={ex.showToast} onOpenPath={(targetPath) => ex.newTab(targetPath)} isFullTab={false} />
+              )}
+            </div>
+          )}
+          {!ex.splitItem && !ex.previewCollapsed && <Inspector ex={ex} onCollapse={() => ex.togglePreview()} />}
+          {!ex.splitItem && ex.previewCollapsed && (
+            <button className="preview-reveal" onClick={() => ex.togglePreview()} title="Show preview pane">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+            </button>
+          )}
+        </div>
+      )}
+      <ContextMenu ex={ex} onNewFile={(folderPath) => setNewFileFolder(folderPath)} />
+      {newFileFolder && (
+        <NewFileModal
+          folderPath={newFileFolder}
+          onClose={() => setNewFileFolder(null)}
+          onCreated={(newPath) => {
+            ex.refresh();
+            ex.newTab(newPath);
+          }}
+        />
+      )}
       <IndexStatus ind={ind} />
       {ex.toast && (
         <div className="index-toast done" style={{ color: "var(--paper)", zIndex: 100 }}>

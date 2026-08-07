@@ -76,14 +76,6 @@ export function ThemeEditor({ th, base, isNew, onClose }: { th: ThemeApi; base: 
   const copyJson = () => {
     navigator.clipboard?.writeText(themeToJson(draft)).then(() => flash("Copied JSON")).catch(() => flash("Copy failed"));
   };
-  const download = () => {
-    const blob = new Blob([themeToJson(draft)], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `${draft.name.replace(/\s+/g, "-").toLowerCase() || "theme"}.json`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  };
   const applyImport = () => {
     try {
       const parsed = parseThemeJson(importText);
@@ -178,7 +170,6 @@ export function ThemeEditor({ th, base, isNew, onClose }: { th: ThemeApi; base: 
           <div className="te-io">
             <button className="btn-ghost2" onClick={() => setImporting((v) => !v)}>Import</button>
             <button className="btn-ghost2" onClick={copyJson}>Copy JSON</button>
-            <button className="btn-ghost2" onClick={download}>Download</button>
             {msg && <span className="te-msg">{msg}</span>}
           </div>
           <div className="te-actions">

@@ -11,6 +11,7 @@ import { ThemeEditor } from "./ThemeEditor";
 // Hover preview delay settings (localStorage keys)
 const HOVER_DELAY_KEY = "lattice:hover-delay";
 const PERSISTENCE_KEY = "lattice:preview-persistence";
+const DISABLE_HOVER_KEY = "lattice:disable-hover";
 
 // Sensitive preview settings (localStorage keys)
 const NEVER_BLUR_KEY = "lattice:never-blur";
@@ -81,11 +82,10 @@ function getPersistence(): number {
 }
 
 // Settings sections for navigation
-type Section = "general" | "appearance" | "hover" | "indexing" | "shortcuts" | "advanced";
+type Section = "general" | "appearance" | "indexing" | "shortcuts" | "advanced";
 const SECTIONS: { id: Section; label: string }[] = [
   { id: "general", label: "General" },
   { id: "appearance", label: "Appearance" },
-  { id: "hover", label: "Hover preview" },
   { id: "indexing", label: "Indexing" },
   { id: "shortcuts", label: "Shortcuts" },
   { id: "advanced", label: "Advanced" },
@@ -102,6 +102,7 @@ const KEYBINDS: { action: string; keys: string }[] = [
   { action: "Cut", keys: "Ctrl + X" },
   { action: "Paste", keys: "Ctrl + V" },
   { action: "Rename", keys: "F2" },
+  { action: "New file", keys: "Ctrl + N" },
   { action: "New folder", keys: "Ctrl + Shift + N" },
   { action: "Delete", keys: "Delete" },
   { action: "Open", keys: "Enter" },
@@ -121,6 +122,15 @@ export function Settings({ ex, ind, th, onClose }: { ex: Explorer; ind: Indexer;
   const [neverBlur, setNeverBlur] = useState(() => localStorage.getItem(NEVER_BLUR_KEY) === "true");
   const [neverUnblur, setNeverUnblur] = useState(() => localStorage.getItem(NEVER_UNBLUR_KEY) === "true");
   const [blurPatterns, setBlurPatterns] = useState(() => localStorage.getItem(BLUR_PATTERNS_KEY) || "");
+
+  // Hover preview setting
+  const [disableHover, setDisableHover] = useState(() => localStorage.getItem(DISABLE_HOVER_KEY) === "true");
+
+  const handleDisableHoverChange = () => {
+    const next = !disableHover;
+    setDisableHover(next);
+    localStorage.setItem(DISABLE_HOVER_KEY, String(next));
+  };
 
   // Icon size setting
   const [iconSize, setIconSize] = useState(getIconSize);
@@ -241,6 +251,23 @@ export function Settings({ ex, ind, th, onClose }: { ex: Explorer; ind: Indexer;
                     </button>
                   </div>
                 </div>
+                <div className="setting-row" style={{ alignItems: "center", justifyContent: "space-between" }}>
+                  <div>
+                    <div className="setting-name">Documentation & Guides</div>
+                    <div className="setting-desc">Open feature guide, CLI reference, and keyboard shortcuts</div>
+                  </div>
+                  <button
+                    className="btn-ghost"
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      ex.openDocTab();
+                    }}
+                    style={{ padding: "6px 14px", fontSize: "12px", border: "1px solid var(--border)", borderRadius: "6px" }}
+                  >
+                    Open Documentation
+                  </button>
+                </div>
               </div>
             </section>
 
@@ -279,32 +306,6 @@ export function Settings({ ex, ind, th, onClose }: { ex: Explorer; ind: Indexer;
                     <div className="theme-appear">customize colours</div>
                   </button>
                 </div>
-              </div>
-            </section>
-
-            {/* Hover preview */}
-            <section className={activeSection === "hover" ? "active" : ""}>
-              <div className="setting-group">
-                <NumberSlider
-                  label="Hover delay"
-                  desc="How long to hover before preview appears"
-                  value={getHoverDelay()}
-                  onChange={(v) => localStorage.setItem(HOVER_DELAY_KEY, String(v))}
-                  min={100}
-                  max={2000}
-                  step={50}
-                  suffix="ms"
-                />
-                <NumberSlider
-                  label="Persistence"
-                  desc="How long preview stays after cursor leaves"
-                  value={getPersistence()}
-                  onChange={(v) => localStorage.setItem(PERSISTENCE_KEY, String(v))}
-                  min={50}
-                  max={1000}
-                  step={25}
-                  suffix="ms"
-                />
               </div>
             </section>
 
@@ -363,6 +364,42 @@ export function Settings({ ex, ind, th, onClose }: { ex: Explorer; ind: Indexer;
 
             {/* Advanced */}
             <section className={activeSection === "advanced" ? "active" : ""}>
+              {/* Hover preview settings */}
+              <div className="setting-group" style={{ marginBottom: "24px" }}>
+                <div className="settings-section-title">Hover previews</div>
+                <div className="setting-row" style={{ marginBottom: "12px" }}>
+                  <div>
+                    <div className="setting-name">Enable Hover Previews</div>
+                    <div className="setting-desc">Show card hover preview peeks on mouse hover</div>
+                  </div>
+                  <Switch on={!disableHover} onClick={handleDisableHoverChange} />
+                </div>
+                {!disableHover && (
+                  <>
+                    <NumberSlider
+                      label="Hover delay"
+                      desc="How long to hover before preview appears"
+                      value={getHoverDelay()}
+                      onChange={(v) => localStorage.setItem(HOVER_DELAY_KEY, String(v))}
+                      min={100}
+                      max={2000}
+                      step={50}
+                      suffix="ms"
+                    />
+                    <NumberSlider
+                      label="Persistence"
+                      desc="How long preview stays after cursor leaves"
+                      value={getPersistence()}
+                      onChange={(v) => localStorage.setItem(PERSISTENCE_KEY, String(v))}
+                      min={50}
+                      max={1000}
+                      step={25}
+                      suffix="ms"
+                    />
+                  </>
+                )}
+              </div>
+
               {/* Sensitive preview settings */}
               <div className="setting-group">
                 <div className="settings-section-title">Sensitive preview</div>

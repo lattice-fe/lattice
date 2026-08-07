@@ -5,7 +5,15 @@ import { parentOf, isFilePath } from "../lib/format";
 import { extOf } from "../lib/preview/registry";
 
 export interface Clipboard { paths: string[]; mode: "copy" | "cut"; }
-export interface Ctx { x: number; y: number; index: number | null; }
+export interface Ctx { x: number; y: number; index: number | null; customEntry?: Entry | null; }
+
+export interface TabGroup {
+  id: string;
+  name: string;
+  color: string;
+  collapsed?: boolean;
+  tabIds: number[];
+}
 
 interface Tab {
   id: number;
@@ -17,6 +25,7 @@ interface Tab {
 const PINNED_KEY = "lattice:pinned-folders";
 const HOME_DIR_KEY = "lattice:home-dir";
 const SESSION_KEY = "lattice:session-state";
+const GROUPS_KEY = "lattice:tab-groups";
 
 const AUDIO_EXTS = new Set(["mp3", "wav", "ogg", "flac", "m4a", "aac", "opus", "wma", "aiff"]);
 const VIDEO_EXTS = new Set(["mp4", "mkv", "avi", "mov", "webm", "wmv", "flv"]);
@@ -228,6 +237,22 @@ export function useExplorer() {
     setCtx(null);
   }, []);
 
+  const openDocTab = useCallback(() => {
+    const DOC_PATH = "lattice://docs";
+    const existing = tabs.find((t) => (t.history[t.hi] || "").toLowerCase() === DOC_PATH);
+    if (existing) {
+      setActiveId(existing.id);
+      setSel(new Set());
+      setCtx(null);
+      return;
+    }
+    const id = nextId.current++;
+    setTabs((ts) => [...ts, { id, history: [DOC_PATH], hi: 0 }]);
+    setActiveId(id);
+    setSel(new Set());
+    setCtx(null);
+  }, [tabs]);
+
   const closeTab = useCallback((id: number) => {
     if (tabs.length <= 1) return;
     const idx = tabs.findIndex((t) => t.id === id);
@@ -240,7 +265,123 @@ export function useExplorer() {
     }
   }, [tabs, activeId]);
 
-  const tabList = useMemo(() => tabs.map((t) => ({ id: t.id, path: t.history[t.hi] ?? "" })), [tabs]);
+  // Tab reordering via drag-and-drop
+  const reorderTabs = useCallback((sourceId: number, targetId: number) => {
+    setTabs((prev) => {
+      const srcIdx = prev.findIndex((t) => t.id === sourceId);
+      const tgtIdx = prev.findIndex((t) => t.id === targetId);
+      if (srcIdx === -1 || tgtIdx === -1 || srcIdx === tgtIdx) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(srcIdx, 1);
+      next.splice(tgtIdx, 0, moved);
+      return next;
+    });
+  }, []);
+
+  const closeOtherTabs = useCallback((id: number) => {
+    setTabs((prev) => prev.filter((t) => t.id === id));
+    setActiveId(id);
+    setSel(new Set());
+    setCtx(null);
+  }, []);
+
+  const closeTabsToRight = useCallback((id: number) => {
+    setTabs((prev) => {
+      const idx = prev.findIndex((t) => t.id === id);
+      if (idx === -1) return prev;
+      const next = prev.slice(0, idx + 1);
+      if (!next.some((t) => t.id === activeId)) {
+        setActiveId(id);
+      }
+      return next;
+    });
+    setSel(new Set());
+    setCtx(null);
+  }, [activeId]);
+
+  const duplicateTab = useCallback((id: number) => {
+    const target = tabs.find((t) => t.id === id);
+    if (!target) return;
+    const newId = nextId.current++;
+    const currentPath = target.history[target.hi] || "~";
+    const idx = tabs.findIndex((t) => t.id === id);
+    setTabs((prev) => {
+      const next = [...prev];
+      next.splice(idx + 1, 0, { id: newId, history: [currentPath], hi: 0 });
+      return next;
+    });
+    setActiveId(newId);
+  }, [tabs]);
+
+  // Tab Groups state & operations
+  const [groups, setGroupsState] = useState<TabGroup[]>(() => {
+    try {
+      const raw = localStorage.getItem(GROUPS_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  });
+
+  const saveGroups = useCallback((items: TabGroup[]) => {
+    setGroupsState(items);
+    try { localStorage.setItem(GROUPS_KEY, JSON.stringify(items)); } catch { /* ignore */ }
+  }, []);
+
+  const createGroup = useCallback((name: string, color: string, tabIds: number[]) => {
+    const id = "grp_" + Date.now().toString(36);
+    const newGrp: TabGroup = { id, name, color, tabIds, collapsed: false };
+    saveGroups([...groups, newGrp]);
+    return id;
+  }, [groups, saveGroups]);
+
+  const addTabToGroup = useCallback((groupId: string, tabId: number) => {
+    saveGroups(groups.map((g) => {
+      if (g.id === groupId) {
+        if (g.tabIds.includes(tabId)) return g;
+        return { ...g, tabIds: [...g.tabIds, tabId] };
+      }
+      return { ...g, tabIds: g.tabIds.filter((tid) => tid !== tabId) };
+    }));
+  }, [groups, saveGroups]);
+
+  const removeTabFromGroup = useCallback((tabId: number) => {
+    saveGroups(groups.map((g) => ({ ...g, tabIds: g.tabIds.filter((tid) => tid !== tabId) })).filter((g) => g.tabIds.length > 0));
+  }, [groups, saveGroups]);
+
+  const toggleGroupCollapse = useCallback((groupId: string) => {
+    saveGroups(groups.map((g) => g.id === groupId ? { ...g, collapsed: !g.collapsed } : g));
+  }, [groups, saveGroups]);
+
+  const renameGroup = useCallback((groupId: string, name: string) => {
+    saveGroups(groups.map((g) => g.id === groupId ? { ...g, name } : g));
+  }, [groups, saveGroups]);
+
+  const setGroupColor = useCallback((groupId: string, color: string) => {
+    saveGroups(groups.map((g) => g.id === groupId ? { ...g, color } : g));
+  }, [groups, saveGroups]);
+
+  const deleteGroup = useCallback((groupId: string) => {
+    saveGroups(groups.filter((g) => g.id !== groupId));
+  }, [groups, saveGroups]);
+
+  const closeGroupTabs = useCallback((groupId: string) => {
+    const grp = groups.find((g) => g.id === groupId);
+    if (!grp) return;
+    const removeSet = new Set(grp.tabIds);
+    const remaining = tabs.filter((t) => !removeSet.has(t.id));
+    if (remaining.length > 0) {
+      setTabs(remaining);
+      if (removeSet.has(activeId)) {
+        setActiveId(remaining[0].id);
+      }
+    }
+    deleteGroup(groupId);
+  }, [groups, tabs, activeId, deleteGroup]);
+
+  const tabList = useMemo(() => tabs.map((t) => ({
+    id: t.id,
+    path: t.history[t.hi] ?? "",
+    splitPath: t.splitItem?.path ?? null,
+  })), [tabs]);
   const up = useCallback(() => { const par = parentOf(path); if (par) navigate(par); }, [path, navigate]);
   const refresh = useCallback(() => load(path), [path, load]);
 
@@ -349,7 +490,9 @@ export function useExplorer() {
     path, entries, loading, error, drives, quick: allQuick,
     canBack: hi > 0, canForward: hi < history.length - 1, canUp: !!parentOf(path),
     sel, selectedEntries, sort, view, showHidden, clipboard, renaming, ctx,
-    tabs: tabList, activeTabId: activeId, newTab, closeTab, selectTab,
+    tabs: tabList, activeTabId: activeId, newTab, closeTab, selectTab, openDocTab,
+    reorderTabs, closeOtherTabs, closeTabsToRight, duplicateTab,
+    groups, createGroup, addTabToGroup, removeTabFromGroup, toggleGroupCollapse, renameGroup, setGroupColor, deleteGroup, closeGroupTabs,
     navigate, back, forward, up, refresh,
     selectAt, clearSel, selectAll, selectSet, openEntry, setSort,
     toggleView: () => setView((v) => (v === "list" ? "grid" : "list")),
@@ -358,7 +501,7 @@ export function useExplorer() {
     setShowHidden,
     startRename, cancelRename, commitRename,
     newFolder, copySel, cutSel, paste, deleteSel, reveal,
-    openContext: (x: number, y: number, index: number | null) => setCtx({ x, y, index }),
+    openContext: (x: number, y: number, index: number | null, customEntry?: Entry | null) => setCtx({ x, y, index, customEntry }),
     closeContext: () => setCtx(null),
     pinFolder, unpinFolder, isPinned,
     previewCollapsed,

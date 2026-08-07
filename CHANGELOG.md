@@ -5,26 +5,33 @@ All notable changes to Lattice will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.0] - 2026-08-07
+## [0.3.0] - 2026-08-08
 
 ### Added
-- **`lat` CLI** — a terminal companion for Lattice: filename/full-text/semantic
-  search, syntax-highlighted previews, and open/reveal hand-off into the GUI.
-  Supports Spotlight prefixes (`=` math, `@kind`, `>` app, `?` web), `--json`
-  output, and proper process exit codes for scripting and agent use. See
-  [docs/cli.md](docs/cli.md).
-- **Live search merge** — name-mode search folds in the current folder's
-  in-memory entries, so files added or removed since the last index are found
-  immediately (and un-indexed folders still return results).
-- **Index auto-reconcile** — the current folder's collection is re-indexed on
-  navigate and window focus (skips drive-root and very large collections to
-  avoid heavy walks).
+
+#### In-App Code & Markdown Editor
+- **Full-featured Editor & Syntax Highlighting:** Integrated code editor supporting JavaScript, TypeScript, Python, Rust, HTML, CSS, JSON, Markdown, TOML, YAML, SQL, C/C++, and plain text with Highlight.js tokenization.
+- **Source / Split / Preview Modes:** Dual-pane split view with live markdown preview (GFM tables, inline code, links) and sandboxed interactive HTML iframe preview with script execution.
+- **In-Editor Find & Replace:** Floating in-editor search bar with real-time match count (`X of Y`), `Enter` / `Shift+Enter` (or arrow button) navigation to jump and scroll directly to matches, case-matching toggle (`Aa`), and instant single or bulk replace (`Replace` / `Replace All`) with continuous auto-save.
+- **Real-time Status Bar Footer:** Displays `Ln X, Col Y` cursor position, selection character count (`(N selected)`), total line and word counts, character encoding (`UTF-8`), line endings (`LF` / `CRLF`), Title Case language pill badge (`TypeScript`, `Python`, `Markdown`, `HTML`), and background auto-save status indicator.
+- **In-Editor File Renaming:** Clickable filename in the header to rename files directly from within the editor.
+
+#### Tab Management & Chrome-style Tab Groups
+- **Pointer-Based Drag-to-Reorder:** Smooth, responsive tab dragging across the titlebar with visual drop target indicator (`border-left: 2px solid var(--terracotta)`).
+- **Chrome-style Inline Tab Groups:** Create named, color-coded tab groups (`Amber`, `Teal`, `Terracotta`, `Purple`, `Blue`) rendered inline with tabs. Features collapsible group badges with member counts, visual colored bottom accents on grouped tabs, and drag-and-drop tab assignment into groups.
+- **Tab Context Menu:** Dedicated right-click menu on tabs supporting Close Tab (`Ctrl+W`), Close Other Tabs, Close Tabs to the Right, Duplicate Tab, Copy Path, Add to New Group, and Add to Existing Group.
+
+#### Search & Global Navigation
+- **Unified Global Search Dropdown:** Floating search dropdown accessible across folder views, editor tabs, and doc pages without interrupting or destroying the active canvas.
+- **`lat` CLI:** Terminal companion for Lattice providing sub-10ms filename, full-text FTS5, and semantic search, previews, and open/reveal hand-off into the GUI with Spotlight prefix support (`=`, `@`, `>`, `?`), `--json` output, and process exit codes. See [docs/cli.md](docs/cli.md).
+- **Global Shortcuts & New File Modal:** Wide single-row `Ctrl+N` new file creation with folder prefix badge, `Ctrl+Shift+N` new folder creation, and keybindings table integration.
+- **Live Search Merge & Auto-Reconcile:** In-memory entry fold-in for instant unindexed search and automatic background index reconciliation on navigation and window focus.
 
 ### Fixed
-- **`lat` opens the index read-only** — short-lived CLI processes can no longer
-  write to (or corrupt) the database the GUI owns.
-- **CLI math evaluator** now actually evaluates arithmetic instead of echoing
-  the expression; CLI exit codes distinguish found / no-results / error.
+- **Window Close Icon (×) SVG:** Corrected malformed SVG path (`L8.8 L8.8` → `L8.8 8.8`) restoring the first diagonal line of the window close button.
+- **Tab Drag Region Conflict:** Removed conflicting `data-tauri-drag-region` from the tab container, preventing OS window drag from intercepting tab mouse interactions.
+- **Context Menu Interaction:** Resolved event bubbling and screen-edge clamping for right-click context menus.
+- **`lat` Read-Only Indexing:** CLI queries now open SQLite databases in read-only mode to prevent write locks against the GUI process.
 
 ## [0.2.0] - 2026-08-06
 

@@ -131,9 +131,16 @@ export function Spotlight() {
 
   useEffect(() => { setActive(0); }, [items.length, mode]);
 
-  const run = (it: Item) => {
+  const run = (it: Item, shift = false) => {
     if (it.kind === "app") api.openPath(it.path);
-    else if (it.kind === "file") { if (it.isDir) { fire("spotlight:navigate", it.path); api.showMain(); } else api.openPath(it.path); }
+    else if (it.kind === "file") {
+      if (it.isDir || shift) {
+        fire("spotlight:navigate", it.path);
+        api.showMain();
+      } else {
+        api.openPath(it.path);
+      }
+    }
     else if (it.kind === "web") api.openUrl(it.url ?? webSearchUrl(it.term));
     else if (it.kind === "math") navigator.clipboard?.writeText(String(it.value)).catch(() => {});
     else if (it.kind === "command") it.run();
@@ -144,7 +151,7 @@ export function Spotlight() {
     if (e.key === "Escape") { e.preventDefault(); hide(); }
     else if (e.key === "ArrowDown") { e.preventDefault(); setActive((i) => Math.min(i + 1, items.length - 1)); }
     else if (e.key === "ArrowUp") { e.preventDefault(); setActive((i) => Math.max(i - 1, 0)); }
-    else if (e.key === "Enter" && items[active]) { e.preventDefault(); run(items[active]); }
+    else if (e.key === "Enter" && items[active]) { e.preventDefault(); run(items[active], e.shiftKey); }
   };
 
   const appCount = mode === "default" ? apps.length : 0;
@@ -182,7 +189,13 @@ export function Spotlight() {
               const showFiles = mode === "default" && it.kind === "file" && i === appCount;
               let tile: React.ReactNode, bg = "var(--tile-neutral-bg)", fg = "var(--tile-neutral-fg)", name = "", sub = "";
               if (it.kind === "app") { tile = <AppIcon />; bg = "var(--tile-rust-bg)"; fg = "var(--tile-rust-fg)"; name = it.name; sub = "Application"; }
-              else if (it.kind === "file") { tile = <Glyph kind={it.k} />; bg = TONE[it.k].bg; fg = TONE[it.k].fg; name = it.name; sub = it.sub; }
+              else if (it.kind === "file") {
+                tile = <Glyph kind={it.k} />;
+                bg = TONE[it.k].bg;
+                fg = TONE[it.k].fg;
+                name = it.name;
+                sub = it.isDir ? it.sub : `${it.sub} · ⇧↵ in tab`;
+              }
               else if (it.kind === "web") { tile = <WebIcon />; bg = "var(--tile-green-bg)"; fg = "var(--tile-green-fg)"; name = it.url ? `Open ${it.url}` : `Search the web for “${it.term}”`; sub = "Opens in your browser"; }
               else if (it.kind === "math") { tile = <EqIcon />; bg = "var(--tile-amber-bg)"; fg = "var(--tile-amber-fg)"; name = fmtNum(it.value); sub = "Copy to clipboard"; }
               else { tile = <CmdIcon />; bg = "var(--tile-violet-bg)"; fg = "var(--tile-violet-fg)"; name = it.name; sub = it.sub; }
@@ -190,13 +203,13 @@ export function Spotlight() {
                 <div key={it.kind + i}>
                   {showApps && <div className="spot-sec">Applications</div>}
                   {showFiles && appCount > 0 && <div className="spot-sec">Files</div>}
-                  <button className={"spot-row" + (i === active ? " active" : "")} onMouseMove={() => setActive(i)} onClick={() => run(it)}>
+                  <button className={"spot-row" + (i === active ? " active" : "")} onMouseMove={() => setActive(i)} onClick={(e) => run(it, e.shiftKey)}>
                     <span className="tile" style={{ background: bg, color: fg }}>{tile}</span>
                     <span className="spot-main">
                       <span className={"spot-name" + (it.kind === "math" ? " mono" : "")}>{name}</span>
                       <span className="spot-sub">{sub}</span>
                     </span>
-                    {i === active && <span className="spot-enter">↵</span>}
+                    {i === active && <span className="spot-enter">{it.kind === "file" && !it.isDir ? "⇧↵" : "↵"}</span>}
                   </button>
                 </div>
               );

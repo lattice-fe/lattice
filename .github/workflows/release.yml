@@ -53,6 +53,11 @@ jobs:
           cd app
           npm ci
 
+      - name: Build lat CLI binary
+        run: |
+          cd app/src-tauri
+          cargo build --bin lat --bin lattice-cli --release ${{ matrix.args }}
+
       - name: Build Tauri app & Publish Release
         uses: tauri-apps/tauri-action@v0
         env:

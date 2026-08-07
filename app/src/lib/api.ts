@@ -112,7 +112,11 @@ export const api = {
   },
   async openUrl(url: string): Promise<void> {
     if (!isTauri) { window.open(url, "_blank"); return; }
-    return invoke("open_url", { url });
+    try {
+      await invoke("open_url", { url });
+    } catch {
+      window.open(url, "_blank");
+    }
   },
   async showMain(): Promise<void> { if (!isTauri) return; return invoke("show_main_window"); },
   async quit(): Promise<void> { if (!isTauri) return; return invoke("quit_app"); },

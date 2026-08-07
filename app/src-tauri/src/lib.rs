@@ -173,6 +173,22 @@ fn reveal(app: tauri::AppHandle, path: String) -> Result<(), String> {
 
 #[tauri::command]
 fn open_url(app: tauri::AppHandle, url: String) -> Result<(), String> {
+    if url.starts_with("http://") || url.starts_with("https://") || url.starts_with("mailto:") {
+        #[cfg(target_os = "windows")]
+        {
+            use std::process::Command;
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+            if Command::new("cmd")
+                .args(&["/c", "start", "", &url])
+                .creation_flags(CREATE_NO_WINDOW)
+                .spawn()
+                .is_ok()
+            {
+                return Ok(());
+            }
+        }
+    }
     app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
 }
 

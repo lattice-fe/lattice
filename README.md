@@ -1,7 +1,7 @@
 # Lattice
 
 A modern, high-performance file explorer with local full-text and semantic
-search, built with **Tauri 2**, **React 19**, and **Rust**. Everything runs
+search, built with **Tauri 2**, **React 19**, and **Rust**. Everything runs 
 locally — indexing, embeddings, and search all happen on your machine, with no
 network calls.
 
