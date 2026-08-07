@@ -5,6 +5,27 @@ All notable changes to Lattice will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **`lat` CLI** — a terminal companion for Lattice: filename/full-text/semantic
+  search, syntax-highlighted previews, and open/reveal hand-off into the GUI.
+  Supports Spotlight prefixes (`=` math, `@kind`, `>` app, `?` web), `--json`
+  output, and proper process exit codes for scripting and agent use. See
+  [docs/cli.md](docs/cli.md).
+- **Live search merge** — name-mode search folds in the current folder's
+  in-memory entries, so files added or removed since the last index are found
+  immediately (and un-indexed folders still return results).
+- **Index auto-reconcile** — the current folder's collection is re-indexed on
+  navigate and window focus (skips drive-root and very large collections to
+  avoid heavy walks).
+
+### Fixed
+- **`lat` opens the index read-only** — short-lived CLI processes can no longer
+  write to (or corrupt) the database the GUI owns.
+- **CLI math evaluator** now actually evaluates arithmetic instead of echoing
+  the expression; CLI exit codes distinguish found / no-results / error.
+
 ## [0.2.0] - 2026-08-06
 
 ### Added
@@ -47,8 +68,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Search & Indexing
 - Spotlight-style command palette (Ctrl+K)
-- Full-text search powered by Tantivy
-- Semantic search with FastEmbed
+- Full-text search powered by SQLite FTS5 (bm25 ranking)
+- Semantic search with FastEmbed embeddings (stored via sqlite-vec)
 - Background indexing with progress indicator
 - Search across file names and contents
 - Index status indicator in UI
@@ -63,7 +84,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Special sizing for config files (1x1 vs 2x1 grid spans)
 
 #### Theming System
-- 8 built-in themes: Lattice Dark, Lattice Light, Monokai, Nord, Dracula, Solarized Light/Dark, Gruvbox
+- 11 built-in themes: Ink, Paper, Slate, Copper, Forest, Midnight, Canvas, Ash, Amber, Graphite, Sepia
 - Custom theme editor with live preview
 - Theme import/export (JSON format)
 - Configurable elements:
