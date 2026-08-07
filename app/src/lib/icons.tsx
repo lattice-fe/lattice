@@ -51,3 +51,25 @@ export const Mark = () => (
     <circle cx="24" cy="24" r="4.4" fill="var(--amber)" />
   </svg>
 );
+
+// The "lattice" wordmark — monoline letters in the current text colour, with the
+// amber i-dot. Theme-aware: strokes follow `currentColor`, so set the parent's
+// color (e.g. var(--paper)); the dot uses the theme's second accent.
+export const Wordmark = () => (
+  <svg viewBox="0 0 340 96" role="img" aria-label="lattice" fill="none">
+    <g stroke="currentColor" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16 10 L16 76" />
+      <path d="M82 30 L82 76" />
+      <path d="M82 30 A23 23 0 1 0 82 76" />
+      <path d="M112 18 L112 76" />
+      <path d="M102 30 L130 30" />
+      <path d="M160 18 L160 76" />
+      <path d="M150 30 L178 30" />
+      <path d="M198 30 L198 76" />
+      <path d="M260.9 41.5 A23 23 0 1 0 260.9 64.5" />
+      <path d="M282 53 L328 53" />
+      <path d="M328 53 A23 23 0 1 0 324.9 64.5" />
+    </g>
+    <circle cx="198" cy="16" r="6" fill="var(--amber)" />
+  </svg>
+);

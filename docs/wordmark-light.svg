@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 96" width="340" height="96" role="img" aria-label="lattice">
+  <!-- monoline geometric lowercase, stroke language matched to the mark -->
+  <g fill="none" stroke="#F4EEE2" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+    <!-- l -->
+    <path d="M16 10 L16 76"/>
+    <!-- a (single-story: left-bulging bowl closed by a straight right stem) -->
+    <path d="M82 30 L82 76"/>
+    <path d="M82 30 A23 23 0 1 0 82 76"/>
+    <!-- t -->
+    <path d="M112 18 L112 76"/>
+    <path d="M102 30 L130 30"/>
+    <!-- t -->
+    <path d="M160 18 L160 76"/>
+    <path d="M150 30 L178 30"/>
+    <!-- i (stem; dot below) -->
+    <path d="M198 30 L198 76"/>
+    <!-- c -->
+    <path d="M260.9 41.5 A23 23 0 1 0 260.9 64.5"/>
+    <!-- e (crossbar + bowl open at the lower-right aperture) -->
+    <path d="M282 53 L328 53"/>
+    <path d="M328 53 A23 23 0 1 0 324.9 64.5"/>
+  </g>
+  <!-- the i-tittle rhymes with the search hit -->
+  <circle cx="198" cy="16" r="6" fill="#E2A64C"/>
+</svg>

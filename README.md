@@ -1,14 +1,18 @@
-# Lattice
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/wordmark-light.svg">
+    <img alt="Lattice" src="docs/wordmark-dark.svg" width="300">
+  </picture>
+</p>
 
-A modern, high-performance file explorer with local full-text and semantic
-search, built with **Tauri 2**, **React 19**, and **Rust**. Everything runs 
-locally — indexing, embeddings, and search all happen on your machine, with no
-network calls.
+<p align="center">
+  A modern, high-performance file explorer with local full-text and semantic search —<br>
+  built with <b>Tauri 2</b>, <b>React 19</b>, and <b>Rust</b>. Everything runs locally.
+</p>
 
-> Lattice aims to be high-performance *and* inviting — a file manager you enjoy
-> being in, not just one you leave as fast as possible.
+<p align="center"><i>High-performance <b>and</b> inviting — a file manager you enjoy being in.</i></p>
 
-For the terminal companion, see **[`lat` — the Lattice CLI](docs/cli.md)**.
+<p align="center"><a href="docs/cli.md"><code>lat</code> — the Lattice CLI</a></p>
 
 ---
 

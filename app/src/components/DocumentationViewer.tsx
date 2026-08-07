@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { api, isTauri } from "../lib/api";
+import { Wordmark } from "../lib/icons";
 import guideMd from "../docs/guide.md?raw";
 
 interface TocItem {
@@ -106,6 +107,7 @@ export function DocumentationViewer() {
     <div className="doc-viewer-container">
       {/* Left-Side Index Pane */}
       <div className="doc-toc-pane">
+        <div className="doc-brand"><Wordmark /></div>
         <div className="doc-toc-header">Index</div>
         <div className="doc-toc-list">
           {tocItems.map((item) =>

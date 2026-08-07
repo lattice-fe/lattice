@@ -1251,6 +1251,14 @@ body.is-spotlight #root { padding: 16px; }
   gap: 12px;
 }
 
+.doc-brand {
+  color: var(--paper); /* strokes follow currentColor → theme-aware */
+  padding-bottom: 14px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.doc-brand svg { width: 132px; height: auto; display: block; }
+
 .doc-toc-header {
   font-size: 11px;
   font-weight: 700;
