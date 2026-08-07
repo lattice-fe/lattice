@@ -419,7 +419,9 @@ body.is-spotlight #root { padding: 16px; }
 .spot-search input::placeholder { color: var(--dim-2); }
 .spot-modes { display: flex; gap: 3px; padding: 3px; background: color-mix(in srgb, var(--paper) 7%, transparent); border-radius: var(--radius-sm); flex: none; }
 .spot-badge { flex: none; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: var(--amber); background: rgba(226, 166, 76, 0.12); border: 1px solid color-mix(in srgb, var(--amber) 40%, transparent); border-radius: var(--radius-sm); padding: 5px 11px; }
+.spot-kind { align-self: center; font-size: 11px; font-weight: 600; color: var(--tile-green-fg); background: var(--tile-green-bg); border-radius: var(--radius-sm); padding: 4px 9px; margin-right: 2px; white-space: nowrap; }
 .spot-hints { display: flex; flex-wrap: wrap; gap: 16px; padding: 13px 22px 16px; font-size: 12px; color: var(--dim-2); }
+.spot-kinds { justify-content: center; gap: 14px; }
 .spot-hints b { color: var(--amber); font-family: var(--mono); margin-right: 4px; }
 .spot-name.mono { font-family: var(--mono); font-size: 17px; }
 .spot-results { max-height: 342px; overflow-y: auto; padding: 8px; }

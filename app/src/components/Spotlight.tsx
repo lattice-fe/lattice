@@ -14,6 +14,18 @@ type Mode = "default" | "apps" | "files" | "web" | "math" | "commands";
 const PREFIX: Record<string, Mode> = { ">": "apps", "@": "files", "?": "web", "=": "math", "/": "commands" };
 const BADGE: Record<Mode, string> = { default: "", apps: "Apps", files: "Files", web: "Web", math: "Math", commands: "Commands" };
 
+// `@kind query` filters — mirror the `lat` CLI. code/doc/folder are index-backed;
+// image/audio/video/archive aren't indexed, so they return nothing here (the CLI
+// walks the filesystem for those).
+const KINDS: Record<string, Kind> = {
+  image: "image", img: "image", code: "code", doc: "document", document: "document",
+  folder: "folder", dir: "folder", audio: "audio", video: "video", archive: "archive",
+};
+const KIND_LABEL: Partial<Record<Kind, string>> = {
+  image: "Images", code: "Code", document: "Docs", folder: "Folders",
+  audio: "Audio", video: "Video", archive: "Archives",
+};
+
 type Item =
   | { kind: "app"; name: string; path: string }
   | { kind: "file"; name: string; sub: string; path: string; k: Kind; isDir: boolean }
@@ -42,6 +54,18 @@ export function Spotlight() {
   const mode: Mode = PREFIX[p0] ?? "default";
   const term = mode === "default" ? raw : raw.slice(1).replace(/^\s+/, "");
 
+  // `@kind query`: the first token is a kind filter when recognized (like the CLI).
+  let kindFilter: Kind | null = null;
+  let fileQuery = term;
+  if (mode === "files") {
+    const sp = term.indexOf(" ");
+    const first = (sp === -1 ? term : term.slice(0, sp)).toLowerCase();
+    if (KINDS[first]) {
+      kindFilter = KINDS[first];
+      fileQuery = sp === -1 ? "" : term.slice(sp + 1).trimStart();
+    }
+  }
+
   const hide = () => { setRaw(""); setApps([]); s.clear(); win?.hide(); };
 
   useEffect(() => {
@@ -63,8 +87,8 @@ export function Spotlight() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // drive file search (index) with the stripped term
-  const fileTerm = mode === "default" || mode === "files" ? term : "";
+  // drive file search (index) with the query part (after any @kind token)
+  const fileTerm = mode === "default" ? term : mode === "files" ? fileQuery : "";
   useEffect(() => { s.setQuery(fileTerm); /* eslint-disable-next-line */ }, [fileTerm]);
 
   // drive app search
@@ -97,10 +121,13 @@ export function Spotlight() {
     if (mode === "commands") return commands.filter((c) => c.name.toLowerCase().includes(term.toLowerCase())).map((c) => ({ kind: "command", name: c.name, sub: c.sub, run: c.run }));
     const a: Item[] = mode === "default" || mode === "apps" ? apps.map((x) => ({ kind: "app", name: x.name, path: x.path })) : [];
     const f: Item[] = mode === "default" || mode === "files"
-      ? s.results.slice(0, 8).map((h) => { const name = baseName(h.file_path); const snip = h.snippet?.trim() && h.snippet.trim() !== name ? h.snippet.trim() : parentOf(h.file_path) ?? ""; return { kind: "file", name, sub: snip, path: h.file_path, k: h.is_dir ? "folder" : kindOf(name), isDir: h.is_dir }; })
+      ? s.results
+          .filter((h) => !kindFilter || (h.is_dir ? "folder" : kindOf(baseName(h.file_path))) === kindFilter)
+          .slice(0, 8)
+          .map((h) => { const name = baseName(h.file_path); const snip = h.snippet?.trim() && h.snippet.trim() !== name ? h.snippet.trim() : parentOf(h.file_path) ?? ""; return { kind: "file", name, sub: snip, path: h.file_path, k: h.is_dir ? "folder" : kindOf(name), isDir: h.is_dir }; })
       : [];
     return [...a, ...f];
-  }, [mode, term, apps, s.results, commands]);
+  }, [mode, term, kindFilter, apps, s.results, commands]);
 
   useEffect(() => { setActive(0); }, [items.length, mode]);
 
@@ -128,7 +155,10 @@ export function Spotlight() {
         <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
         <input ref={inputRef} value={raw} onChange={(e) => setRaw(e.target.value)} onKeyDown={onKey} placeholder="Search, or try  &gt; @ ? = /" spellCheck={false} />
         {mode === "default" || mode === "files" ? (
-          <div className="spot-modes">{MODES.map((m) => <button key={m} className={"mode" + (s.mode === m ? " on" : "")} onClick={() => s.setMode(m)}>{m}</button>)}</div>
+          <div className="spot-modes">
+            {kindFilter && <span className="spot-kind">{KIND_LABEL[kindFilter] ?? kindFilter}</span>}
+            {MODES.map((m) => <button key={m} className={"mode" + (s.mode === m ? " on" : "")} onClick={() => s.setMode(m)}>{m}</button>)}
+          </div>
         ) : (
           <div className="spot-badge">{BADGE[mode]}</div>
         )}
@@ -136,12 +166,16 @@ export function Spotlight() {
 
       {raw.trim() === "" ? (
         <div className="spot-hints">
-          <span><b>&gt;</b> apps</span><span><b>@</b> files</span><span><b>=</b> math</span><span><b>?</b> web</span><span><b>/</b> commands</span>
+          <span><b>&gt;</b> apps</span><span><b>@</b> kind</span><span><b>=</b> math</span><span><b>?</b> web</span><span><b>/</b> commands</span>
         </div>
       ) : (
         <div className="spot-results">
           {items.length === 0 ? (
-            <div className="spot-empty">{s.searching ? "Searching…" : "No matches"}</div>
+            mode === "files" && !fileQuery && !kindFilter ? (
+              <div className="spot-hints spot-kinds">{["code", "doc", "folder", "image", "audio", "video", "archive"].map((k) => <span key={k}><b>@{k}</b></span>)}</div>
+            ) : (
+              <div className="spot-empty">{s.searching ? "Searching…" : "No matches"}</div>
+            )
           ) : (
             items.map((it, i) => {
               const showApps = mode === "default" && it.kind === "app" && i === 0;
