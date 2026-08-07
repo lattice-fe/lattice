@@ -409,26 +409,32 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
-            show_main(app);
+            // ponytail: no path arg = user re-launched the exe while already running;
+            // toggle spotlight rather than yanking the main window out of the tray.
             if args.len() > 1 {
-                let target = &args[1];
-                let _ = app.emit("spotlight:navigate", target);
+                show_main(app);
+                let _ = app.emit("spotlight:navigate", &args[1]);
+            } else {
+                toggle_spotlight(app);
             }
         }))
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
-                .with_handler(|app, shortcut, event| {
-                    let alt_space = Shortcut::new(Some(Modifiers::ALT), Code::Space);
-                    if event.state == ShortcutState::Pressed && shortcut == &alt_space {
+                .with_handler(|app, _shortcut, event| {
+                    // Handler fires for whichever shortcut was registered (Alt+Space or Ctrl+Space fallback).
+                    if event.state == ShortcutState::Pressed {
                         toggle_spotlight(app);
                     }
                 })
                 .build(),
         )
         .setup(|app| {
-            // Global Alt+Space toggles the Spotlight window.
+            // Prefer Alt+Space; fall back to Ctrl+Space if the OS has reserved it (common on Windows).
+            // ponytail: ceiling — no user-configurable shortcut; upgrade when we add a settings page.
             let alt_space = Shortcut::new(Some(Modifiers::ALT), Code::Space);
-            let _ = app.global_shortcut().register(alt_space);
+            if app.global_shortcut().register(alt_space).is_err() {
+                let _ = app.global_shortcut().register(Shortcut::new(Some(Modifiers::CONTROL), Code::Space));
+            }
 
             let env_args: Vec<String> = std::env::args().collect();
             if env_args.len() > 1 {
