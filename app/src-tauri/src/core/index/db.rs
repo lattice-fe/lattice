@@ -48,6 +48,16 @@ pub fn open(path: &Path) -> rusqlite::Result<Connection> {
     Ok(conn)
 }
 
+/// Open the index read-only for query-only clients (the `lat` CLI). No pragmas
+/// that write, no `migrate()` — so short-lived reader processes can never write
+/// to (or corrupt) the DB the GUI owns. Fails cleanly if the DB doesn't exist.
+pub fn open_readonly(path: &Path) -> rusqlite::Result<Connection> {
+    register_sqlite_vec();
+    let conn = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+    conn.busy_timeout(std::time::Duration::from_millis(3000))?;
+    Ok(conn)
+}
+
 /// Open an in-memory database (used by tests).
 #[cfg(test)]
 pub fn open_in_memory() -> rusqlite::Result<Connection> {
