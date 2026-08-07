@@ -408,8 +408,12 @@ fn toggle_spotlight(app: &AppHandle) {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             show_main(app);
+            if args.len() > 1 {
+                let target = &args[1];
+                let _ = app.emit("spotlight:navigate", target);
+            }
         }))
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
@@ -425,6 +429,16 @@ pub fn run() {
             // Global Alt+Space toggles the Spotlight window.
             let alt_space = Shortcut::new(Some(Modifiers::ALT), Code::Space);
             let _ = app.global_shortcut().register(alt_space);
+
+            let env_args: Vec<String> = std::env::args().collect();
+            if env_args.len() > 1 {
+                let target = env_args[1].clone();
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    tokio::time::sleep(std::time::Duration::from_millis(600)).await;
+                    let _ = handle.emit("spotlight:navigate", &target);
+                });
+            }
 
             // System tray with a small menu; left-click shows the main window.
             let show = MenuItem::with_id(app, "show", "Show Lattice", true, None::<&str>)?;

@@ -85,8 +85,6 @@ export function useExplorer() {
   const [clipboard, setClipboard] = useState<Clipboard | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [ctx, setCtx] = useState<Ctx | null>(null);
-  const [hoverPreviewPath, setHoverPreviewPath] = useState<string | null>(null);
-  const hoverPreviewPos = useRef({ x: 0, y: 0 });
   const [previewCollapsed, setPreviewCollapsed] = useState(false);
 
   const [homeDir, setHomeDirState] = useState<string>(getSavedHomeDir);
@@ -202,7 +200,6 @@ export function useExplorer() {
   const navigate = useCallback((p: string) => {
     setSel(new Set());
     setCtx(null);
-    setHoverPreviewPath(null);
     patchActive((t) => {
       const trimmed = t.history.slice(0, t.hi + 1);
       if (trimmed[trimmed.length - 1] === p) return t;
@@ -364,7 +361,6 @@ export function useExplorer() {
     openContext: (x: number, y: number, index: number | null) => setCtx({ x, y, index }),
     closeContext: () => setCtx(null),
     pinFolder, unpinFolder, isPinned,
-    hoverPreviewPath, hoverPreviewPos,
     previewCollapsed,
     togglePreview: () => setPreviewCollapsed((prev) => !prev),
     openMode, setOpenMode, splitItem, closeSplitItem, openItemSpecial,

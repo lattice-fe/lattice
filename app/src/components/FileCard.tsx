@@ -19,15 +19,6 @@ const PREVIEW_EXTS = new Set([
   "sql", "graphql", "prisma", "proto", "ex", "exs", "erl", "hrl"
 ]);
 
-// Config/dotfiles that should use 1x1 sizing instead of 2x1
-const CONFIG_FILE_PATTERNS = new Set([
-  ".gitignore", ".dockerignore", ".env", ".gitattributes", ".editorconfig",
-  ".prettierrc", ".eslintrc", ".babelrc", "dockerfile", "makefile",
-  ".npmrc", ".yarnrc", ".nvmrc", "package.json", "package-lock.json",
-  "tsconfig.json", "next.config.js", "next.config.ts", "tailwind.config.js",
-  "tailwind.config.ts", "postcss.config.js", "webpack.config.js"
-]);
-
 // Sensitive files that should be blurred for screen recording safety
 const SENSITIVE_FILE_PATTERNS = new Set([
   ".env", ".env.local", ".env.development", ".env.production", ".env.staging",
@@ -38,13 +29,6 @@ const SENSITIVE_FILE_PATTERNS = new Set([
 const NON_SENSITIVE_ENV_PATTERNS = new Set([
   ".env.example", ".env.sample", ".env.template"
 ]);
-
-// Check if a file is a config/dotfile (should use 1x1 sizing)
-function isConfigDotfile(e: Entry): boolean {
-  if (e.is_dir || e.kind !== "code") return false;
-  const name = e.name.toLowerCase();
-  return CONFIG_FILE_PATTERNS.has(name) || name.startsWith(".env.");
-}
 
 // Sensitive preview settings (localStorage keys)
 const NEVER_BLUR_KEY = "lattice:never-blur";
@@ -175,16 +159,13 @@ export function FileCard({
   }, [seen, e.path, e.kind, e.name]);
 
   const t = TONE[e.kind];
-  // Config/dotfiles should get 1x1 sizing instead of 2x1
-  const isConfigFile = isConfigDotfile(e);
-  const gridKind = isConfigFile ? "config" : e.kind;
   // Sensitive files should be blurred for screen recording safety
   const isSensitive = isSensitiveFile(e);
   const { neverUnblur } = getBlurBehavior();
   // unblurable = neverUnblur is TRUE (should stay blurred on hover)
   const isUnblurable = neverUnblur && isSensitive;
   return (
-    <button ref={ref} className={"filecard" + (selected ? " sel" : "") + (intersecting ? " rubber-band-hover" : "") + (isSensitive ? " sensitive" : "") + (isUnblurable ? " unblurable" : "")} data-kind={gridKind} {...interact}>
+    <button ref={ref} className={"filecard" + (selected ? " sel" : "") + (intersecting ? " rubber-band-hover" : "") + (isSensitive ? " sensitive" : "") + (isUnblurable ? " unblurable" : "")} data-kind={e.kind} {...interact}>
       <div className="filecard-preview">
         {peek?.type === "img" ? (
           <img className="filecard-img" src={peek.src} alt="" loading="lazy" />

@@ -1,9 +1,10 @@
 [package]
 name = "lattice"
-version = "0.2.0"
+version = "0.3.0"
 description = "Lattice — a high-performance, inviting file explorer"
 authors = ["parzi-val"]
 edition = "2021"
+default-run = "lattice"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -13,6 +14,18 @@ edition = "2021"
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
 name = "lattice_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "lattice"
+path = "src/main.rs"
+
+[[bin]]
+name = "lat"
+path = "src/bin/lat.rs"
+
+[[bin]]
+name = "lattice-cli"
+path = "src/bin/lattice-cli.rs"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
