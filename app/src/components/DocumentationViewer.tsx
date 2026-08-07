@@ -28,7 +28,11 @@ export function DocumentationViewer() {
   // Parse all headings (# and ##) dynamically from the Markdown file
   const tocItems = useMemo<TocItem[]>(() => {
     const items: TocItem[] = [];
-    const lines = guideMd.split("\n");
+    // Split on CRLF *or* LF. With a `.` that doesn't match `\r` and a `$` that
+    // won't skip it, `split("\n")` leaves a trailing `\r` on every line when the
+    // bundled file has CRLF (git autocrlf on Windows builds) — which makes the
+    // heading regex fail and the whole index come up empty in packaged builds.
+    const lines = guideMd.split(/\r?\n/);
     for (const line of lines) {
       const match = line.match(/^(#{1,3})\s+(.+)$/);
       if (match) {
