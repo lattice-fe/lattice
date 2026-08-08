@@ -425,13 +425,11 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
-            // ponytail: no path arg = user re-launched the exe while already running;
-            // toggle spotlight rather than yanking the main window out of the tray.
+            // When user clicks the taskbar shortcut or re-launches the app while running in tray,
+            // restore and focus the main window. If a path argument was passed, navigate to it.
+            show_main(app);
             if args.len() > 1 {
-                show_main(app);
                 let _ = app.emit("spotlight:navigate", &args[1]);
-            } else {
-                toggle_spotlight(app);
             }
         }))
         .plugin(

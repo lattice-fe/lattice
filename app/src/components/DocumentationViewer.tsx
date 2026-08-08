@@ -11,6 +11,15 @@ interface TocItem {
   level: number;
 }
 
+function extractText(node: React.ReactNode): string {
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(extractText).join("");
+  if (node && typeof node === "object" && "props" in node && (node as any).props?.children) {
+    return extractText((node as any).props.children);
+  }
+  return "";
+}
+
 // Generate URL slug ID from heading text
 function slugify(text: string): string {
   return text
@@ -144,17 +153,17 @@ export function DocumentationViewer() {
             remarkPlugins={[remarkGfm]}
             components={{
               h1: ({ children }) => {
-                const text = String(children);
+                const text = extractText(children);
                 const id = slugify(text);
                 return <h1 id={id} className="doc-h1">{children}</h1>;
               },
               h2: ({ children }) => {
-                const text = String(children);
+                const text = extractText(children);
                 const id = slugify(text);
                 return <h2 id={id} className="doc-h2">{children}</h2>;
               },
               h3: ({ children }) => {
-                const text = String(children);
+                const text = extractText(children);
                 const id = slugify(text);
                 return <h3 id={id} className="doc-h3">{children}</h3>;
               },

@@ -6,3 +6,4 @@
 - [x] tabs open in default path(configurable)
 - [x] notebook previews
 - [x] launcher dont work?
+- [ ] relative links in md dont work
