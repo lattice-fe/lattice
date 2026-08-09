@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="Lattice GitHub avatar">
+  <defs>
+    <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FBF6EC"/>
+      <stop offset="1" stop-color="#EDE3D0"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="1024" height="1024" fill="url(#paper)"/>
+  <g transform="translate(200,200) scale(13)">
+    <g fill="none" stroke="#C05F3C" stroke-width="2" stroke-linecap="round" opacity="0.92">
+      <line x1="10" y1="10" x2="38" y2="10"/>
+      <line x1="10" y1="38" x2="38" y2="38"/>
+      <line x1="10" y1="10" x2="10" y2="38"/>
+      <line x1="38" y1="10" x2="38" y2="38"/>
+      <line x1="10" y1="24" x2="38" y2="24"/>
+      <line x1="24" y1="10" x2="24" y2="38"/>
+    </g>
+    <g fill="none" stroke="#E2A64C" stroke-width="2.7" stroke-linecap="round">
+      <line x1="24" y1="24" x2="24" y2="10"/>
+      <line x1="24" y1="24" x2="24" y2="38"/>
+      <line x1="24" y1="24" x2="10" y2="24"/>
+      <line x1="24" y1="24" x2="38" y2="24"/>
+    </g>
+    <g fill="#C05F3C">
+      <circle cx="10" cy="10" r="3.1"/><circle cx="24" cy="10" r="3.1"/><circle cx="38" cy="10" r="3.1"/>
+      <circle cx="10" cy="24" r="3.1"/><circle cx="38" cy="24" r="3.1"/>
+      <circle cx="10" cy="38" r="3.1"/><circle cx="24" cy="38" r="3.1"/><circle cx="38" cy="38" r="3.1"/>
+    </g>
+    <circle cx="24" cy="24" r="7.6" fill="none" stroke="#E2A64C" stroke-width="1.5" opacity="0.45"/>
+    <circle cx="24" cy="24" r="4.5" fill="#E2A64C"/>
+  </g>
+</svg>
