@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
 import { api, isTauri } from "../lib/api";
 import { Wordmark } from "../lib/icons";
 import guideMd from "../docs/guide.md?raw";
@@ -151,6 +152,7 @@ export function DocumentationViewer() {
         <div className="doc-content-body">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
+            rehypePlugins={[rehypeRaw]}
             components={{
               h1: ({ children }) => {
                 const text = extractText(children);

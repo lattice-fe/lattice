@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
 import hljs from "highlight.js";
 import "highlight.js/styles/github-dark.css";
 import { api, Entry, isTauri } from "../lib/api";
@@ -482,6 +483,7 @@ export function TextEditor({ entry, onClose, onErrorToast, onOpenPath, isFullTab
         >
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
+            rehypePlugins={[rehypeRaw]}
             components={{
               a: ({ href, children }) => {
                 const isExternal = href?.startsWith("http://") || href?.startsWith("https://") || href?.startsWith("mailto:");
