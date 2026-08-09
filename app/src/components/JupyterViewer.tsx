@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
 import hljs from "highlight.js";
 import "highlight.js/styles/github-dark.css";
 import { api, Entry } from "../lib/api";
@@ -96,7 +97,7 @@ export function JupyterViewer({ entry, onClose }: JupyterViewerProps) {
               if (cell.cell_type === "markdown") {
                 return (
                   <div key={idx} className="ipynb-cell markdown-cell">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{srcText}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{srcText}</ReactMarkdown>
                   </div>
                 );
               }

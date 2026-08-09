@@ -2,6 +2,7 @@ import { ReactNode, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
+import rehypeRaw from "rehype-raw";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { Entry, api, isTauri } from "../lib/api";
 import { Glyph, TONE } from "../lib/icons";
@@ -175,7 +176,7 @@ export function FileCard({
           <pre className="filecard-code hljs"><code dangerouslySetInnerHTML={{ __html: peek.html }} /></pre>
         ) : peek?.type === "md" ? (
           <div className="filecard-md prev-md">
-            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>{peek.html}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight, rehypeRaw]}>{peek.html}</ReactMarkdown>
           </div>
         ) : (
           <span className="filecard-tile" style={{ background: t.bg, color: t.fg }}><Glyph kind={e.kind} /></span>
