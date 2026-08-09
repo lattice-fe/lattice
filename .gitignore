@@ -11,3 +11,8 @@
 *.swp
 .DS_Store
 Thumbs.db
+
+# Internal planning files
+ISSUES.md
+ROADMAP.md
+

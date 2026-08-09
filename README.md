@@ -13,7 +13,6 @@
 <p align="center">
   <a href="docs/cli.md">CLI reference</a> &middot;
   <a href="docs/SKILL.md">Agent skill</a> &middot;
-  <a href="ROADMAP.md">Roadmap</a> &middot;
   <a href="CHANGELOG.md">Changelog</a>
 </p>
 
@@ -142,6 +141,5 @@ app/
 docs/
   cli.md          CLI reference
   SKILL.md        Agent skill instructions
-ROADMAP.md        Product roadmap
 CHANGELOG.md      Release history
 ```
