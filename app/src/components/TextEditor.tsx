@@ -4,6 +4,7 @@ import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import hljs from "highlight.js";
 import "highlight.js/styles/github-dark.css";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { api, Entry, isTauri } from "../lib/api";
 
 interface TextEditorProps {
@@ -467,6 +468,16 @@ export function TextEditor({ entry, onClose, onErrorToast, onOpenPath, isFullTab
   const lineEnding = content.includes("\r\n") ? "CRLF" : "LF";
   const languageLabel = formatLanguage(currentName);
 
+  // Resolve a markdown image path so the webview can load it: external URLs pass
+  // through; a relative/local path is resolved against the file's folder and
+  // handed to the asset protocol (a bare relative src resolves against the app
+  // origin, not the filesystem, so it 404s).
+  const resolveImg = (src?: string): string => {
+    if (!src || /^(https?:|data:|asset:|blob:|file:|#)/i.test(src)) return src ?? "";
+    const abs = resolveRelativePath(entry.path, src);
+    return isTauri ? convertFileSrc(abs) : abs;
+  };
+
   const renderPreview = () =>
     isHtml ? (
       <iframe srcDoc={content} title="HTML Preview" className="html-preview-frame" sandbox="allow-same-origin allow-scripts" />
@@ -518,6 +529,8 @@ export function TextEditor({ entry, onClose, onErrorToast, onOpenPath, isFullTab
                   <pre className="doc-code"><code>{children}</code></pre>
                 );
               },
+              img: ({ src, alt, node, ...rest }) => <img {...rest} src={resolveImg(typeof src === "string" ? src : undefined)} alt={alt ?? ""} style={{ maxWidth: "100%", height: "auto" }} />,
+              source: ({ srcSet, ...rest }) => <source srcSet={resolveImg(typeof srcSet === "string" ? srcSet : undefined)} {...rest} />,
             }}
           >
             {content}
