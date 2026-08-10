@@ -493,6 +493,7 @@ body.is-spotlight #root { padding: 16px; }
 .prev-md h1 { font-size: 15px; } .prev-md h2 { font-size: 13.5px; } .prev-md h3 { font-size: 12.5px; } .prev-md h4 { font-size: 12px; }
 .prev-md p { margin: 6px 0; }
 .prev-md a { color: var(--amber); text-decoration: none; }
+.md-link { color: var(--teal); text-decoration: underline; cursor: pointer; }
 .prev-md ul, .prev-md ol { margin: 6px 0; padding-left: 18px; }
 .prev-md li { margin: 2px 0; }
 .prev-md code { font-family: var(--mono); font-size: 11px; background: var(--ink-3); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); padding: 1px 5px; }

@@ -4,6 +4,7 @@ import rehypeHighlight from "rehype-highlight";
 import rehypeRaw from "rehype-raw";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { api, Entry, Preview, isTauri } from "../api";
+import { mdAssetComponents } from "../markdown";
 import { byExt, extOf, registerPreviewStrategy } from "./registry";
 import { highlightCode } from "./highlight";
 
@@ -18,14 +19,16 @@ function TruncMark({ p }: { p: Preview }) {
   return p.truncated ? <div className="hoverprev-more">…</div> : null;
 }
 
-// Markdown → rendered rich text.
-registerPreviewStrategy({
+// Markdown → rendered rich text. basePath rides along so local images resolve
+// against the file's folder (see mdAssetComponents).
+interface MdPreview extends Preview { basePath: string }
+registerPreviewStrategy<MdPreview>({
   id: "markdown",
   match: byExt("md", "markdown", "mdx"),
-  load: (e: Entry) => api.previewFile(e.path),
-  render: (d: Preview) => (
+  load: async (e: Entry) => ({ ...(await api.previewFile(e.path)), basePath: e.path }),
+  render: (d: MdPreview) => (
     <div className="hoverprev-scroll prev-md">
-      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight, rehypeRaw]}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight, rehypeRaw]} components={mdAssetComponents(d.basePath)}>
         {d.text}
       </ReactMarkdown>
       <TruncMark p={d} />

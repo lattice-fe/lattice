@@ -4,8 +4,8 @@ import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import hljs from "highlight.js";
 import "highlight.js/styles/github-dark.css";
-import { convertFileSrc } from "@tauri-apps/api/core";
-import { api, Entry, isTauri } from "../lib/api";
+import { api, Entry } from "../lib/api";
+import { mdAssetComponents } from "../lib/markdown";
 
 interface TextEditorProps {
   entry: Entry;
@@ -13,28 +13,6 @@ interface TextEditorProps {
   onErrorToast?: (msg: string) => void;
   onOpenPath?: (path: string) => void;
   isFullTab?: boolean;
-}
-
-function resolveRelativePath(baseFilePath: string, relPath: string): string {
-  if (relPath.startsWith("http://") || relPath.startsWith("https://") || relPath.startsWith("mailto:")) {
-    return relPath;
-  }
-  if (/^[a-zA-Z]:[/\\]/.test(relPath) || relPath.startsWith("/")) {
-    return relPath;
-  }
-  const cleanBase = baseFilePath.replace(/\\/g, "/");
-  const baseDir = cleanBase.substring(0, cleanBase.lastIndexOf("/"));
-  const baseParts = baseDir ? baseDir.split("/") : [];
-  const relParts = relPath.replace(/\\/g, "/").split("/");
-
-  for (const part of relParts) {
-    if (part === "..") {
-      baseParts.pop();
-    } else if (part !== "." && part !== "") {
-      baseParts.push(part);
-    }
-  }
-  return baseParts.join("/");
 }
 
 function getHighlightLanguage(filename: string): string {
@@ -468,16 +446,6 @@ export function TextEditor({ entry, onClose, onErrorToast, onOpenPath, isFullTab
   const lineEnding = content.includes("\r\n") ? "CRLF" : "LF";
   const languageLabel = formatLanguage(currentName);
 
-  // Resolve a markdown image path so the webview can load it: external URLs pass
-  // through; a relative/local path is resolved against the file's folder and
-  // handed to the asset protocol (a bare relative src resolves against the app
-  // origin, not the filesystem, so it 404s).
-  const resolveImg = (src?: string): string => {
-    if (!src || /^(https?:|data:|asset:|blob:|file:|#)/i.test(src)) return src ?? "";
-    const abs = resolveRelativePath(entry.path, src);
-    return isTauri ? convertFileSrc(abs) : abs;
-  };
-
   const renderPreview = () =>
     isHtml ? (
       <iframe srcDoc={content} title="HTML Preview" className="html-preview-frame" sandbox="allow-same-origin allow-scripts" />
@@ -496,30 +464,7 @@ export function TextEditor({ entry, onClose, onErrorToast, onOpenPath, isFullTab
             remarkPlugins={[remarkGfm]}
             rehypePlugins={[rehypeRaw]}
             components={{
-              a: ({ href, children }) => {
-                const isExternal = href?.startsWith("http://") || href?.startsWith("https://") || href?.startsWith("mailto:");
-                return (
-                  <a
-                    href={href}
-                    target={isExternal ? "_blank" : undefined}
-                    rel={isExternal ? "noopener noreferrer" : undefined}
-                    style={{ color: "var(--teal)", textDecoration: "underline", cursor: "pointer" }}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      if (!href) return;
-                      if (isExternal) {
-                        if (isTauri) api.openUrl(href);
-                        else window.open(href, "_blank", "noopener,noreferrer");
-                      } else if (onOpenPath) {
-                        const targetPath = resolveRelativePath(entry.path, href);
-                        onOpenPath(targetPath);
-                      }
-                    }}
-                  >
-                    {children}
-                  </a>
-                );
-              },
+              ...mdAssetComponents(entry.path, onOpenPath),
               table: ({ children }) => <table className="doc-table">{children}</table>,
               code: ({ className, children }) => {
                 const inline = !className;
@@ -529,8 +474,6 @@ export function TextEditor({ entry, onClose, onErrorToast, onOpenPath, isFullTab
                   <pre className="doc-code"><code>{children}</code></pre>
                 );
               },
-              img: ({ src, alt, node, ...rest }) => <img {...rest} src={resolveImg(typeof src === "string" ? src : undefined)} alt={alt ?? ""} style={{ maxWidth: "100%", height: "auto" }} />,
-              source: ({ srcSet, ...rest }) => <source srcSet={resolveImg(typeof srcSet === "string" ? srcSet : undefined)} {...rest} />,
             }}
           >
             {content}
