@@ -10,8 +10,271 @@
       rel="stylesheet"
     />
     <title>Lattice</title>
+    <script>
+      (function() {
+        try {
+          var themes = {
+            ink: { bg: "#1a1815", text: "#f4eee2", accent: "#c05f3c", amber: "#e2a64c" },
+            paper: { bg: "#f4eee2", text: "#241f18", accent: "#b6542e", amber: "#b97e28" },
+            canvas: { bg: "#faf7f2", text: "#2a241e", accent: "#a07550", amber: "#b08560" },
+            slate: { bg: "#1f2329", text: "#e5e9f0", accent: "#6c7a89", amber: "#8f9bb3" },
+            copper: { bg: "#2d2119", text: "#f1e6d6", accent: "#c77c48", amber: "#d48c5a" },
+            forest: { bg: "#1a211d", text: "#e0e9e0", accent: "#7a9a7a", amber: "#8bb08b" },
+            midnight: { bg: "#0f1115", text: "#d0d5dc", accent: "#5a6b9a", amber: "#6b7bb3" },
+            ash: { bg: "#1c1d21", text: "#d0d3d9", accent: "#6e7a89", amber: "#7e8a99" },
+            amber: { bg: "#241e17", text: "#f1e6d6", accent: "#c78c48", amber: "#d49c5a" },
+            graphite: { bg: "#121212", text: "#e0e0e0", accent: "#5f6b78", amber: "#6b7b89" },
+            nord: { bg: "#2e3440", text: "#eceff4", accent: "#88c0d0", amber: "#ebcb8b" },
+            sage: { bg: "#2b332b", text: "#e2ebe2", accent: "#7fa67f", amber: "#c4d4a8" }
+          };
+
+          var activeId = localStorage.getItem("lattice.theme") || "ink";
+          var t = themes[activeId];
+
+          if (!t) {
+            try {
+              var customList = JSON.parse(localStorage.getItem("lattice.themes") || "[]");
+              for (var i = 0; i < customList.length; i++) {
+                if (customList[i] && customList[i].id === activeId && customList[i].tokens) {
+                  var ct = customList[i].tokens;
+                  t = { bg: ct.bg, text: ct.text, accent: ct.accent, amber: ct.accent2 || ct.accent };
+                  break;
+                }
+              }
+            } catch(err) {}
+          }
+
+          if (!t) t = themes.ink;
+
+          document.documentElement.style.setProperty("--bg", t.bg);
+          document.documentElement.style.setProperty("--paper", t.text);
+          document.documentElement.style.setProperty("--accent", t.accent);
+          document.documentElement.style.setProperty("--amber", t.amber);
+          document.documentElement.style.setProperty("--ink", t.bg);
+          document.documentElement.style.backgroundColor = t.bg;
+        } catch(e) {}
+      })();
+    </script>
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background-color: var(--bg, #141413);
+        color: var(--paper, #f3f2ee);
+        overflow: hidden;
+      }
+      #app-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 999999;
+        background-color: var(--bg, #141413);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        user-select: none;
+        pointer-events: auto;
+        transition: opacity 0.38s cubic-bezier(0.16, 1, 0.3, 1), transform 0.38s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.38s;
+      }
+      #app-splash.splash-hidden {
+        opacity: 0;
+        transform: scale(1.03);
+        pointer-events: none;
+        visibility: hidden;
+      }
+      .splash-glow {
+        position: absolute;
+        width: 380px;
+        height: 380px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(200, 109, 81, 0.18) 0%, rgba(224, 159, 62, 0.06) 45%, transparent 70%);
+        filter: blur(52px);
+        pointer-events: none;
+        animation: splashGlowPulse 3.4s ease-in-out infinite alternate;
+      }
+      .splash-lockup {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        width: 226px;
+        height: 60px;
+      }
+      .splash-mark {
+        width: 50px;
+        height: 50px;
+        flex-shrink: 0;
+        transform-origin: 25px 25px;
+        filter: drop-shadow(0 4px 20px rgba(200, 109, 81, 0.32));
+        animation: splashMarkIntro 1.08s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+      .splash-wordmark-wrap {
+        display: flex;
+        align-items: center;
+        overflow: hidden;
+        margin-left: 18px;
+        width: 0;
+        opacity: 0;
+        animation: splashWordmarkSlide 1.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+      .splash-wordmark {
+        width: 158px;
+        height: auto;
+        color: var(--paper, #f3f2ee);
+        flex-shrink: 0;
+      }
+      .splash-letter {
+        stroke-dasharray: 140;
+        stroke-dashoffset: 140;
+        animation: loopDrawLetter 2.4s cubic-bezier(0.45, 0, 0.25, 1) infinite;
+      }
+      .letter-l { animation-delay: 0.48s; }
+      .letter-a { animation-delay: 0.60s; }
+      .letter-t1 { animation-delay: 0.72s; }
+      .letter-t2 { animation-delay: 0.84s; }
+      .letter-i { animation-delay: 0.96s; }
+      .splash-i-dot {
+        transform-origin: 198px 16px;
+        transform: scale(0);
+        opacity: 0;
+        animation: loopDot 2.4s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+        animation-delay: 1.04s;
+      }
+      .letter-c { animation-delay: 1.12s; }
+      .letter-e { animation-delay: 1.24s; }
+
+      /* Keyframes */
+      @keyframes splashMarkIntro {
+        0% {
+          opacity: 0;
+          transform: translateX(88px) scale(2.3);
+          filter: drop-shadow(0 0 32px var(--amber, #e09f3e));
+        }
+        20% {
+          opacity: 1;
+          transform: translateX(88px) scale(2.2);
+        }
+        50% {
+          opacity: 1;
+          transform: translateX(88px) scale(2.2);
+        }
+        100% {
+          opacity: 1;
+          transform: translateX(0) scale(1);
+          filter: drop-shadow(0 4px 18px rgba(200, 109, 81, 0.28));
+        }
+      }
+
+      @keyframes splashWordmarkSlide {
+        0%, 46% {
+          width: 0;
+          opacity: 0;
+          transform: translateX(-10px);
+        }
+        100% {
+          width: 158px;
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+
+      @keyframes loopDrawLetter {
+        0% {
+          stroke-dashoffset: 140;
+          opacity: 0.12;
+        }
+        28% {
+          stroke-dashoffset: 0;
+          opacity: 1;
+          filter: drop-shadow(0 0 3px var(--accent, #c86d51));
+        }
+        68% {
+          stroke-dashoffset: 0;
+          opacity: 1;
+          filter: none;
+        }
+        88% {
+          stroke-dashoffset: -140;
+          opacity: 0.12;
+        }
+        100% {
+          stroke-dashoffset: -140;
+          opacity: 0.12;
+        }
+      }
+
+      @keyframes loopDot {
+        0%, 12% {
+          transform: scale(0);
+          opacity: 0;
+        }
+        32% {
+          transform: scale(1.4);
+          opacity: 1;
+          filter: drop-shadow(0 0 10px var(--amber, #e09f3e));
+        }
+        68% {
+          transform: scale(1);
+          opacity: 1;
+          filter: none;
+        }
+        86%, 100% {
+          transform: scale(0);
+          opacity: 0;
+        }
+      }
+
+      @keyframes splashGlowPulse {
+        0% { transform: scale(0.9); opacity: 0.55; }
+        100% { transform: scale(1.2); opacity: 0.95; }
+      }
+
+      @keyframes splashCorePulse {
+        0%, 100% { transform: scale(1); opacity: 0.45; }
+        50% { transform: scale(1.35); opacity: 0.9; }
+      }
+    </style>
   </head>
   <body>
+    <div id="app-splash">
+      <div class="splash-glow"></div>
+      
+      <div class="splash-lockup">
+        <!-- Mark: Starts dead-center at scale 2.2, then smoothly docks left -->
+        <svg class="splash-mark" viewBox="0 0 48 48">
+          <g fill="none" stroke="var(--accent, #c86d51)" stroke-width="2" stroke-linecap="round" opacity="0.92">
+            <line x1="10" y1="10" x2="38" y2="10" /><line x1="10" y1="38" x2="38" y2="38" />
+            <line x1="10" y1="10" x2="10" y2="38" /><line x1="38" y1="10" x2="38" y2="38" />
+            <line x1="10" y1="24" x2="38" y2="24" /><line x1="24" y1="10" x2="24" y2="38" />
+          </g>
+          <g fill="var(--accent, #c86d51)">
+            <circle cx="10" cy="10" r="3.1" /><circle cx="38" cy="10" r="3.1" />
+            <circle cx="10" cy="38" r="3.1" /><circle cx="38" cy="38" r="3.1" />
+            <circle cx="24" cy="10" r="3.1" /><circle cx="10" cy="24" r="3.1" />
+            <circle cx="38" cy="24" r="3.1" /><circle cx="24" cy="38" r="3.1" />
+          </g>
+          <circle cx="24" cy="24" r="7.4" fill="none" stroke="var(--amber, #e09f3e)" stroke-width="1.5" opacity="0.45" style="animation: splashCorePulse 2.8s ease-in-out infinite; transform-origin: 24px 24px;" />
+          <circle cx="24" cy="24" r="4.4" fill="var(--amber, #e09f3e)" />
+        </svg>
+
+        <!-- Wordmark: Slides out with rhythmic letter-by-letter draw & continuous loading pulse wave -->
+        <div class="splash-wordmark-wrap">
+          <svg class="splash-wordmark" viewBox="0 0 340 96" role="img" aria-label="lattice" fill="none">
+            <g stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+              <path class="splash-letter letter-l" d="M16 10 L16 76" />
+              <path class="splash-letter letter-a" d="M82 30 L82 76 M82 30 A23 23 0 1 0 82 76" />
+              <path class="splash-letter letter-t1" d="M112 18 L112 76 M102 30 L130 30" />
+              <path class="splash-letter letter-t2" d="M160 18 L160 76 M150 30 L178 30" />
+              <path class="splash-letter letter-i" d="M198 30 L198 76" />
+              <path class="splash-letter letter-c" d="M260.9 41.5 A23 23 0 1 0 260.9 64.5" />
+              <path class="splash-letter letter-e" d="M282 53 L328 53 M328 53 A23 23 0 1 0 324.9 64.5" />
+            </g>
+            <circle class="splash-i-dot" cx="198" cy="16" r="6" fill="var(--amber, #e09f3e)" />
+          </svg>
+        </div>
+      </div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

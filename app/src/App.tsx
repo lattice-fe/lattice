@@ -181,6 +181,18 @@ export default function App() {
     return () => window.removeEventListener("click", onClick);
   }, []);
 
+  // Gracefully fade out and remove initial cold-boot splash screen
+  useEffect(() => {
+    const splash = document.getElementById("app-splash");
+    if (splash) {
+      const timer = setTimeout(() => {
+        splash.classList.add("splash-hidden");
+        setTimeout(() => splash.remove(), 400);
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
   const isFileTab = isFilePath(ex.path);
   const activePathLower = ex.path.toLowerCase();
   const isDocTab = activePathLower === "lattice://docs";
