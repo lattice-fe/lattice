@@ -12,11 +12,13 @@ import { calc, fmtNum } from "../lib/math";
 import { asUrl, webSearchUrl } from "../lib/url";
 import { getAssistantConfig, AssistantConfig, ASSISTANT_EVENT } from "../lib/assistant/config";
 import { askAssistant } from "../lib/assistant/client";
+import { searchNotes } from "../lib/keep/store";
+import { Note } from "../lib/keep/types";
 
 const MODES: SearchMode[] = ["name", "text", "semantic"];
 type Mode = "default" | "apps" | "files" | "web" | "math" | "commands" | "assistant";
 const PREFIX: Record<string, Mode> = { ">": "apps", "@": "files", "?": "web", "=": "math", "/": "commands", "!": "assistant" };
-const BADGE: Record<Mode, string> = { default: "", apps: "Apps", files: "Files", web: "Web", math: "Math", commands: "Commands", assistant: "Assistant" };
+const BADGE: Record<Mode, string> = { default: "", apps: "Apps", files: "Files", web: "Web", math: "Math", commands: "Commands", assistant: "Watson" };
 
 // `@kind query` filters — mirror the `lat` CLI. code/doc/folder are index-backed;
 // image/audio/video/archive aren't indexed, so they return nothing here (the CLI
@@ -33,6 +35,7 @@ const KIND_LABEL: Partial<Record<Kind, string>> = {
 type Item =
   | { kind: "app"; name: string; path: string }
   | { kind: "file"; name: string; sub: string; path: string; k: Kind; isDir: boolean }
+  | { kind: "note"; note: Note; run: () => void }
   | { kind: "math"; value: number }
   | { kind: "web"; term: string; url: string | null }
   | { kind: "command"; name: string; sub: string; run: () => void };
@@ -165,6 +168,7 @@ export function Spotlight() {
   }, []);
 
   const commands = useMemo(() => [
+    { name: "Open Keep Notes", sub: "Scratchpad & Checklists", run: () => { fire("spotlight:navigate", "lattice://keep"); api.showMain(); } },
     ...nav.map((n) => ({ name: `Go to ${n.name}`, sub: n.path, run: () => { fire("spotlight:navigate", n.path); api.showMain(); } })),
     { name: "Open Settings", sub: "Preferences", run: () => { fire("spotlight:open-settings"); api.showMain(); } },
     { name: "Show Lattice", sub: "Bring the window to front", run: () => api.showMain() },
@@ -177,13 +181,24 @@ export function Spotlight() {
     if (mode === "commands") return commands.filter((c) => c.name.toLowerCase().includes(term.toLowerCase())).map((c) => ({ kind: "command", name: c.name, sub: c.sub, run: c.run }));
     if (mode === "assistant") return [];
     const a: Item[] = mode === "default" || mode === "apps" ? apps.map((x) => ({ kind: "app", name: x.name, path: x.path })) : [];
+    
+    // Notes matches
+    const notesMatches: Item[] =
+      mode === "default" && term.trim().length >= 2
+        ? searchNotes(term).slice(0, 3).map((n) => ({
+            kind: "note" as const,
+            note: n,
+            run: () => { fire("spotlight:navigate", "lattice://keep"); api.showMain(); },
+          }))
+        : [];
+
     const f: Item[] = mode === "default" || mode === "files"
       ? s.results
           .filter((h) => !kindFilter || (h.is_dir ? "folder" : kindOf(baseName(h.file_path))) === kindFilter)
           .slice(0, 8)
           .map((h) => { const name = baseName(h.file_path); const snip = h.snippet?.trim() && h.snippet.trim() !== name ? h.snippet.trim() : parentOf(h.file_path) ?? ""; return { kind: "file", name, sub: snip, path: h.file_path, k: h.is_dir ? "folder" : kindOf(name), isDir: h.is_dir }; })
       : [];
-    return [...a, ...f];
+    return [...a, ...notesMatches, ...f];
   }, [mode, term, kindFilter, apps, s.results, commands]);
 
   useEffect(() => { setActive(0); }, [items.length, mode]);
@@ -256,6 +271,7 @@ export function Spotlight() {
     }
     else if (it.kind === "web") api.openUrl(it.url ?? webSearchUrl(it.term));
     else if (it.kind === "math") navigator.clipboard?.writeText(String(it.value)).catch(() => {});
+    else if (it.kind === "note") it.run();
     else if (it.kind === "command") it.run();
     hide();
   };
@@ -427,6 +443,15 @@ export function Spotlight() {
               }
               else if (it.kind === "web") { tile = <WebIcon />; bg = "var(--tile-green-bg)"; fg = "var(--tile-green-fg)"; name = it.url ? `Open ${it.url}` : `Search the web for “${it.term}”`; sub = "Opens in your browser"; }
               else if (it.kind === "math") { tile = <EqIcon />; bg = "var(--tile-amber-bg)"; fg = "var(--tile-amber-fg)"; name = fmtNum(it.value); sub = "Copy to clipboard"; }
+              else if (it.kind === "note") {
+                tile = <span style={{ fontSize: "14px" }}>🗈</span>;
+                bg = "color-mix(in srgb, var(--amber) 18%, var(--card))";
+                fg = "var(--amber)";
+                name = it.note.title || "Untitled Note";
+                sub = it.note.type === "checklist"
+                  ? `${it.note.items?.length || 0} checklist items · Keep`
+                  : `${it.note.content.slice(0, 45) || "Empty note"} · Keep`;
+              }
               else { tile = <CmdIcon />; bg = "var(--tile-violet-bg)"; fg = "var(--tile-violet-fg)"; name = it.name; sub = it.sub; }
               return (
                 <div key={it.kind + i}>

@@ -7,6 +7,8 @@ import { isTauri } from "../lib/api";
 import { TabContextMenu, TabCtxState } from "./TabContextMenu";
 
 function tabTitle(path: string, splitPath?: string | null): string {
+  if (path.toLowerCase() === "lattice://docs") return "Documentation";
+  if (path.toLowerCase() === "lattice://keep") return "Keep";
   const folder = baseName(path) || path.replace(/[\\/]+$/, "") || "This PC";
   if (splitPath) {
     const file = baseName(splitPath);

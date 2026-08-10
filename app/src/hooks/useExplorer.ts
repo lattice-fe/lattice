@@ -253,6 +253,22 @@ export function useExplorer() {
     setCtx(null);
   }, [tabs]);
 
+  const openKeepTab = useCallback(() => {
+    const KEEP_PATH = "lattice://keep";
+    const existing = tabs.find((t) => (t.history[t.hi] || "").toLowerCase() === KEEP_PATH);
+    if (existing) {
+      setActiveId(existing.id);
+      setSel(new Set());
+      setCtx(null);
+      return;
+    }
+    const id = nextId.current++;
+    setTabs((ts) => [...ts, { id, history: [KEEP_PATH], hi: 0 }]);
+    setActiveId(id);
+    setSel(new Set());
+    setCtx(null);
+  }, [tabs]);
+
   const closeTab = useCallback((id: number) => {
     if (tabs.length <= 1) return;
     const idx = tabs.findIndex((t) => t.id === id);
@@ -490,7 +506,7 @@ export function useExplorer() {
     path, entries, loading, error, drives, quick: allQuick,
     canBack: hi > 0, canForward: hi < history.length - 1, canUp: !!parentOf(path),
     sel, selectedEntries, sort, view, showHidden, clipboard, renaming, ctx,
-    tabs: tabList, activeTabId: activeId, newTab, closeTab, selectTab, openDocTab,
+    tabs: tabList, activeTabId: activeId, newTab, closeTab, selectTab, openDocTab, openKeepTab,
     reorderTabs, closeOtherTabs, closeTabsToRight, duplicateTab,
     groups, createGroup, addTabToGroup, removeTabFromGroup, toggleGroupCollapse, renameGroup, setGroupColor, deleteGroup, closeGroupTabs,
     navigate, back, forward, up, refresh,

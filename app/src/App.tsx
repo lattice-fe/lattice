@@ -18,6 +18,7 @@ import { JupyterViewer } from "./components/JupyterViewer";
 import { ImageViewer } from "./components/ImageViewer";
 import { SpreadsheetViewer } from "./components/SpreadsheetViewer";
 import { DocumentationViewer } from "./components/DocumentationViewer";
+import { KeepCanvas } from "./components/KeepCanvas";
 import { NewFileModal } from "./components/NewFileModal";
 import { api, isTauri } from "./lib/api";
 import { isFilePath, baseName } from "./lib/format";
@@ -196,6 +197,7 @@ export default function App() {
   const isFileTab = isFilePath(ex.path);
   const activePathLower = ex.path.toLowerCase();
   const isDocTab = activePathLower === "lattice://docs";
+  const isKeepTab = activePathLower === "lattice://keep";
 
   return (
     <div className="app">
@@ -209,6 +211,11 @@ export default function App() {
       />
       {isDocTab ? (
         <DocumentationViewer />
+      ) : isKeepTab ? (
+        <div className="body" style={{ gridTemplateColumns: "232px 1fr" }}>
+          <Sidebar ex={ex} />
+          <KeepCanvas ex={ex} />
+        </div>
       ) : isFileTab ? (
         <div className="body" style={{ gridTemplateColumns: fileTabSidebarOpen ? "232px 1fr" : "1fr" }}>
           {fileTabSidebarOpen && <Sidebar ex={ex} />}
