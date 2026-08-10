@@ -26,7 +26,12 @@ if (isTauri) {
 if (spotlight) {
   const splash = document.getElementById("app-splash");
   if (splash) splash.remove();
+  document.documentElement.classList.add("is-spotlight");
   document.body.classList.add("is-spotlight");
+  document.documentElement.style.background = "transparent";
+  document.documentElement.style.backgroundColor = "transparent";
+  document.body.style.background = "transparent";
+  document.body.style.backgroundColor = "transparent";
 }
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(

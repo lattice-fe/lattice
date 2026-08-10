@@ -46,12 +46,15 @@
 
           if (!t) t = themes.ink;
 
+          var isSpot = location.search.indexOf("spotlight") !== -1;
           document.documentElement.style.setProperty("--bg", t.bg);
           document.documentElement.style.setProperty("--paper", t.text);
           document.documentElement.style.setProperty("--accent", t.accent);
           document.documentElement.style.setProperty("--amber", t.amber);
           document.documentElement.style.setProperty("--ink", t.bg);
-          document.documentElement.style.backgroundColor = t.bg;
+          if (!isSpot) {
+            document.documentElement.style.backgroundColor = t.bg;
+          }
         } catch(e) {}
       })();
     </script>
@@ -64,6 +67,10 @@
         background-color: var(--bg, #141413);
         color: var(--paper, #f3f2ee);
         overflow: hidden;
+      }
+      html.is-spotlight, body.is-spotlight {
+        background: transparent !important;
+        background-color: transparent !important;
       }
       #app-splash {
         position: fixed;
