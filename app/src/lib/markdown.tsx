@@ -55,12 +55,17 @@ export function mdAssetComponents(basePath: string, onOpenPath?: (path: string) 
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
+            console.log("[md-link] click", { href, external, hasOnOpenPath: !!onOpenPath, basePath });
             if (!href || href.startsWith("#")) return;
             if (external) {
               if (isTauri) api.openUrl(href);
               else window.open(href, "_blank", "noopener,noreferrer");
             } else if (onOpenPath) {
-              onOpenPath(resolveRelativePath(basePath, href));
+              const target = resolveRelativePath(basePath, href);
+              console.log("[md-link] internal → onOpenPath", target);
+              onOpenPath(target);
+            } else {
+              console.log("[md-link] internal link but NO onOpenPath (transient preview) — no-op");
             }
           }}
         >

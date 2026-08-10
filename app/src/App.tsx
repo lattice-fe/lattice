@@ -230,7 +230,7 @@ export default function App() {
                 key={ex.activeTabId + ":" + ex.path}
                 entry={{ name: baseName(ex.path), path: ex.path, is_dir: false, size: 0, modified: null, kind: "code", type_label: "File", hidden: false }}
                 onClose={() => ex.closeTab(ex.activeTabId)}
-                onOpenPath={(targetPath) => ex.newTab(targetPath)}
+                onOpenPath={(targetPath) => { console.log("[App] onOpenPath → newTab", targetPath); ex.newTab(targetPath); }}
                 isFullTab={true}
               />
             )}
@@ -252,7 +252,7 @@ export default function App() {
               ) : isImage(ex.splitItem.name) ? (
                 <ImageViewer entry={ex.splitItem} onClose={ex.closeSplitItem} />
               ) : (
-                <TextEditor entry={ex.splitItem} onClose={ex.closeSplitItem} onErrorToast={ex.showToast} onOpenPath={(targetPath) => ex.newTab(targetPath)} isFullTab={false} />
+                <TextEditor entry={ex.splitItem} onClose={ex.closeSplitItem} onErrorToast={ex.showToast} onOpenPath={(targetPath) => { console.log("[App] onOpenPath → newTab", targetPath); ex.newTab(targetPath); }} isFullTab={false} />
               )}
             </div>
           )}

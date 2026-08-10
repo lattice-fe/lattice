@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/wordmark-light.png">
-    <img alt="Lattice" src="docs/wordmark-dark.png" width="300">
+    <img alt="Lattice" src="docs/wordmark-dark.png" width="200">
   </picture>
 </p>
 
