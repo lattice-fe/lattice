@@ -1,18 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentWindow, Effect } from "@tauri-apps/api/window";
 import { LogicalSize } from "@tauri-apps/api/dpi";
-import { emit } from "@tauri-apps/api/event";
+import { emit, listen } from "@tauri-apps/api/event";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { useSearch } from "../hooks/useSearch";
 import { AppMatch, Kind, api, isTauri, SearchMode } from "../lib/api";
 import { baseName, parentOf } from "../lib/format";
 import { Glyph, TONE, kindOf } from "../lib/icons";
 import { calc, fmtNum } from "../lib/math";
 import { asUrl, webSearchUrl } from "../lib/url";
+import { getAssistantConfig, AssistantConfig, ASSISTANT_EVENT } from "../lib/assistant/config";
+import { askAssistant } from "../lib/assistant/client";
 
 const MODES: SearchMode[] = ["name", "text", "semantic"];
-type Mode = "default" | "apps" | "files" | "web" | "math" | "commands";
-const PREFIX: Record<string, Mode> = { ">": "apps", "@": "files", "?": "web", "=": "math", "/": "commands" };
-const BADGE: Record<Mode, string> = { default: "", apps: "Apps", files: "Files", web: "Web", math: "Math", commands: "Commands" };
+type Mode = "default" | "apps" | "files" | "web" | "math" | "commands" | "assistant";
+const PREFIX: Record<string, Mode> = { ">": "apps", "@": "files", "?": "web", "=": "math", "/": "commands", "!": "assistant" };
+const BADGE: Record<Mode, string> = { default: "", apps: "Apps", files: "Files", web: "Web", math: "Math", commands: "Commands", assistant: "Assistant" };
 
 // `@kind query` filters — mirror the `lat` CLI. code/doc/folder are index-backed;
 // image/audio/video/archive aren't indexed, so they return nothing here (the CLI
@@ -37,6 +41,11 @@ const AppIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor
 const WebIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18" /></svg>);
 const CmdIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="m4 7 5 5-5 5M12 19h8" /></svg>);
 const EqIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M5 9h14M5 15h14" /></svg>);
+const ExternalIcon = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: "4px" }}>
+    <path d="M7 17L17 7M7 7h10v10" />
+  </svg>
+);
 
 function fire(name: string, payload?: unknown) { if (isTauri) emit(name, payload).catch(() => {}); }
 
@@ -49,6 +58,17 @@ export function Spotlight() {
   const inputRef = useRef<HTMLInputElement>(null);
   const spotRef = useRef<HTMLDivElement>(null);
   const win = isTauri ? getCurrentWindow() : null;
+
+  // Assistant state
+  const [assistantConfig, setAssistantConfig] = useState<AssistantConfig>(getAssistantConfig);
+  const [assistantAnswer, setAssistantAnswer] = useState<string | null>(null);
+  const [assistantLoading, setAssistantLoading] = useState(false);
+  const [assistantError, setAssistantError] = useState<string | null>(null);
+  const [assistantPrompt, setAssistantPrompt] = useState("");
+  const [assistantCopied, setAssistantCopied] = useState(false);
+  const [assistantElapsedMs, setAssistantElapsedMs] = useState(0);
+  const [assistantLatencyMs, setAssistantLatencyMs] = useState<number | null>(null);
+  const timerRef = useRef<number | null>(null);
 
   const p0 = raw[0] ?? "";
   const mode: Mode = PREFIX[p0] ?? "default";
@@ -66,7 +86,22 @@ export function Spotlight() {
     }
   }
 
-  const hide = () => { setRaw(""); setApps([]); s.clear(); win?.hide(); };
+  const hide = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    setRaw("");
+    setApps([]);
+    s.clear();
+    setAssistantAnswer(null);
+    setAssistantError(null);
+    setAssistantLoading(false);
+    setAssistantCopied(false);
+    setAssistantLatencyMs(null);
+    setAssistantElapsedMs(0);
+    win?.hide();
+  };
 
   useEffect(() => {
     // Apply native Windows acrylic blur to Spotlight window
@@ -79,13 +114,34 @@ export function Spotlight() {
     inputRef.current?.focus();
     api.quickAccess().then((q) => setNav(q.map((x) => ({ name: x.label, path: x.path }))));
     if (!win) return;
-    const un = win.onFocusChanged(({ payload: focused }) => {
+    const unFocus = win.onFocusChanged(({ payload: focused }) => {
       if (focused) { inputRef.current?.focus(); inputRef.current?.select(); }
       else hide();
     });
-    return () => { un.then((f) => f()); };
+
+    let unListen: Promise<() => void> | null = null;
+    if (isTauri) {
+      unListen = listen<AssistantConfig>(ASSISTANT_EVENT, (ev) => {
+        if (ev.payload) setAssistantConfig(ev.payload);
+      });
+    }
+
+    return () => {
+      unFocus.then((f) => f());
+      unListen?.then((f) => f());
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Reset assistant result when user clears input or switches away from assistant mode
+  useEffect(() => {
+    if (mode !== "assistant") {
+      setAssistantAnswer(null);
+      setAssistantError(null);
+      setAssistantLoading(false);
+      setAssistantCopied(false);
+    }
+  }, [mode]);
 
   // drive file search (index) with the query part (after any @kind token)
   const fileTerm = mode === "default" ? term : mode === "files" ? fileQuery : "";
@@ -119,6 +175,7 @@ export function Spotlight() {
     if (mode === "math") { const v = calc(term); return v != null ? [{ kind: "math", value: v }] : []; }
     if (mode === "web") { const q = term.trim(); return q ? [{ kind: "web", term: q, url: asUrl(q) }] : []; }
     if (mode === "commands") return commands.filter((c) => c.name.toLowerCase().includes(term.toLowerCase())).map((c) => ({ kind: "command", name: c.name, sub: c.sub, run: c.run }));
+    if (mode === "assistant") return [];
     const a: Item[] = mode === "default" || mode === "apps" ? apps.map((x) => ({ kind: "app", name: x.name, path: x.path })) : [];
     const f: Item[] = mode === "default" || mode === "files"
       ? s.results
@@ -130,6 +187,62 @@ export function Spotlight() {
   }, [mode, term, kindFilter, apps, s.results, commands]);
 
   useEffect(() => { setActive(0); }, [items.length, mode]);
+
+  const runAssistant = async (queryText: string) => {
+    const q = queryText.trim();
+    if (!q) return;
+    const cfg = getAssistantConfig();
+    if (!cfg.apiKey.trim()) {
+      setAssistantError("API key is not configured. Set your credentials in Settings > Advanced.");
+      return;
+    }
+    setAssistantLoading(true);
+    setAssistantError(null);
+    setAssistantAnswer(null);
+    setAssistantPrompt(q);
+    setAssistantCopied(false);
+    setAssistantLatencyMs(null);
+    setAssistantElapsedMs(0);
+
+    const startTime = performance.now();
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = window.setInterval(() => {
+      setAssistantElapsedMs(Math.round(performance.now() - startTime));
+    }, 40);
+
+    try {
+      const res = await askAssistant(q, cfg);
+      const latency = Math.round(performance.now() - startTime);
+      setAssistantLatencyMs(latency);
+      setAssistantAnswer(res);
+    } catch (err: any) {
+      const latency = Math.round(performance.now() - startTime);
+      setAssistantLatencyMs(latency);
+      setAssistantError(err.message || "Failed to query assistant.");
+    } finally {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      setAssistantLoading(false);
+    }
+  };
+
+  const copyAssistantAnswer = () => {
+    if (!assistantAnswer) return;
+    navigator.clipboard?.writeText(assistantAnswer).then(() => {
+      setAssistantCopied(true);
+      setTimeout(() => setAssistantCopied(false), 1500);
+    }).catch(() => {});
+  };
+
+  const continueInChatGPT = () => {
+    const q = assistantPrompt || term;
+    if (!q.trim()) return;
+    const url = `https://chatgpt.com/?q=${encodeURIComponent(q.trim())}`;
+    api.openUrl(url);
+    hide();
+  };
 
   const run = (it: Item, shift = false) => {
     if (it.kind === "app") api.openPath(it.path);
@@ -148,19 +261,42 @@ export function Spotlight() {
   };
 
   const onKey = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") { e.preventDefault(); hide(); }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      hide();
+    }
+    else if (mode === "assistant") {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (e.shiftKey) {
+          continueInChatGPT();
+        } else if (assistantAnswer) {
+          copyAssistantAnswer();
+        } else if (!assistantLoading && term.trim()) {
+          runAssistant(term);
+        }
+      }
+    }
     else if (e.key === "ArrowDown") { e.preventDefault(); setActive((i) => Math.min(i + 1, items.length - 1)); }
     else if (e.key === "ArrowUp") { e.preventDefault(); setActive((i) => Math.max(i - 1, 0)); }
     else if (e.key === "Enter" && items[active]) { e.preventDefault(); run(items[active], e.shiftKey); }
   };
 
   const appCount = mode === "default" ? apps.length : 0;
+  const isConfigured = Boolean(assistantConfig.apiKey && assistantConfig.apiKey.trim());
 
   return (
     <div className="spot" ref={spotRef}>
       <div className="spot-search">
         <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
-        <input ref={inputRef} value={raw} onChange={(e) => setRaw(e.target.value)} onKeyDown={onKey} placeholder="Search, or try  &gt; @ ? = /" spellCheck={false} />
+        <input
+          ref={inputRef}
+          value={raw}
+          onChange={(e) => setRaw(e.target.value)}
+          onKeyDown={onKey}
+          placeholder={mode === "assistant" ? "Ask Watson..." : "Search, or try  > @ ? = / !"}
+          spellCheck={false}
+        />
         {mode === "default" || mode === "files" ? (
           <div className="spot-modes">
             {kindFilter && <span className="spot-kind">{KIND_LABEL[kindFilter] ?? kindFilter}</span>}
@@ -171,9 +307,102 @@ export function Spotlight() {
         )}
       </div>
 
-      {raw.trim() === "" ? (
+      {mode === "assistant" ? (
+        <div className="spot-assistant-panel" style={{ padding: "14px 20px 16px" }}>
+          {assistantLoading ? (
+            <div style={{ padding: "14px 0", color: "var(--paper-dim)", fontSize: "13px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <span className="splash-dot" style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--amber)", display: "inline-block", animation: "splashCorePulse 1.2s infinite" }} />
+                Thinking...
+              </div>
+              <span style={{ fontFamily: "var(--mono)", fontSize: "11.5px", color: "var(--dim-2)" }}>{assistantElapsedMs}ms</span>
+            </div>
+          ) : assistantAnswer ? (
+            <div>
+              <div className="spot-markdown" style={{ maxHeight: "320px", overflowY: "auto" }}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {assistantAnswer}
+                </ReactMarkdown>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", marginTop: "14px", paddingTop: "12px", borderTop: "1px solid var(--border-soft)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <button
+                    type="button"
+                    onClick={copyAssistantAnswer}
+                    style={{ padding: "6px 12px", fontSize: "12px", fontWeight: 500, borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", background: "var(--ink-2)", color: "var(--paper)", cursor: "pointer" }}
+                  >
+                    {assistantCopied ? "Copied" : "Copy"}
+                  </button>
+                  {assistantLatencyMs != null && (
+                    <span style={{ fontFamily: "var(--mono)", fontSize: "11px", color: "var(--dim-2)" }}>
+                      {assistantLatencyMs}ms
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={continueInChatGPT}
+                  style={{ display: "inline-flex", alignItems: "center", padding: "6px 12px", fontSize: "12px", fontWeight: 500, borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", background: "var(--ink-2)", color: "var(--paper-dim)", cursor: "pointer" }}
+                >
+                  Continue elsewhere <ExternalIcon />
+                </button>
+              </div>
+            </div>
+          ) : assistantError ? (
+            <div style={{ padding: "8px 0" }}>
+              <div style={{ color: "var(--danger, #c0392b)", fontSize: "13px", marginBottom: "12px" }}>
+                {assistantError}
+              </div>
+              <button
+                type="button"
+                onClick={() => { fire("spotlight:open-settings"); api.showMain(); hide(); }}
+                style={{ padding: "6px 12px", fontSize: "12px", fontWeight: 500, borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", background: "var(--ink-2)", color: "var(--paper)", cursor: "pointer" }}
+              >
+                Open Settings
+              </button>
+            </div>
+          ) : !isConfigured ? (
+            <div style={{ padding: "8px 0", color: "var(--paper-dim)", fontSize: "13px" }}>
+              <div style={{ marginBottom: "12px" }}>
+                Watson is not configured. Add your API credentials in Settings &gt; Advanced to enable instant queries.
+              </div>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button
+                  type="button"
+                  onClick={() => { fire("spotlight:open-settings"); api.showMain(); hide(); }}
+                  style={{ padding: "6px 12px", fontSize: "12px", fontWeight: 500, borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", background: "var(--ink-2)", color: "var(--paper)", cursor: "pointer" }}
+                >
+                  Open Settings
+                </button>
+                {term.trim() && (
+                  <button
+                    type="button"
+                    onClick={continueInChatGPT}
+                    style={{ display: "inline-flex", alignItems: "center", padding: "6px 12px", fontSize: "12px", fontWeight: 500, borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", background: "var(--ink-2)", color: "var(--paper-dim)", cursor: "pointer" }}
+                  >
+                    Continue elsewhere <ExternalIcon />
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div style={{ padding: "8px 0", color: "var(--dim-2)", fontSize: "12.5px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span>Press Enter to ask Watson</span>
+              {term.trim() && (
+                <button
+                  type="button"
+                  onClick={continueInChatGPT}
+                  style={{ display: "inline-flex", alignItems: "center", padding: "4px 10px", fontSize: "12px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", background: "transparent", color: "var(--dim-2)", cursor: "pointer" }}
+                >
+                  Continue elsewhere <ExternalIcon />
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      ) : raw.trim() === "" ? (
         <div className="spot-hints">
-          <span><b>&gt;</b> apps</span><span><b>@</b> kind</span><span><b>=</b> math</span><span><b>?</b> web</span><span><b>/</b> commands</span>
+          <span><b>&gt;</b> apps</span><span><b>@</b> kind</span><span><b>=</b> math</span><span><b>?</b> web</span><span><b>/</b> commands</span><span><b>!</b> watson</span>
         </div>
       ) : (
         <div className="spot-results">
@@ -220,3 +449,4 @@ export function Spotlight() {
     </div>
   );
 }
+

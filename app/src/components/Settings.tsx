@@ -1,12 +1,15 @@
 import { useState } from "react";
+import { emit } from "@tauri-apps/api/event";
 import { Explorer } from "../hooks/useExplorer";
 import { Indexer } from "../hooks/useIndexer";
 import { ThemeApi } from "../hooks/useTheme";
 import { Theme } from "../lib/theme/types";
-import { api } from "../lib/api";
+import { api, isTauri } from "../lib/api";
 import { baseName } from "../lib/format";
 import { themeVars } from "../lib/theme/engine";
 import { ThemeEditor } from "./ThemeEditor";
+import { getAssistantConfig, saveAssistantConfig, AssistantConfig, ASSISTANT_EVENT } from "../lib/assistant/config";
+import { askAssistant } from "../lib/assistant/client";
 
 // Hover preview delay settings (localStorage keys)
 const HOVER_DELAY_KEY = "lattice:hover-delay";
@@ -139,6 +142,34 @@ export function Settings({ ex, ind, th, onClose }: { ex: Explorer; ind: Indexer;
     setIconSize(val);
     localStorage.setItem(ICON_SIZE_KEY, String(val));
     applyIconSize(val);
+  };
+
+  // Assistant configuration
+  const [assistantConfig, setAssistantConfig] = useState<AssistantConfig>(getAssistantConfig);
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [testStatus, setTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
+  const [testMessage, setTestMessage] = useState("");
+
+  const updateAssistantConfig = (patch: Partial<AssistantConfig>) => {
+    const updated = { ...assistantConfig, ...patch };
+    setAssistantConfig(updated);
+    saveAssistantConfig(updated);
+    if (isTauri) {
+      emit(ASSISTANT_EVENT, updated).catch(() => {});
+    }
+  };
+
+  const handleTestConnection = async () => {
+    setTestStatus("testing");
+    setTestMessage("");
+    try {
+      await askAssistant("Say OK", assistantConfig);
+      setTestStatus("success");
+      setTestMessage("Connected successfully");
+    } catch (err: any) {
+      setTestStatus("error");
+      setTestMessage(err.message || "Connection failed");
+    }
   };
 
   // Handle blur mode change (mutually exclusive with never unblur)
@@ -452,6 +483,122 @@ export function Settings({ ex, ind, th, onClose }: { ex: Explorer; ind: Indexer;
                       opacity: neverBlur ? 0.5 : 1,
                     }}
                   />
+                </div>
+              </div>
+
+              {/* Watson (Spotlight '!' quick queries) */}
+              <div className="setting-group">
+                <div className="settings-section-title">Watson</div>
+                <div className="setting-desc" style={{ marginBottom: "14px" }}>
+                  Configure the OpenAI-compatible API used for Watson instant Spotlight queries (! prefix)
+                </div>
+
+                <div className="setting-row" style={{ flexDirection: "column", alignItems: "stretch", gap: "6px", marginBottom: "12px" }}>
+                  <div className="setting-name">API Base URL</div>
+                  <div className="setting-desc">Endpoint host (OpenAI, Omniroute, OpenRouter, Ollama, DeepSeek)</div>
+                  <input
+                    type="text"
+                    value={assistantConfig.baseUrl}
+                    onChange={(e) => updateAssistantConfig({ baseUrl: e.target.value })}
+                    placeholder="https://api.openai.com/v1"
+                    style={{
+                      width: "100%",
+                      padding: "9px 12px",
+                      borderRadius: "var(--radius)",
+                      border: "1px solid var(--border)",
+                      background: "var(--card)",
+                      color: "var(--paper)",
+                      fontFamily: "var(--mono)",
+                      fontSize: "12.5px",
+                      boxSizing: "border-box",
+                    }}
+                  />
+                </div>
+
+                <div className="setting-row" style={{ flexDirection: "column", alignItems: "stretch", gap: "6px", marginBottom: "12px" }}>
+                  <div className="setting-name">Model name</div>
+                  <div className="setting-desc">Model identifier to query</div>
+                  <input
+                    type="text"
+                    value={assistantConfig.model}
+                    onChange={(e) => updateAssistantConfig({ model: e.target.value })}
+                    placeholder="gpt-4o-mini"
+                    style={{
+                      width: "100%",
+                      padding: "9px 12px",
+                      borderRadius: "var(--radius)",
+                      border: "1px solid var(--border)",
+                      background: "var(--card)",
+                      color: "var(--paper)",
+                      fontFamily: "var(--mono)",
+                      fontSize: "12.5px",
+                      boxSizing: "border-box",
+                    }}
+                  />
+                </div>
+
+                <div className="setting-row" style={{ flexDirection: "column", alignItems: "stretch", gap: "6px", marginBottom: "14px" }}>
+                  <div className="setting-name">API Key</div>
+                  <div className="setting-desc">Bearer token for authorization</div>
+                  <div style={{ display: "flex", gap: "8px", width: "100%" }}>
+                    <input
+                      type={showApiKey ? "text" : "password"}
+                      value={assistantConfig.apiKey}
+                      onChange={(e) => updateAssistantConfig({ apiKey: e.target.value })}
+                      placeholder="sk-..."
+                      style={{
+                        flex: 1,
+                        padding: "9px 12px",
+                        borderRadius: "var(--radius)",
+                        border: "1px solid var(--border)",
+                        background: "var(--card)",
+                        color: "var(--paper)",
+                        fontFamily: "var(--mono)",
+                        fontSize: "12.5px",
+                        boxSizing: "border-box",
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowApiKey(!showApiKey)}
+                      className="btn-outline"
+                      style={{ padding: "8px 14px", fontSize: "12px", cursor: "pointer", borderRadius: "var(--radius)", border: "1px solid var(--border)", background: "var(--ink-2)", color: "var(--paper)" }}
+                    >
+                      {showApiKey ? "Hide" : "Show"}
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <button
+                    type="button"
+                    onClick={handleTestConnection}
+                    disabled={testStatus === "testing" || !assistantConfig.apiKey.trim()}
+                    style={{
+                      padding: "7px 14px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      cursor: !assistantConfig.apiKey.trim() ? "not-allowed" : "pointer",
+                      borderRadius: "var(--radius)",
+                      border: "1px solid var(--border)",
+                      background: "var(--ink-2)",
+                      color: "var(--paper)",
+                      opacity: !assistantConfig.apiKey.trim() ? 0.5 : 1,
+                    }}
+                  >
+                    {testStatus === "testing" ? "Testing..." : "Test connection"}
+                  </button>
+
+                  {testStatus === "success" && (
+                    <span style={{ fontSize: "12px", color: "var(--teal, #2a9d8f)", fontWeight: 500 }}>
+                      Connected successfully
+                    </span>
+                  )}
+                  {testStatus === "error" && (
+                    <span style={{ fontSize: "12px", color: "var(--danger, #c0392b)", fontWeight: 500 }}>
+                      {testMessage}
+                    </span>
+                  )}
                 </div>
               </div>
             </section>
