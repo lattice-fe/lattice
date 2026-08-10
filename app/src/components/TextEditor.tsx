@@ -4,8 +4,8 @@ import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import hljs from "highlight.js";
 import "highlight.js/styles/github-dark.css";
-import { api, Entry } from "../lib/api";
-import { mdAssetComponents } from "../lib/markdown";
+import { api, Entry, isTauri } from "../lib/api";
+import { mdAssetComponents, resolveRelativePath, cleanHref, isExternalUrl } from "../lib/markdown";
 
 interface TextEditorProps {
   entry: Entry;
@@ -446,6 +446,25 @@ export function TextEditor({ entry, onClose, onErrorToast, onOpenPath, isFullTab
   const lineEnding = content.includes("\r\n") ? "CRLF" : "LF";
   const languageLabel = formatLanguage(currentName);
 
+  const handlePreviewClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    const link = target.closest("a") as HTMLAnchorElement | null;
+    if (!link) return;
+    const raw = link.getAttribute("href") || link.href;
+    const cleaned = cleanHref(raw);
+    if (!cleaned || cleaned.startsWith("#")) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (isExternalUrl(cleaned)) {
+      if (isTauri) api.openUrl(cleaned);
+      else window.open(cleaned, "_blank", "noopener,noreferrer");
+    } else if (onOpenPath) {
+      const resolved = resolveRelativePath(entry.path, cleaned);
+      onOpenPath(resolved);
+    }
+  };
+
   const renderPreview = () =>
     isHtml ? (
       <iframe srcDoc={content} title="HTML Preview" className="html-preview-frame" sandbox="allow-same-origin allow-scripts" />
@@ -453,6 +472,7 @@ export function TextEditor({ entry, onClose, onErrorToast, onOpenPath, isFullTab
       <div style={{ height: "100%", overflowY: "auto", width: "100%" }}>
         <div
           className="md-preview-container doc-content-body"
+          onClick={handlePreviewClick}
           style={{
             padding: isFullTab ? "32px 32px 80px" : "16px 24px",
             maxWidth: isFullTab ? "840px" : "100%",

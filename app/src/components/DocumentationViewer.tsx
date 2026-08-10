@@ -113,6 +113,22 @@ export function DocumentationViewer() {
     }
   };
 
+  const handleDocClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    const link = target.closest("a") as HTMLAnchorElement | null;
+    if (!link) return;
+    const href = link.getAttribute("href");
+    if (!href || href.startsWith("#")) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const isExternal = href.startsWith("http://") || href.startsWith("https://") || href.startsWith("mailto:");
+    if (isExternal) {
+      if (isTauri) api.openUrl(href);
+      else window.open(href, "_blank", "noopener,noreferrer");
+    }
+  };
+
   return (
     <div className="doc-viewer-container">
       {/* Left-Side Index Pane */}
@@ -143,7 +159,7 @@ export function DocumentationViewer() {
       </div>
 
       {/* Main Documentation Content Panel */}
-      <div className="doc-main-pane" ref={contentRef}>
+      <div className="doc-main-pane" ref={contentRef} onClick={handleDocClick}>
         <div className="doc-header-banner">
           <span className="doc-badge">DOCUMENTATION & GUIDES</span>
           <h1>Lattice Documentation</h1>

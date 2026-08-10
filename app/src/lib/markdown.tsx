@@ -2,19 +2,41 @@ import type { Components } from "react-markdown";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { api, isTauri } from "./api";
 
+// Check if a URL points to an external website
+export function isExternalUrl(href: string): boolean {
+  if (!href) return false;
+  if (href.startsWith("mailto:")) return true;
+  // If it starts with localhost or tauri.localhost, it's a webview-local relative URL
+  if (/^https?:\/\/(localhost|127\.0\.0\.1|tauri\.localhost)/i.test(href)) {
+    return false;
+  }
+  return /^https?:\/\//i.test(href);
+}
+
+// Clean raw href from DOM/markdown (stripping localhost/tauri.localhost webview origins)
+export function cleanHref(rawHref: string): string {
+  if (!rawHref) return "";
+  try {
+    if (/^https?:\/\/(localhost|127\.0\.0\.1|tauri\.localhost)/i.test(rawHref)) {
+      const url = new URL(rawHref);
+      return decodeURIComponent(url.pathname.replace(/^\/+/, ""));
+    }
+  } catch { /* ignore */ }
+  return rawHref;
+}
+
 // Resolve a link/image href that appears inside a markdown file against that
 // file's folder. Absolute paths and URLs pass through unchanged.
 export function resolveRelativePath(baseFilePath: string, relPath: string): string {
-  if (relPath.startsWith("http://") || relPath.startsWith("https://") || relPath.startsWith("mailto:")) {
-    return relPath;
-  }
-  if (/^[a-zA-Z]:[/\\]/.test(relPath) || relPath.startsWith("/")) {
-    return relPath;
+  const cleaned = cleanHref(relPath);
+  if (!cleaned || isExternalUrl(cleaned)) return cleaned;
+  if (/^[a-zA-Z]:[/\\]/.test(cleaned) || cleaned.startsWith("/")) {
+    return cleaned.replace(/\\/g, "/");
   }
   const cleanBase = baseFilePath.replace(/\\/g, "/");
-  const baseDir = cleanBase.substring(0, cleanBase.lastIndexOf("/"));
+  const baseDir = cleanBase.includes("/") ? cleanBase.substring(0, cleanBase.lastIndexOf("/")) : "";
   const baseParts = baseDir ? baseDir.split("/") : [];
-  const relParts = relPath.replace(/\\/g, "/").split("/");
+  const relParts = cleaned.replace(/\\/g, "/").split("/");
   for (const part of relParts) {
     if (part === "..") baseParts.pop();
     else if (part !== "." && part !== "") baseParts.push(part);
@@ -26,8 +48,9 @@ export function resolveRelativePath(baseFilePath: string, relPath: string): stri
 // filesystem) and 404s; resolve it against the file's folder and hand it to the
 // asset protocol. External/data URLs pass through.
 function resolveAsset(baseFilePath: string, src?: string): string {
-  if (!src || /^(https?:|data:|asset:|blob:|file:|#)/i.test(src)) return src ?? "";
-  const abs = resolveRelativePath(baseFilePath, src);
+  const cleaned = cleanHref(src || "");
+  if (!cleaned || /^(https?:|data:|asset:|blob:|file:|#)/i.test(cleaned)) return cleaned;
+  const abs = resolveRelativePath(baseFilePath, cleaned);
   return isTauri ? convertFileSrc(abs) : abs;
 }
 
@@ -44,28 +67,26 @@ export function mdAssetComponents(basePath: string, onOpenPath?: (path: string) 
       <source {...rest} srcSet={resolveAsset(basePath, typeof srcSet === "string" ? srcSet : undefined)} />
     ),
     a: ({ href, children, node, ...rest }) => {
-      const external = !!href && /^(https?:|mailto:)/i.test(href);
+      const raw = href || (node as any)?.properties?.href || (rest as any)?.href || "";
+      const cleaned = cleanHref(raw);
+      const external = isExternalUrl(cleaned);
       return (
         <a
           {...rest}
           className="md-link"
-          href={href}
+          href={cleaned}
           target={external ? "_blank" : undefined}
           rel={external ? "noopener noreferrer" : undefined}
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            console.log("[md-link] click", { href, external, hasOnOpenPath: !!onOpenPath, basePath });
-            if (!href || href.startsWith("#")) return;
+            if (!cleaned || cleaned.startsWith("#")) return;
             if (external) {
-              if (isTauri) api.openUrl(href);
-              else window.open(href, "_blank", "noopener,noreferrer");
+              if (isTauri) api.openUrl(cleaned);
+              else window.open(cleaned, "_blank", "noopener,noreferrer");
             } else if (onOpenPath) {
-              const target = resolveRelativePath(basePath, href);
-              console.log("[md-link] internal → onOpenPath", target);
+              const target = resolveRelativePath(basePath, cleaned);
               onOpenPath(target);
-            } else {
-              console.log("[md-link] internal link but NO onOpenPath (transient preview) — no-op");
             }
           }}
         >

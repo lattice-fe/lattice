@@ -33,6 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Context Menu Interaction:** Resolved event bubbling and screen-edge clamping for right-click context menus.
 - **`lat` Read-Only Indexing:** CLI queries now open SQLite databases in read-only mode to prevent write locks against the GUI process.
 
+### Known Issues
+- **Markdown In-Preview Link Navigation:** Clicking relative file links (e.g. `[Doc](info/summary.md)`) or external links inside Markdown split/hover preview panes does not reliably dispatch tab navigation or browser hand-off in the webview.
+
 ## [0.2.0] - 2026-08-06
 
 ### Added
