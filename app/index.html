@@ -12,6 +12,7 @@
     <title>Lattice</title>
     <script>
       (function() {
+        window.__splashT0 = Date.now();
         try {
           var themes = {
             ink: { bg: "#1a1815", text: "#f4eee2", accent: "#c05f3c", amber: "#e2a64c" },
@@ -55,6 +56,9 @@
           if (!isSpot) {
             document.documentElement.style.backgroundColor = t.bg;
           }
+          var splashOff = false;
+          try { splashOff = localStorage.getItem("lattice:startup-animation") === "off"; } catch(err) {}
+          if (splashOff || isSpot) document.documentElement.classList.add("no-splash");
         } catch(e) {}
       })();
     </script>
@@ -90,6 +94,7 @@
         pointer-events: none;
         visibility: hidden;
       }
+      html.no-splash #app-splash { display: none !important; }
       .splash-glow {
         position: absolute;
         width: 380px;

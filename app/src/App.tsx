@@ -187,14 +187,20 @@ export default function App() {
     return () => window.removeEventListener("click", onClick);
   }, []);
 
-  // Gracefully fade out and remove initial cold-boot splash screen
+  // Gracefully fade out and remove initial cold-boot splash screen.
+  // Hold at least one full lettermark cycle from page load (fast prod builds
+  // mount before the animation gets going), unless startup animation is off.
   useEffect(() => {
     const splash = document.getElementById("app-splash");
     if (splash) {
+      if (document.documentElement.classList.contains("no-splash")) { splash.remove(); return; }
+      const SPLASH_MIN_MS = 2000; // ~one reveal cycle of the wordmark draw
+      const t0 = (window as unknown as { __splashT0?: number }).__splashT0 ?? Date.now();
+      const wait = Math.max(0, SPLASH_MIN_MS - (Date.now() - t0));
       const timer = setTimeout(() => {
         splash.classList.add("splash-hidden");
         setTimeout(() => splash.remove(), 400);
-      }, 200);
+      }, wait);
       return () => clearTimeout(timer);
     }
   }, []);

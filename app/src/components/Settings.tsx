@@ -131,6 +131,14 @@ export function Settings({ ex, ind, th, onClose }: { ex: Explorer; ind: Indexer;
   const [neverUnblur, setNeverUnblur] = useState(() => localStorage.getItem(NEVER_UNBLUR_KEY) === "true");
   const [blurPatterns, setBlurPatterns] = useState(() => localStorage.getItem(BLUR_PATTERNS_KEY) || "");
 
+  // Startup animation setting (read at page load by index.html)
+  const [startupAnim, setStartupAnim] = useState(() => localStorage.getItem("lattice:startup-animation") !== "off");
+  const handleStartupAnimChange = () => {
+    const next = !startupAnim;
+    setStartupAnim(next);
+    localStorage.setItem("lattice:startup-animation", next ? "on" : "off");
+  };
+
   // Hover preview setting
   const [disableHover, setDisableHover] = useState(() => localStorage.getItem(DISABLE_HOVER_KEY) === "true");
 
@@ -400,6 +408,18 @@ export function Settings({ ex, ind, th, onClose }: { ex: Explorer; ind: Indexer;
 
             {/* Advanced */}
             <section className={activeSection === "advanced" ? "active" : ""}>
+              {/* Startup */}
+              <div className="setting-group" style={{ marginBottom: "24px" }}>
+                <div className="settings-section-title">Startup</div>
+                <div className="setting-row">
+                  <div>
+                    <div className="setting-name">Startup animation</div>
+                    <div className="setting-desc">Play the splash lettermark animation on launch</div>
+                  </div>
+                  <Switch on={startupAnim} onClick={handleStartupAnimChange} />
+                </div>
+              </div>
+
               {/* Hover preview settings */}
               <div className="setting-group" style={{ marginBottom: "24px" }}>
                 <div className="settings-section-title">Hover previews</div>
