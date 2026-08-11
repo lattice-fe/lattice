@@ -134,6 +134,11 @@ export default function App() {
         document.querySelector<HTMLInputElement>(".search input")?.focus();
         return;
       }
+      if (ctrl && e.key.toLowerCase() === "l") {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("lattice-edit-path"));
+        return;
+      }
       if (ctrl && e.key === "t") { e.preventDefault(); ex.newTab(); return; }
       if (ctrl && e.key === "w") { e.preventDefault(); ex.closeTab(ex.activeTabId); return; }
       if (ctrl && e.key === "Tab" && ex.tabs.length > 1) {

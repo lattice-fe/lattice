@@ -157,7 +157,7 @@ export function useExplorer() {
   const entries = useMemo(() => sortEntries(raw, sort, isDownloads), [raw, sort, isDownloads]);
 
   const load = useCallback(async (p: string) => {
-    if (isFilePath(p)) {
+    if (p.startsWith("lattice://") || isFilePath(p)) {
       setLoading(false);
       setError(null);
       setRaw([]);

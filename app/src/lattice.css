@@ -79,7 +79,12 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .iconbtn:active { transform: scale(0.94); }
 .iconbtn:disabled { color: var(--dim-2); cursor: default; }
 
-.crumbs { display: flex; align-items: center; gap: 2px; flex: 1; min-width: 0; font-size: 14px; }
+.crumbs { display: flex; align-items: center; gap: 2px; flex: 1; min-width: 0; font-size: 14px; cursor: text; }
+.crumb-input {
+  flex: 1; min-width: 0; background: var(--ink-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--paper); font-family: var(--mono); font-size: 12px; padding: 3px 8px; outline: none;
+}
+.crumb-input:focus { border-color: var(--amber); }
 .crumb {
   padding: 5px 9px; border-radius: var(--radius); color: var(--dim);
   transition: background 0.15s ease, color 0.15s ease; white-space: nowrap;

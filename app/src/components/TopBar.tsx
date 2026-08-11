@@ -1,6 +1,8 @@
+import { useState, useRef, useEffect } from "react";
 import { Explorer } from "../hooks/useExplorer";
 import { Search } from "../hooks/useSearch";
-import { baseName, crumbsOf } from "../lib/format";
+import { baseName, crumbsOf, parentOf } from "../lib/format";
+import { api, Entry } from "../lib/api";
 
 const I = {
   back: <path d="M15 18l-6-6 6-6" />,
@@ -28,6 +30,62 @@ export function TopBar({
   sidebarOpen?: boolean;
 }) {
   const crumbs = ex.path ? crumbsOf(ex.path) : [];
+
+  // Editable path field: click empty crumb space to type any path (incl. docs/keep), Tab to complete.
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const comp = useRef<{ dir: string; matches: string[]; idx: number; last: string }>({ dir: "", matches: [], idx: 0, last: "" });
+
+  useEffect(() => { if (editing) inputRef.current?.select(); }, [editing]);
+
+  const startEdit = () => { setValue(ex.path); comp.current = { dir: "", matches: [], idx: 0, last: "" }; setEditing(true); };
+
+  // Ctrl+L (address-bar convention) enters path edit; App dispatches the event.
+  useEffect(() => {
+    const open = () => startEdit();
+    window.addEventListener("lattice-edit-path", open);
+    return () => window.removeEventListener("lattice-edit-path", open);
+  }, [ex.path]);
+
+  const commit = () => {
+    const t = value.trim();
+    setEditing(false);
+    if (!t) return;
+    const l = t.toLowerCase();
+    const dest =
+      l === "docs" || l === "lattice://docs" ? "lattice://docs" :
+      l === "keep" || l === "lattice://keep" ? "lattice://keep" : t;
+    ex.navigate(dest);
+  };
+
+  const complete = async () => {
+    const c = comp.current;
+    if (c.matches.length && value === c.last) {            // repeat Tab → cycle siblings
+      c.idx = (c.idx + 1) % c.matches.length;
+    } else {
+      const norm = value.replace(/\\/g, "/");
+      const ends = norm.endsWith("/");
+      const dir = ends ? (/^[A-Za-z]:\/$/.test(norm) ? norm : norm.replace(/\/+$/, "")) : (parentOf(norm) ?? "");
+      const prefix = ends ? "" : baseName(norm);
+      let list: Entry[] = [];
+      try { list = await api.listDir(dir, ex.showHidden); } catch { return; }
+      const matches = list.filter((e) => e.is_dir && e.name.toLowerCase().startsWith(prefix.toLowerCase()))
+        .map((e) => e.name).sort((a, b) => a.localeCompare(b));
+      if (!matches.length) return;
+      c.dir = dir; c.matches = matches; c.idx = 0;
+    }
+    const nv = c.dir + (c.dir.endsWith("/") ? "" : "/") + c.matches[c.idx] + "/";
+    c.last = nv;
+    setValue(nv);
+  };
+
+  const onPathKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") { e.preventDefault(); commit(); }
+    else if (e.key === "Escape") { e.preventDefault(); setEditing(false); }
+    else if (e.key === "Tab") { e.preventDefault(); complete(); }
+  };
+
   return (
     <div className="topbar">
       <div className="nav">
@@ -49,16 +107,34 @@ export function TopBar({
         <button className="iconbtn" title="Up" disabled={!ex.canUp} onClick={ex.up}><Ico d={I.up} /></button>
         <button className="iconbtn" title="Refresh" onClick={ex.refresh}><Ico d={I.refresh} w={16} /></button>
       </div>
-      <div className="crumbs">
-        {crumbs.map(([label, full], i) => (
-          <span key={full} style={{ display: "contents" }}>
-            <button
-              className={"crumb" + (i === crumbs.length - 1 ? " here" : "")}
-              onClick={() => ex.navigate(full)}
-            >{label.replace(/\/$/, "") || baseName(full)}</button>
-            {i < crumbs.length - 1 && <span className="crumb-sep">/</span>}
-          </span>
-        ))}
+      <div
+        className="crumbs"
+        title={editing ? undefined : "Click to type a path"}
+        onClick={(e) => { if (!editing && e.target === e.currentTarget) startEdit(); }}
+      >
+        {editing ? (
+          <input
+            ref={inputRef}
+            className="crumb-input"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={onPathKey}
+            onBlur={() => setEditing(false)}
+            spellCheck={false}
+            autoComplete="off"
+            placeholder="Type a path or docs / keep…"
+          />
+        ) : (
+          crumbs.map(([label, full], i) => (
+            <span key={full} style={{ display: "contents" }}>
+              <button
+                className={"crumb" + (i === crumbs.length - 1 ? " here" : "")}
+                onClick={() => ex.navigate(full)}
+              >{label.replace(/\/$/, "") || baseName(full)}</button>
+              {i < crumbs.length - 1 && <span className="crumb-sep">/</span>}
+            </span>
+          ))
+        )}
       </div>
       <div className="search" style={{ position: "relative" }}>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>

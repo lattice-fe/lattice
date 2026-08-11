@@ -223,6 +223,11 @@ export function TextEditor({ entry, onClose, onErrorToast, onOpenPath, isFullTab
       monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
       () => performSave(entryPathRef.current, contentRef.current),
     );
+    // Free F1 for the app's global docs shortcut; move the command palette to Ctrl+Shift+P.
+    monaco.editor.addKeybindingRules([
+      { keybinding: monaco.KeyCode.F1, command: null },
+      { keybinding: monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyP, command: "editor.action.quickCommand" },
+    ]);
     // addCommand returns a string ID, not a disposable — no cleanup needed
   }, [monaco, performSave]);
 

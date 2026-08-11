@@ -100,6 +100,9 @@ const KEYBINDS: { action: string; keys: string }[] = [
   { action: "Navigate forward", keys: "Alt + →" },
   { action: "Go up", keys: "Backspace" },
   { action: "Refresh", keys: "F5" },
+  { action: "Edit path", keys: "Ctrl + L" },
+  { action: "Search", keys: "Ctrl + F" },
+  { action: "Documentation", keys: "F1" },
   { action: "Select all", keys: "Ctrl + A" },
   { action: "Copy", keys: "Ctrl + C" },
   { action: "Cut", keys: "Ctrl + X" },
@@ -114,6 +117,8 @@ const KEYBINDS: { action: string; keys: string }[] = [
   { action: "Next tab", keys: "Ctrl + Tab" },
   { action: "Previous tab", keys: "Ctrl + Shift + Tab" },
   { action: "Spotlight", keys: "Alt + Space" },
+  { action: "Save file (editor)", keys: "Ctrl + S" },
+  { action: "Command palette (editor)", keys: "Ctrl + Shift + P" },
 ];
 
 export function Settings({ ex, ind, th, onClose }: { ex: Explorer; ind: Indexer; th: ThemeApi; onClose: () => void }) {
