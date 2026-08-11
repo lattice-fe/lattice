@@ -96,6 +96,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   display: block; width: 100%; text-align: left; background: transparent; border: none;
   color: var(--paper); font-family: var(--mono); font-size: 12px; padding: 5px 8px; border-radius: 4px; cursor: pointer;
 }
+.crumb-suggest-item.file { color: var(--dim); }
 .crumb-suggest-item:hover { background: var(--ink-3); }
 .crumb {
   padding: 5px 9px; border-radius: var(--radius); color: var(--dim);

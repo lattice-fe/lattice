@@ -16,6 +16,9 @@ const Ico = ({ d, w = 17 }: { d: React.ReactNode; w?: number }) => (
 
 import { SearchDropdown } from "./SearchDropdown";
 
+type Match = { name: string; isDir: boolean };
+type Sug = Match & { path: string };
+
 export function TopBar({
   ex,
   s,
@@ -32,12 +35,12 @@ export function TopBar({
   const crumbs = ex.path ? crumbsOf(ex.path) : [];
 
   // Editable path field: click empty crumb space (or Ctrl+L) to type any path
-  // (incl. docs/keep). Live folder suggestions; Tab completes/cycles.
+  // (incl. docs/keep). Live folder + file suggestions; Tab completes/cycles.
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState("");
-  const [sug, setSug] = useState<string[]>([]); // full completed paths, ready to apply
+  const [sug, setSug] = useState<Sug[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
-  const comp = useRef<{ base: string; matches: string[]; idx: number; last: string }>({ base: "", matches: [], idx: 0, last: "" });
+  const comp = useRef<{ base: string; matches: Match[]; idx: number; last: string }>({ base: "", matches: [], idx: 0, last: "" });
 
   useEffect(() => { if (editing) inputRef.current?.select(); }, [editing]);
 
@@ -50,27 +53,33 @@ export function TopBar({
     return () => window.removeEventListener("lattice-edit-path", open);
   }, [ex.path]);
 
-  // Folders under the value's parent dir whose name matches the trailing segment.
-  const dirMatches = useCallback(async (v: string): Promise<{ base: string; names: string[] }> => {
+  // Entries under the value's parent dir whose name matches the trailing segment.
+  // Folders first (they append "/" and drill deeper); files open on select.
+  const dirMatches = useCallback(async (v: string): Promise<{ base: string; items: Match[] }> => {
     const norm = v.replace(/\\/g, "/");
     const ends = norm.endsWith("/");
     const dir = ends ? (/^[A-Za-z]:\/$/.test(norm) ? norm : norm.replace(/\/+$/, "")) : (parentOf(norm) ?? "");
     const prefix = ends ? "" : baseName(norm);
-    if (!dir) return { base: "", names: [] };
+    if (!dir) return { base: "", items: [] };
     let list: Entry[] = [];
-    try { list = await api.listDir(dir, ex.showHidden); } catch { return { base: "", names: [] }; }
-    const names = list.filter((e) => e.is_dir && e.name.toLowerCase().startsWith(prefix.toLowerCase()))
-      .map((e) => e.name).sort((a, b) => a.localeCompare(b));
-    return { base: dir + (dir.endsWith("/") ? "" : "/"), names };
+    try { list = await api.listDir(dir, ex.showHidden); } catch { return { base: "", items: [] }; }
+    const p = prefix.toLowerCase();
+    const items = list
+      .filter((e) => e.name.toLowerCase().startsWith(p))
+      .map((e) => ({ name: e.name, isDir: e.is_dir }))
+      .sort((a, b) => (a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1));
+    return { base: dir + (dir.endsWith("/") ? "" : "/"), items };
   }, [ex.showHidden]);
+
+  const pathOf = (base: string, m: Match) => base + m.name + (m.isDir ? "/" : "");
 
   // Live suggestion dropdown, debounced.
   useEffect(() => {
     if (!editing) { setSug([]); return; }
     let cancelled = false;
     const id = setTimeout(async () => {
-      const { base, names } = await dirMatches(value);
-      if (!cancelled) setSug(names.slice(0, 12).map((n) => base + n + "/"));
+      const { base, items } = await dirMatches(value);
+      if (!cancelled) setSug(items.slice(0, 12).map((it) => ({ ...it, path: pathOf(base, it) })));
     }, 120);
     return () => { cancelled = true; clearTimeout(id); };
   }, [value, editing, dirMatches]);
@@ -91,19 +100,24 @@ export function TopBar({
     if (c.matches.length && value === c.last) {            // repeat Tab → cycle siblings
       c.idx = (c.idx + 1) % c.matches.length;
     } else {
-      const { base, names } = await dirMatches(value);
-      if (!names.length) return;
-      c.base = base; c.matches = names; c.idx = 0;
+      const { base, items } = await dirMatches(value);
+      if (!items.length) return;
+      c.base = base; c.matches = items; c.idx = 0;
     }
-    const nv = c.base + c.matches[c.idx] + "/";
+    const nv = pathOf(c.base, c.matches[c.idx]);
     c.last = nv;
     setValue(nv);
   };
 
-  const applySuggestion = (full: string) => {
-    setValue(full);
-    comp.current = { base: "", matches: [], idx: 0, last: "" };
-    inputRef.current?.focus();
+  const applySuggestion = (s: Sug) => {
+    if (s.isDir) {                       // folder → fill and keep editing to drill deeper
+      setValue(s.path);
+      comp.current = { base: "", matches: [], idx: 0, last: "" };
+      inputRef.current?.focus();
+    } else {                             // file → open it
+      setEditing(false);
+      ex.navigate(s.path);
+    }
   };
 
   const onPathKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -153,13 +167,13 @@ export function TopBar({
             />
             {sug.length > 0 && (
               <div className="crumb-suggest">
-                {sug.map((full) => (
+                {sug.map((s) => (
                   <button
-                    key={full}
+                    key={s.path}
                     type="button"
-                    className="crumb-suggest-item"
-                    onMouseDown={(e) => { e.preventDefault(); applySuggestion(full); }}
-                  >{baseName(full)}</button>
+                    className={"crumb-suggest-item" + (s.isDir ? "" : " file")}
+                    onMouseDown={(e) => { e.preventDefault(); applySuggestion(s); }}
+                  >{s.name}{s.isDir ? "/" : ""}</button>
                 ))}
               </div>
             )}
