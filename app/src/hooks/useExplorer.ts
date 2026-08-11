@@ -82,9 +82,12 @@ export function useExplorer() {
     setTimeout(() => setToast(null), 3500);
   }, []);
 
+  // Stable ref so patchActive doesn't need activeId as a dep (avoids callback cascade on tab switch)
+  const activeIdRef = useRef(activeId);
+  activeIdRef.current = activeId;
   const patchActive = useCallback((fn: (t: Tab) => Tab) => {
-    setTabs((ts) => ts.map((t) => (t.id === activeId ? fn(t) : t)));
-  }, [activeId]);
+    setTabs((ts) => ts.map((t) => (t.id === activeIdRef.current ? fn(t) : t)));
+  }, []); // stable — never recreated
 
   const [sel, setSel] = useState<Set<string>>(new Set());
   const anchor = useRef<number | null>(null);
@@ -197,13 +200,16 @@ export function useExplorer() {
     });
   }, []);
 
-  // Persist session state whenever tabs, activeId, or openMode changes
+  // Debounced session persist — at most one write per 500ms instead of every state change
+  const sessionSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (tabs.length > 0 && activeId !== -1) {
+    if (tabs.length === 0 || activeId === -1) return;
+    if (sessionSaveTimer.current) clearTimeout(sessionSaveTimer.current);
+    sessionSaveTimer.current = setTimeout(() => {
       try {
         localStorage.setItem(SESSION_KEY, JSON.stringify({ tabs, activeId, openMode }));
       } catch { /* ignore */ }
-    }
+    }, 500);
   }, [tabs, activeId, openMode]);
 
   const navigate = useCallback((p: string) => {
