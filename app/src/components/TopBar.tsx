@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Explorer } from "../hooks/useExplorer";
 import { Search } from "../hooks/useSearch";
 import { baseName, crumbsOf, parentOf } from "../lib/format";
@@ -31,15 +31,17 @@ export function TopBar({
 }) {
   const crumbs = ex.path ? crumbsOf(ex.path) : [];
 
-  // Editable path field: click empty crumb space to type any path (incl. docs/keep), Tab to complete.
+  // Editable path field: click empty crumb space (or Ctrl+L) to type any path
+  // (incl. docs/keep). Live folder suggestions; Tab completes/cycles.
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState("");
+  const [sug, setSug] = useState<string[]>([]); // full completed paths, ready to apply
   const inputRef = useRef<HTMLInputElement>(null);
-  const comp = useRef<{ dir: string; matches: string[]; idx: number; last: string }>({ dir: "", matches: [], idx: 0, last: "" });
+  const comp = useRef<{ base: string; matches: string[]; idx: number; last: string }>({ base: "", matches: [], idx: 0, last: "" });
 
   useEffect(() => { if (editing) inputRef.current?.select(); }, [editing]);
 
-  const startEdit = () => { setValue(ex.path); comp.current = { dir: "", matches: [], idx: 0, last: "" }; setEditing(true); };
+  const startEdit = () => { setValue(ex.path); comp.current = { base: "", matches: [], idx: 0, last: "" }; setEditing(true); };
 
   // Ctrl+L (address-bar convention) enters path edit; App dispatches the event.
   useEffect(() => {
@@ -47,6 +49,31 @@ export function TopBar({
     window.addEventListener("lattice-edit-path", open);
     return () => window.removeEventListener("lattice-edit-path", open);
   }, [ex.path]);
+
+  // Folders under the value's parent dir whose name matches the trailing segment.
+  const dirMatches = useCallback(async (v: string): Promise<{ base: string; names: string[] }> => {
+    const norm = v.replace(/\\/g, "/");
+    const ends = norm.endsWith("/");
+    const dir = ends ? (/^[A-Za-z]:\/$/.test(norm) ? norm : norm.replace(/\/+$/, "")) : (parentOf(norm) ?? "");
+    const prefix = ends ? "" : baseName(norm);
+    if (!dir) return { base: "", names: [] };
+    let list: Entry[] = [];
+    try { list = await api.listDir(dir, ex.showHidden); } catch { return { base: "", names: [] }; }
+    const names = list.filter((e) => e.is_dir && e.name.toLowerCase().startsWith(prefix.toLowerCase()))
+      .map((e) => e.name).sort((a, b) => a.localeCompare(b));
+    return { base: dir + (dir.endsWith("/") ? "" : "/"), names };
+  }, [ex.showHidden]);
+
+  // Live suggestion dropdown, debounced.
+  useEffect(() => {
+    if (!editing) { setSug([]); return; }
+    let cancelled = false;
+    const id = setTimeout(async () => {
+      const { base, names } = await dirMatches(value);
+      if (!cancelled) setSug(names.slice(0, 12).map((n) => base + n + "/"));
+    }, 120);
+    return () => { cancelled = true; clearTimeout(id); };
+  }, [value, editing, dirMatches]);
 
   const commit = () => {
     const t = value.trim();
@@ -64,20 +91,19 @@ export function TopBar({
     if (c.matches.length && value === c.last) {            // repeat Tab → cycle siblings
       c.idx = (c.idx + 1) % c.matches.length;
     } else {
-      const norm = value.replace(/\\/g, "/");
-      const ends = norm.endsWith("/");
-      const dir = ends ? (/^[A-Za-z]:\/$/.test(norm) ? norm : norm.replace(/\/+$/, "")) : (parentOf(norm) ?? "");
-      const prefix = ends ? "" : baseName(norm);
-      let list: Entry[] = [];
-      try { list = await api.listDir(dir, ex.showHidden); } catch { return; }
-      const matches = list.filter((e) => e.is_dir && e.name.toLowerCase().startsWith(prefix.toLowerCase()))
-        .map((e) => e.name).sort((a, b) => a.localeCompare(b));
-      if (!matches.length) return;
-      c.dir = dir; c.matches = matches; c.idx = 0;
+      const { base, names } = await dirMatches(value);
+      if (!names.length) return;
+      c.base = base; c.matches = names; c.idx = 0;
     }
-    const nv = c.dir + (c.dir.endsWith("/") ? "" : "/") + c.matches[c.idx] + "/";
+    const nv = c.base + c.matches[c.idx] + "/";
     c.last = nv;
     setValue(nv);
+  };
+
+  const applySuggestion = (full: string) => {
+    setValue(full);
+    comp.current = { base: "", matches: [], idx: 0, last: "" };
+    inputRef.current?.focus();
   };
 
   const onPathKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -113,17 +139,31 @@ export function TopBar({
         onClick={(e) => { if (!editing && e.target === e.currentTarget) startEdit(); }}
       >
         {editing ? (
-          <input
-            ref={inputRef}
-            className="crumb-input"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            onKeyDown={onPathKey}
-            onBlur={() => setEditing(false)}
-            spellCheck={false}
-            autoComplete="off"
-            placeholder="Type a path or docs / keep…"
-          />
+          <div className="crumb-edit">
+            <input
+              ref={inputRef}
+              className="crumb-input"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              onKeyDown={onPathKey}
+              onBlur={() => setEditing(false)}
+              spellCheck={false}
+              autoComplete="off"
+              placeholder="Type a path or docs / keep…"
+            />
+            {sug.length > 0 && (
+              <div className="crumb-suggest">
+                {sug.map((full) => (
+                  <button
+                    key={full}
+                    type="button"
+                    className="crumb-suggest-item"
+                    onMouseDown={(e) => { e.preventDefault(); applySuggestion(full); }}
+                  >{baseName(full)}</button>
+                ))}
+              </div>
+            )}
+          </div>
         ) : (
           crumbs.map(([label, full], i) => (
             <span key={full} style={{ display: "contents" }}>

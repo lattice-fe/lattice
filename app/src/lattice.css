@@ -80,11 +80,23 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .iconbtn:disabled { color: var(--dim-2); cursor: default; }
 
 .crumbs { display: flex; align-items: center; gap: 2px; flex: 1; min-width: 0; font-size: 14px; cursor: text; }
+.crumb-edit { position: relative; flex: 1; min-width: 0; }
 .crumb-input {
-  flex: 1; min-width: 0; background: var(--ink-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  width: 100%; background: var(--ink-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
   color: var(--paper); font-family: var(--mono); font-size: 12px; padding: 3px 8px; outline: none;
 }
 .crumb-input:focus { border-color: var(--amber); }
+.crumb-suggest {
+  position: absolute; top: calc(100% + 4px); left: 0; z-index: 50;
+  min-width: 240px; max-width: 420px; max-height: 280px; overflow-y: auto;
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35); padding: 4px;
+}
+.crumb-suggest-item {
+  display: block; width: 100%; text-align: left; background: transparent; border: none;
+  color: var(--paper); font-family: var(--mono); font-size: 12px; padding: 5px 8px; border-radius: 4px; cursor: pointer;
+}
+.crumb-suggest-item:hover { background: var(--ink-3); }
 .crumb {
   padding: 5px 9px; border-radius: var(--radius); color: var(--dim);
   transition: background 0.15s ease, color 0.15s ease; white-space: nowrap;
