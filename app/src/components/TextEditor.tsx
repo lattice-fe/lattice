@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import { api, Entry, isTauri } from "../lib/api";
+import { baseName } from "../lib/format";
 import { mdAssetComponents, resolveRelativePath, cleanHref, isExternalUrl } from "../lib/markdown";
 
 interface TextEditorProps {
@@ -134,6 +135,7 @@ export function TextEditor({ entry, onClose, onErrorToast, onOpenPath, isFullTab
     } catch (err) {
       console.error("Auto-save error:", err);
       setSaveStatus("unsaved");
+      onErrorToastRef.current?.(`Couldn't save "${baseName(targetPath)}" — changes are unsaved.`);
     }
   }, []);
 
@@ -317,6 +319,8 @@ export function TextEditor({ entry, onClose, onErrorToast, onOpenPath, isFullTab
   const lineCount = content.split("\n").length;
   const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0;
   const lineEnding = content.includes("\r\n") ? "CRLF" : "LF";
+  const saveLabel = saveStatus === "saving" ? "Saving..." : saveStatus === "unsaved" ? "Unsaved" : "Saved";
+  const saveColor = saveStatus === "saving" ? "var(--amber)" : saveStatus === "unsaved" ? "var(--terracotta)" : "var(--dim)";
 
   return (
     <div className="split-panel-container" style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
@@ -336,8 +340,8 @@ export function TextEditor({ entry, onClose, onErrorToast, onOpenPath, isFullTab
             <span className="name" onClick={() => setEditingName(true)} title="Click to rename file" style={{ cursor: "pointer" }}>{currentName}</span>
           )}
           <span className="badge" style={{ borderRadius: "9999px", padding: "2px 8px", textTransform: "none", fontWeight: "500" }}>{languageLabel}</span>
-          <span style={{ fontSize: "11px", color: saveStatus === "saving" ? "var(--amber)" : "var(--dim-2)", fontFamily: "var(--mono)", marginLeft: "4px" }}>
-            {saveStatus === "saving" ? "Saving..." : "Saved"}
+          <span style={{ fontSize: "11px", color: saveColor, fontFamily: "var(--mono)", marginLeft: "4px" }}>
+            {saveLabel}
           </span>
         </div>
 
@@ -392,8 +396,8 @@ export function TextEditor({ entry, onClose, onErrorToast, onOpenPath, isFullTab
           <span className="editor-status-sep">•</span>
           <span className="editor-status-badge" style={{ borderRadius: "9999px", padding: "1px 8px", textTransform: "none", fontWeight: "500" }}>{languageLabel}</span>
           <span className="editor-status-sep">•</span>
-          <span style={{ color: saveStatus === "saving" ? "var(--amber)" : "var(--dim)", fontWeight: "500" }}>
-            {saveStatus === "saving" ? "Saving..." : "Saved"}
+          <span style={{ color: saveColor, fontWeight: "500" }}>
+            {saveLabel}
           </span>
         </div>
       </div>
