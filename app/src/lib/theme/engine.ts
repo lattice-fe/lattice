@@ -96,4 +96,5 @@ export function applyTheme(theme: Theme): void {
   for (const [k, v] of Object.entries(vars)) root.style.setProperty(k, v);
   root.setAttribute("data-appearance", theme.appearance);
   root.style.colorScheme = theme.appearance;
+  window.dispatchEvent(new CustomEvent("lattice-theme"));
 }
