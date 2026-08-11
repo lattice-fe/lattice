@@ -15,6 +15,7 @@ const Ico = ({ d, w = 17 }: { d: React.ReactNode; w?: number }) => (
 );
 
 import { SearchDropdown } from "./SearchDropdown";
+import { Glyph, TONE, kindOf } from "../lib/icons";
 
 type Match = { name: string; isDir: boolean };
 type Sug = Match & { path: string };
@@ -167,14 +168,26 @@ export function TopBar({
             />
             {sug.length > 0 && (
               <div className="crumb-suggest">
-                {sug.map((s) => (
-                  <button
-                    key={s.path}
-                    type="button"
-                    className={"crumb-suggest-item" + (s.isDir ? "" : " file")}
-                    onMouseDown={(e) => { e.preventDefault(); applySuggestion(s); }}
-                  >{s.name}{s.isDir ? "/" : ""}</button>
-                ))}
+                {sug.map((s) => {
+                  const k = s.isDir ? "folder" : kindOf(s.name);
+                  const t = TONE[k];
+                  return (
+                    <button
+                      key={s.path}
+                      type="button"
+                      className={"crumb-suggest-item" + (s.isDir ? "" : " file")}
+                      onMouseDown={(e) => { e.preventDefault(); applySuggestion(s); }}
+                      style={{ display: "flex", alignItems: "center", gap: "8px" }}
+                    >
+                      <span style={{ width: "16px", height: "16px", display: "flex", alignItems: "center", justifyContent: "center", color: t.fg, flexShrink: 0 }}>
+                        <Glyph kind={k} />
+                      </span>
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {s.name}{s.isDir ? "/" : ""}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>

@@ -189,14 +189,13 @@ export function SearchDropdown({ s, ex }: SearchDropdownProps) {
               >
                 <span
                   style={{
-                    display: "grid",
-                    placeItems: "center",
-                    width: "24px",
-                    height: "24px",
-                    borderRadius: "var(--radius-sm)",
-                    background: t.bg,
+                    width: "20px",
+                    height: "20px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
                     color: t.fg,
-                    flex: "none",
+                    flexShrink: 0,
                   }}
                 >
                   <Glyph kind={k} />
