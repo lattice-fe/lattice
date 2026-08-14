@@ -74,7 +74,9 @@ export function Spotlight() {
   const timerRef = useRef<number | null>(null);
 
   const p0 = raw[0] ?? "";
-  const mode: Mode = PREFIX[p0] ?? "default";
+  const rawMode: Mode = PREFIX[p0] ?? "default";
+  // AI fully off → "!" is just plain text, no Watson mode.
+  const mode: Mode = rawMode === "assistant" && assistantConfig.aiMode === "off" ? "default" : rawMode;
   const term = mode === "default" ? raw : raw.slice(1).replace(/^\s+/, "");
 
   // `@kind query`: the first token is a kind filter when recognized (like the CLI).
@@ -300,6 +302,7 @@ export function Spotlight() {
 
   const appCount = mode === "default" ? apps.length : 0;
   const isConfigured = Boolean(assistantConfig.apiKey && assistantConfig.apiKey.trim());
+  const aiOff = assistantConfig.aiMode === "off";
 
   return (
     <div className="spot" ref={spotRef}>
@@ -310,7 +313,7 @@ export function Spotlight() {
           value={raw}
           onChange={(e) => setRaw(e.target.value)}
           onKeyDown={onKey}
-          placeholder={mode === "assistant" ? "Ask Watson..." : "Search, or try  > @ ? = / !"}
+          placeholder={mode === "assistant" ? "Ask Watson..." : `Search, or try  > @ ? = /${aiOff ? "" : " !"}`}
           spellCheck={false}
         />
         {mode === "default" || mode === "files" ? (
@@ -418,7 +421,7 @@ export function Spotlight() {
         </div>
       ) : raw.trim() === "" ? (
         <div className="spot-hints">
-          <span><b>&gt;</b> apps</span><span><b>@</b> kind</span><span><b>=</b> math</span><span><b>?</b> web</span><span><b>/</b> commands</span><span><b>!</b> watson</span>
+          <span><b>&gt;</b> apps</span><span><b>@</b> kind</span><span><b>=</b> math</span><span><b>?</b> web</span><span><b>/</b> commands</span>{!aiOff && <span><b>!</b> watson</span>}
         </div>
       ) : (
         <div className="spot-results">

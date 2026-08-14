@@ -154,8 +154,10 @@ export function TitleBar({ ex }: { ex: Explorer }) {
   const renderTab = (t: typeof ex.tabs[0], grp?: typeof ex.groups[0]) => {
     const isFile = isFilePath(t.path);
     const name = baseName(t.path);
-    const isDocs = t.path.toLowerCase() === "lattice://docs";
-    const kind = isDocs ? "document" : isFile ? kindOf(name) : "folder";
+    const pLow = t.path.toLowerCase();
+    const isDocs = pLow === "lattice://docs";
+    const isKeep = pLow === "lattice://keep";
+    const kind = isDocs || isKeep ? "document" : isFile ? kindOf(name) : "folder";
     const tone = TONE[kind] ?? TONE.other;
     const isActive = t.id === ex.activeTabId;
     const isDragging = draggingId === t.id;

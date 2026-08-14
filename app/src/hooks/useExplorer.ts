@@ -20,6 +20,7 @@ interface Tab {
   history: string[];
   hi: number;
   splitItem?: Entry | null;
+  chatOpen?: boolean;
 }
 
 const PINNED_KEY = "lattice:pinned-folders";
@@ -508,6 +509,14 @@ export function useExplorer() {
     }
   }, [navigate, newTab, openMode, patchActive, showToast]);
 
+  const chatOpen = activeTab?.chatOpen ?? false;
+  const toggleChat = useCallback(() => {
+    patchActive((t) => ({ ...t, chatOpen: !t.chatOpen }));
+  }, [patchActive]);
+  const setChatOpen = useCallback((open: boolean) => {
+    patchActive((t) => ({ ...t, chatOpen: open }));
+  }, [patchActive]);
+
   return {
     path, entries, loading, error, drives, quick: allQuick,
     canBack: hi > 0, canForward: hi < history.length - 1, canUp: !!parentOf(path),
@@ -529,6 +538,7 @@ export function useExplorer() {
     previewCollapsed,
     togglePreview: () => setPreviewCollapsed((prev) => !prev),
     openMode, setOpenMode, splitItem, closeSplitItem, openItemSpecial,
+    chatOpen, toggleChat, setChatOpen,
     homeDir, setHomeDir, toast, showToast,
   };
 }

@@ -511,8 +511,34 @@ export function Settings({ ex, ind, th, onClose }: { ex: Explorer; ind: Indexer;
                 </div>
               </div>
 
+              {/* AI features master control */}
+              <div className="setting-group" style={{ marginBottom: "24px" }}>
+                <div className="settings-section-title">AI features</div>
+                <div className="setting-desc" style={{ marginBottom: "12px" }}>
+                  Control how much of Watson is enabled across Lattice.
+                </div>
+                <RadioOption
+                  label="Full"
+                  desc="Chat pane, right-click actions, and Spotlight queries"
+                  checked={assistantConfig.aiMode === "full"}
+                  onClick={() => updateAssistantConfig({ aiMode: "full" })}
+                />
+                <RadioOption
+                  label="Spotlight only"
+                  desc="Keep Spotlight ! queries; hide the chat pane and right-click actions"
+                  checked={assistantConfig.aiMode === "spotlight"}
+                  onClick={() => updateAssistantConfig({ aiMode: "spotlight" })}
+                />
+                <RadioOption
+                  label="Off"
+                  desc="Disable all AI features"
+                  checked={assistantConfig.aiMode === "off"}
+                  onClick={() => updateAssistantConfig({ aiMode: "off" })}
+                />
+              </div>
+
               {/* Watson (Spotlight '!' quick queries) */}
-              <div className="setting-group">
+              <div className="setting-group" style={{ opacity: assistantConfig.aiMode === "off" ? 0.5 : 1 }}>
                 <div className="settings-section-title">Watson</div>
                 <div className="setting-desc" style={{ marginBottom: "14px" }}>
                   Configure the OpenAI-compatible API used for Watson instant Spotlight queries (! prefix)

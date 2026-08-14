@@ -1,8 +1,17 @@
 import { useRef, useState, useLayoutEffect } from "react";
 import { Explorer } from "../hooks/useExplorer";
 import { api } from "../lib/api";
+import { WatsonActionRequest } from "./WatsonActionModal";
 
-export function ContextMenu({ ex, onNewFile }: { ex: Explorer; onNewFile: (folderPath: string) => void }) {
+export function ContextMenu({
+  ex,
+  onNewFile,
+  onWatsonAction,
+}: {
+  ex: Explorer;
+  onNewFile: (folderPath: string) => void;
+  onWatsonAction?: (request: WatsonActionRequest) => void;
+}) {
   if (!ex.ctx) return null;
   const { x, y, index, customEntry } = ex.ctx;
   const onRow = index != null || !!customEntry;
@@ -89,6 +98,12 @@ export function ContextMenu({ ex, onNewFile }: { ex: Explorer; onNewFile: (folde
           <Item label="Reveal in Explorer" on={() => { ex.closeContext(); ex.reveal(target.path); }} />
           {target.is_dir && <Item label="Index for search" on={() => { ex.closeContext(); api.indexFolder(target.path); }} />}
           <Sep />
+          {onWatsonAction && !target.is_dir && (
+            <>
+              <Item label="Summarize with Watson" on={() => { ex.closeContext(); onWatsonAction({ action: "summarize", entry: target }); }} />
+              <Sep />
+            </>
+          )}
           <Item label="Copy" on={ex.copySel} kbd="Ctrl C" />
           <Item label="Cut" on={ex.cutSel} kbd="Ctrl X" />
           {single && <Item label="Rename" on={() => ex.startRename(target.path)} kbd="F2" />}

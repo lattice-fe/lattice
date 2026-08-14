@@ -19,9 +19,12 @@ import { ImageViewer } from "./components/ImageViewer";
 import { SpreadsheetViewer } from "./components/SpreadsheetViewer";
 import { DocumentationViewer } from "./components/DocumentationViewer";
 import { KeepCanvas } from "./components/KeepCanvas";
+import { WatsonActionModal, WatsonActionRequest } from "./components/WatsonActionModal";
+import { WatsonChatPane } from "./components/WatsonChatPane";
 import { NewFileModal } from "./components/NewFileModal";
 import { api, isTauri } from "./lib/api";
 import { isFilePath, baseName } from "./lib/format";
+import { getAssistantConfig, ASSISTANT_DOM_EVENT } from "./lib/assistant/config";
 import "./lattice.css";
 
 function isSpreadsheet(path: string): boolean {
@@ -41,9 +44,19 @@ export default function App() {
   const th = useTheme();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [newFileFolder, setNewFileFolder] = useState<string | null>(null);
+  const [watsonModalReq, setWatsonModalReq] = useState<WatsonActionRequest | null>(null);
   const [fileTabSidebarOpen, setFileTabSidebarOpen] = useState(false);
+  const [aiMode, setAiMode] = useState(() => getAssistantConfig().aiMode);
+  const aiPaneEnabled = aiMode === "full";
   const exRef = useRef(ex);
   exRef.current = ex;
+
+  // React to AI-features setting changes (Settings dispatches this on save).
+  useEffect(() => {
+    const sync = () => setAiMode(getAssistantConfig().aiMode);
+    window.addEventListener(ASSISTANT_DOM_EVENT, sync);
+    return () => window.removeEventListener(ASSISTANT_DOM_EVENT, sync);
+  }, []);
 
   // apply persisted icon size on mount
   useEffect(() => {
@@ -219,6 +232,12 @@ export default function App() {
         onSettings={() => setSettingsOpen(true)}
         onToggleSidebar={isFileTab ? () => setFileTabSidebarOpen(!fileTabSidebarOpen) : undefined}
         sidebarOpen={fileTabSidebarOpen}
+        onToggleChat={() => {
+          if (ex.previewCollapsed) ex.togglePreview();
+          ex.toggleChat();
+        }}
+        chatOpen={ex.chatOpen && !ex.previewCollapsed}
+        aiPaneEnabled={aiPaneEnabled}
       />
       {isDocTab ? (
         <DocumentationViewer />
@@ -286,7 +305,16 @@ export default function App() {
               )}
             </div>
           )}
-          {!ex.splitItem && !ex.previewCollapsed && <Inspector ex={ex} onCollapse={() => ex.togglePreview()} />}
+          {!ex.splitItem && !ex.previewCollapsed && (
+            ex.chatOpen && aiPaneEnabled ? (
+              <WatsonChatPane ex={ex} onClose={() => ex.setChatOpen(false)} />
+            ) : (
+              <Inspector
+                ex={ex}
+                onCollapse={() => ex.togglePreview()}
+              />
+            )
+          )}
           {!ex.splitItem && ex.previewCollapsed && (
             <button className="preview-reveal" onClick={() => ex.togglePreview()} title="Show preview pane">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
@@ -294,7 +322,18 @@ export default function App() {
           )}
         </div>
       )}
-      <ContextMenu ex={ex} onNewFile={(folderPath) => setNewFileFolder(folderPath)} />
+      <ContextMenu
+        ex={ex}
+        onNewFile={(folderPath) => setNewFileFolder(folderPath)}
+        onWatsonAction={aiPaneEnabled ? (req) => setWatsonModalReq(req) : undefined}
+      />
+      {watsonModalReq && (
+        <WatsonActionModal
+          request={watsonModalReq}
+          onClose={() => setWatsonModalReq(null)}
+          onToast={ex.showToast}
+        />
+      )}
       {newFileFolder && (
         <NewFileModal
           folderPath={newFileFolder}
