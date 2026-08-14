@@ -176,3 +176,23 @@ export function mockSearch(query: string): Hit[] {
     file_path: e.path, is_dir: e.is_dir, snippet: e.name, score: 1, char_start: 0,
   }));
 }
+
+// One-shot index search: fire api.search and resolve the matching index:results
+// event. This is the same index the `lat` CLI reads — use it instead of walking
+// the filesystem by hand. Resolves [] on timeout.
+export async function searchOnce(query: string, mode: SearchMode, timeoutMs = 4000): Promise<Hit[]> {
+  if (!query.trim()) return [];
+  if (!isTauri) return mockSearch(query);
+  const { listen } = await import("@tauri-apps/api/event");
+  const seq = Math.floor(Math.random() * 1e9);
+  return new Promise<Hit[]>((resolve) => {
+    let un: (() => void) | undefined;
+    let done = false;
+    const finish = (hits: Hit[]) => { if (!done) { done = true; clearTimeout(timer); un?.(); resolve(hits); } };
+    const timer = setTimeout(() => finish([]), timeoutMs);
+    listen<{ seq: number; hits: Hit[] }>("index:results", (e) => {
+      if (e.payload.seq === seq) finish(e.payload.hits);
+    }).then((fn) => { un = fn; if (done) fn(); });
+    api.search(seq, query, mode).catch(() => finish([]));
+  });
+}

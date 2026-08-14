@@ -14,7 +14,12 @@ For code or commands, provide just the snippet or command.
 
 ${getSkillsCatalogPrompt()}
 
-When assisting the user with tasks related to any skill domain, you may execute the appropriate tools directly or call 'read_skill' to review comprehensive instructions and capabilities.
+## Using tools
+Act immediately — do not deliberate about which tool or where something might be. Call the matching tool once with your best arguments, then answer from the result.
+- To find ANY file or folder, call 'search_files' a single time with the user's keywords. It searches the ENTIRE index at once — it is NOT scoped to a folder. Never use 'list_directory' to hunt for a file, and never guess or reason about where a file might live.
+- Use 'list_directory' only when the user explicitly asks what is inside a specific folder they named.
+- All tools are already available to you. Do NOT call 'read_skill' unless a tool errors or its behaviour is genuinely unclear — you almost never need it.
+- Prefer a single tool call. Only make another call if the first returned nothing useful. Do not chain redundant searches.
 `.trim();
 
 export type { ModelMessage };
@@ -74,6 +79,16 @@ function systemFor(context?: string) {
   return context ? `${SYSTEM_PROMPT}\n\n## Current Workspace Context\n${context}` : SYSTEM_PROMPT;
 }
 
+// Some OpenAI-compatible endpoints accept `reasoning_content` in responses but
+// reject it as input on the next step/turn. Drop reasoning parts from assistant
+// messages before they're re-sent (and before we persist them).
+function stripReasoning(messages: ModelMessage[]): ModelMessage[] {
+  return messages.map((m) => {
+    if (m.role !== "assistant" || !Array.isArray(m.content)) return m;
+    return { ...m, content: (m.content as any[]).filter((p) => p.type !== "reasoning") } as ModelMessage;
+  });
+}
+
 /**
  * Streaming, multi-step agent turn. Streams text/reasoning deltas and tool
  * steps through callbacks; returns the new model messages (assistant + tool)
@@ -89,12 +104,13 @@ export async function streamAssistant(
   const result = streamText({
     model: makeModel(config),
     system: systemFor(cb.systemContext),
-    messages: history,
+    messages: stripReasoning(history), // never send prior reasoning back
     tools: buildTools(),
-    stopWhen: stepCountIs(8),
+    stopWhen: stepCountIs(6),
     abortSignal: cb.signal,
     temperature: 0.5,
-    onFinish: (e) => { appended = e.responseMessages as ModelMessage[]; },
+    prepareStep: ({ messages }) => ({ messages: stripReasoning(messages) }),
+    onFinish: (e) => { appended = stripReasoning(e.responseMessages as ModelMessage[]); },
   });
 
   for await (const part of result.fullStream) {
@@ -122,9 +138,10 @@ export async function askAssistant(
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: prompt.trim() }],
     tools: buildTools(),
-    stopWhen: stepCountIs(8),
+    stopWhen: stepCountIs(6),
     abortSignal: signal,
     temperature: 0.5,
+    prepareStep: ({ messages }) => ({ messages: stripReasoning(messages) }),
   });
   return text.trim() || "Done.";
 }
