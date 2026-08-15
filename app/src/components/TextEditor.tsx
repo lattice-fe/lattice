@@ -5,7 +5,8 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import { api, Entry, isTauri } from "../lib/api";
-import { baseName } from "../lib/format";
+import { baseName, parentOf } from "../lib/format";
+import { logActivity } from "../lib/activity";
 import { mdAssetComponents, resolveRelativePath, cleanHref, isExternalUrl } from "../lib/markdown";
 
 interface TextEditorProps {
@@ -132,6 +133,7 @@ export function TextEditor({ entry, onClose, onErrorToast, onOpenPath, isFullTab
       await api.writeFile(targetPath, text);
       isDirtyRef.current = false;
       setSaveStatus("saved");
+      logActivity({ type: "edit", title: `Edited ${baseName(targetPath)}`, sub: parentOf(targetPath) ?? "", path: targetPath });
     } catch (err) {
       console.error("Auto-save error:", err);
       setSaveStatus("unsaved");

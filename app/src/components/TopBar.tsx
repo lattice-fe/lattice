@@ -3,6 +3,7 @@ import { Explorer } from "../hooks/useExplorer";
 import { Search } from "../hooks/useSearch";
 import { baseName, crumbsOf, parentOf } from "../lib/format";
 import { api, Entry } from "../lib/api";
+import { logActivity } from "../lib/activity";
 
 const I = {
   back: <path d="M15 18l-6-6 6-6" />,
@@ -45,13 +46,14 @@ export function TopBar({
   // (incl. docs/keep). Live folder + file suggestions; Tab completes/cycles.
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState("");
+  const [invalid, setInvalid] = useState(false);
   const [sug, setSug] = useState<Sug[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const comp = useRef<{ base: string; matches: Match[]; idx: number; last: string }>({ base: "", matches: [], idx: 0, last: "" });
 
   useEffect(() => { if (editing) inputRef.current?.select(); }, [editing]);
 
-  const startEdit = () => { setValue(ex.path); comp.current = { base: "", matches: [], idx: 0, last: "" }; setEditing(true); };
+  const startEdit = () => { setValue(ex.path); setInvalid(false); comp.current = { base: "", matches: [], idx: 0, last: "" }; setEditing(true); };
 
   // Ctrl+L (address-bar convention) enters path edit; App dispatches the event.
   useEffect(() => {
@@ -91,15 +93,24 @@ export function TopBar({
     return () => { cancelled = true; clearTimeout(id); };
   }, [value, editing, dirMatches]);
 
+  // Absolute-path shapes we accept: drive (C:\ / C:/), unix root, UNC, or ~.
+  const looksLikePath = (p: string) => /^[A-Za-z]:/.test(p) || p.startsWith("/") || p.startsWith("\\\\") || p.startsWith("~");
+
   const commit = () => {
-    const t = value.trim();
-    setEditing(false);
-    if (!t) return;
+    let t = value.trim();
+    if (!t) { setEditing(false); return; }
+    // A bare drive letter ("d:") is drive-relative — make it the drive root ("d:/").
+    if (/^[A-Za-z]:$/.test(t)) t += "/";
     const l = t.toLowerCase();
-    const dest =
+    const special =
+      l === "home" || l === "lattice://home" ? "lattice://home" :
       l === "docs" || l === "lattice://docs" ? "lattice://docs" :
-      l === "keep" || l === "lattice://keep" ? "lattice://keep" : t;
-    ex.navigate(dest);
+      l === "keep" || l === "lattice://keep" ? "lattice://keep" : null;
+    if (special) { ex.navigate(special); setEditing(false); return; }
+    // Junk that isn't a route or a real path shape — don't even try to open it.
+    if (!looksLikePath(t)) { setInvalid(true); return; }
+    ex.navigate(t);
+    setEditing(false);
   };
 
   const complete = async () => {
@@ -163,9 +174,9 @@ export function TopBar({
           <div className="crumb-edit">
             <input
               ref={inputRef}
-              className="crumb-input"
+              className={"crumb-input" + (invalid ? " invalid" : "")}
               value={value}
-              onChange={(e) => setValue(e.target.value)}
+              onChange={(e) => { setValue(e.target.value); if (invalid) setInvalid(false); }}
               onKeyDown={onPathKey}
               onBlur={() => setEditing(false)}
               spellCheck={false}
@@ -214,7 +225,12 @@ export function TopBar({
         <input
           value={s.query}
           onChange={(e) => s.setQuery(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Escape") s.clear(); }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") s.clear();
+            else if (e.key === "Enter" && s.query.trim()) {
+              logActivity({ type: "search", title: `Searched “${s.query.trim()}”`, sub: `${s.mode[0].toUpperCase() + s.mode.slice(1)} · ${s.results.length} result${s.results.length === 1 ? "" : "s"}` });
+            }
+          }}
           placeholder="Search this index…"
         />
         {s.active && <button className="search-x" onClick={s.clear} title="Clear">×</button>}

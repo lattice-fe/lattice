@@ -19,6 +19,7 @@ import { ImageViewer } from "./components/ImageViewer";
 import { SpreadsheetViewer } from "./components/SpreadsheetViewer";
 import { DocumentationViewer } from "./components/DocumentationViewer";
 import { KeepCanvas } from "./components/KeepCanvas";
+import { HomePage } from "./components/HomePage";
 import { WatsonActionModal, WatsonActionRequest } from "./components/WatsonActionModal";
 import { WatsonChatPane } from "./components/WatsonChatPane";
 import { NewFileModal } from "./components/NewFileModal";
@@ -129,6 +130,7 @@ export default function App() {
   // keyboard shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const ex = exRef.current; // fresh explorer state (effect deps are [])
       if (e.key === "F1") { e.preventDefault(); ex.openDocTab(); return; }
       const ctrl = e.ctrlKey || e.metaKey;
       if (ctrl && e.shiftKey && e.key.toLowerCase() === "n") {
@@ -222,6 +224,9 @@ export default function App() {
   const activePathLower = ex.path.toLowerCase();
   const isDocTab = activePathLower === "lattice://docs";
   const isKeepTab = activePathLower === "lattice://keep";
+  const isHomeTab = activePathLower === "lattice://home";
+  // Watson chat pane, available on every page (docs/keep/home included) when enabled.
+  const watson = ex.chatOpen && aiPaneEnabled ? <WatsonChatPane ex={ex} onClose={() => ex.setChatOpen(false)} /> : null;
 
   return (
     <div className="app">
@@ -240,11 +245,21 @@ export default function App() {
         aiPaneEnabled={aiPaneEnabled}
       />
       {isDocTab ? (
-        <DocumentationViewer />
+        <div className="body" style={{ gridTemplateColumns: watson ? "1fr 320px" : "1fr" }}>
+          <DocumentationViewer />
+          {watson}
+        </div>
+      ) : isHomeTab ? (
+        <div className="body" style={{ gridTemplateColumns: watson ? "232px 1fr 320px" : "232px 1fr" }}>
+          <Sidebar ex={ex} />
+          <HomePage ex={ex} />
+          {watson}
+        </div>
       ) : isKeepTab ? (
-        <div className="body" style={{ gridTemplateColumns: "232px 1fr" }}>
+        <div className="body" style={{ gridTemplateColumns: watson ? "232px 1fr 320px" : "232px 1fr" }}>
           <Sidebar ex={ex} />
           <KeepCanvas ex={ex} />
+          {watson}
         </div>
       ) : isFileTab ? (
         <div className="body" style={{ gridTemplateColumns: fileTabSidebarOpen ? "232px 1fr" : "1fr" }}>

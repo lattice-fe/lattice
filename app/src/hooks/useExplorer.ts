@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, Drive, Entry, Shortcut } from "../lib/api";
 import { Sort, SortCol, sortEntries } from "../lib/sort";
-import { parentOf, isFilePath } from "../lib/format";
+import { parentOf, baseName, isFilePath } from "../lib/format";
+import { logActivity } from "../lib/activity";
 import { extOf } from "../lib/preview/registry";
 
 export interface Clipboard { paths: string[]; mode: "copy" | "cut"; }
@@ -24,6 +25,7 @@ interface Tab {
 }
 
 const PINNED_KEY = "lattice:pinned-folders";
+const QUICK_HIDDEN_KEY = "lattice:quick-hidden";
 const HOME_DIR_KEY = "lattice:home-dir";
 const SESSION_KEY = "lattice:session-state";
 const GROUPS_KEY = "lattice:tab-groups";
@@ -41,6 +43,16 @@ function loadPinned(): Shortcut[] {
 
 function savePinned(items: Shortcut[]) {
   localStorage.setItem(PINNED_KEY, JSON.stringify(items));
+}
+
+function loadHiddenQuick(): string[] {
+  try {
+    const raw = localStorage.getItem(QUICK_HIDDEN_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+function saveHiddenQuick(items: string[]) {
+  localStorage.setItem(QUICK_HIDDEN_KEY, JSON.stringify(items));
 }
 
 function getSavedHomeDir(): string {
@@ -122,12 +134,31 @@ export function useExplorer() {
   const [drives, setDrives] = useState<Drive[]>([]);
   const [quick, setQuick] = useState<Shortcut[]>([]);
   const [pinned, setPinned] = useState<Shortcut[]>(loadPinned);
+  const [hiddenQuick, setHiddenQuick] = useState<string[]>(loadHiddenQuick);
 
   const allQuick = useMemo(() => {
     const pinnedPaths = new Set(pinned.map((p) => p.path.toLowerCase()));
-    const filtered = quick.filter((q) => !pinnedPaths.has(q.path.toLowerCase()));
+    const hidden = new Set(hiddenQuick.map((h) => h.toLowerCase()));
+    const filtered = quick.filter((q) => !pinnedPaths.has(q.path.toLowerCase()) && !hidden.has(q.path.toLowerCase()));
     return [...pinned, ...filtered];
-  }, [pinned, quick]);
+  }, [pinned, quick, hiddenQuick]);
+
+  const hideQuick = useCallback((path: string) => {
+    setHiddenQuick((prev) => {
+      const p = path.toLowerCase();
+      if (prev.includes(p)) return prev;
+      const next = [...prev, p];
+      saveHiddenQuick(next);
+      return next;
+    });
+  }, []);
+  const showQuick = useCallback((path: string) => {
+    setHiddenQuick((prev) => {
+      const next = prev.filter((h) => h !== path.toLowerCase());
+      saveHiddenQuick(next);
+      return next;
+    });
+  }, []);
 
   const pinFolder = useCallback((label: string, path: string) => {
     setPinned((prev) => {
@@ -185,7 +216,6 @@ export function useExplorer() {
     api.homeDir().then((h) => {
       homeRef.current = h;
       const saved = loadSavedSession();
-      const customHome = getSavedHomeDir();
       if (saved && saved.tabs && saved.tabs.length > 0) {
         setTabs(saved.tabs);
         setActiveId(saved.activeId);
@@ -193,9 +223,8 @@ export function useExplorer() {
         nextId.current = maxId + 1;
         if (saved.openMode) setOpenModeState(saved.openMode);
       } else {
-        const start = customHome || h;
         const id = nextId.current++;
-        setTabs([{ id, history: [start], hi: 0 }]);
+        setTabs([{ id, history: [getSavedHomeDir() || "lattice://home"], hi: 0 }]);
         setActiveId(id);
       }
     });
@@ -228,8 +257,7 @@ export function useExplorer() {
   const forward = useCallback(() => { setSel(new Set()); patchActive((t) => (t.hi < t.history.length - 1 ? { ...t, hi: t.hi + 1 } : t)); }, [patchActive]);
 
   const newTab = useCallback((p?: string) => {
-    const customHome = getSavedHomeDir();
-    const start = p || customHome || homeRef.current || "~";
+    const start = p || getSavedHomeDir() || "lattice://home";
     if (!start) return;
     const id = nextId.current++;
     setTabs((ts) => [...ts, { id, history: [start], hi: 0 }]);
@@ -435,7 +463,10 @@ export function useExplorer() {
 
   const openEntry = useCallback((e: Entry) => {
     if (e.is_dir) navigate(e.path);
-    else api.openPath(e.path);
+    else {
+      logActivity({ type: "open", title: `Opened ${e.name}`, sub: parentOf(e.path) ?? "", path: e.path });
+      api.openPath(e.path);
+    }
   }, [navigate]);
 
   const setSort = useCallback((col: SortCol) => {
@@ -458,6 +489,7 @@ export function useExplorer() {
     setCtx(null);
     try {
       const created = await api.newFolder(path);
+      logActivity({ type: "create", title: `Created ${baseName(created)}`, sub: path, path: created });
       await refresh();
       startRename(created);
     } catch (e) { setError(String(e)); }
@@ -535,6 +567,7 @@ export function useExplorer() {
     openContext: (x: number, y: number, index: number | null, customEntry?: Entry | null) => setCtx({ x, y, index, customEntry }),
     closeContext: () => setCtx(null),
     pinFolder, unpinFolder, isPinned,
+    quickDefaults: quick, pinnedQuick: pinned, hiddenQuick, hideQuick, showQuick,
     previewCollapsed,
     togglePreview: () => setPreviewCollapsed((prev) => !prev),
     openMode, setOpenMode, splitItem, closeSplitItem, openItemSpecial,
