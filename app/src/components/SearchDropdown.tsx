@@ -126,7 +126,7 @@ export function SearchDropdown({ s, ex }: SearchDropdownProps) {
               className={"mode-mini" + (s.mode === m ? " on" : "")}
               onClick={() => s.setMode(m)}
               style={{
-                fontSize: "10.5px",
+                fontSize: "11px",
                 padding: "2px 7px",
                 borderRadius: "var(--radius-sm)",
                 border: s.mode === m ? "1px solid var(--terracotta)" : "1px solid var(--border-soft)",
@@ -155,7 +155,7 @@ export function SearchDropdown({ s, ex }: SearchDropdownProps) {
         }}
       >
         {results.length === 0 ? (
-          <div style={{ padding: "24px 16px", textAlign: "center", color: "var(--dim-2)", fontSize: "12.5px" }}>
+          <div style={{ padding: "24px 16px", textAlign: "center", color: "var(--dim-2)", fontSize: "13px" }}>
             {s.searching ? "Searching index…" : `No matches for "${s.query.trim()}"`}
           </div>
         ) : (
@@ -231,7 +231,7 @@ export function SearchDropdown({ s, ex }: SearchDropdownProps) {
                   {dir && (
                     <span
                       style={{
-                        fontSize: "10.5px",
+                        fontSize: "11px",
                         color: "var(--dim-2)",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
@@ -257,7 +257,7 @@ export function SearchDropdown({ s, ex }: SearchDropdownProps) {
           padding: "6px 12px",
           borderTop: "1px solid var(--border-soft)",
           background: "var(--ink-3)",
-          fontSize: "10.5px",
+          fontSize: "11px",
           color: "var(--dim-2)",
         }}
       >

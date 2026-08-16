@@ -14,6 +14,7 @@ import { getAssistantConfig, AssistantConfig, ASSISTANT_EVENT } from "../lib/ass
 import { askAssistant } from "../lib/assistant/client";
 import { searchNotes } from "../lib/keep/store";
 import { Note } from "../lib/keep/types";
+import { ThinkingIndicator } from "./ThinkingIndicator";
 
 const MODES: SearchMode[] = ["name", "text", "semantic"];
 type Mode = "default" | "apps" | "files" | "web" | "math" | "commands" | "assistant";
@@ -330,11 +331,8 @@ export function Spotlight() {
         <div className="spot-assistant-panel" style={{ padding: "14px 20px 16px" }}>
           {assistantLoading ? (
             <div style={{ padding: "14px 0", color: "var(--paper-dim)", fontSize: "13px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <span className="splash-dot" style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--amber)", display: "inline-block", animation: "splashCorePulse 1.2s infinite" }} />
-                Thinking...
-              </div>
-              <span style={{ fontFamily: "var(--mono)", fontSize: "11.5px", color: "var(--dim-2)" }}>{assistantElapsedMs}ms</span>
+              <ThinkingIndicator label="Thinking…" size={20} />
+              <span style={{ fontFamily: "var(--mono)", fontSize: "12px", color: "var(--dim-2)" }}>{assistantElapsedMs}ms</span>
             </div>
           ) : assistantAnswer ? (
             <div>
@@ -405,7 +403,7 @@ export function Spotlight() {
               </div>
             </div>
           ) : (
-            <div style={{ padding: "8px 0", color: "var(--dim-2)", fontSize: "12.5px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ padding: "8px 0", color: "var(--dim-2)", fontSize: "13px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <span>Press Enter to ask Watson</span>
               {term.trim() && (
                 <button

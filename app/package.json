@@ -24,6 +24,7 @@
     "rehype-highlight": "^7.0.2",
     "rehype-raw": "^7.0.0",
     "remark-gfm": "^4.0.1",
+    "thinking-orbs": "^0.3.1",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

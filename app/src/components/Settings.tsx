@@ -560,7 +560,7 @@ export function Settings({ ex, ind, th, onClose }: { ex: Explorer; ind: Indexer;
                       background: "var(--card)",
                       color: "var(--paper)",
                       fontFamily: "var(--mono)",
-                      fontSize: "12.5px",
+                      fontSize: "13px",
                       boxSizing: "border-box",
                     }}
                   />
@@ -582,7 +582,7 @@ export function Settings({ ex, ind, th, onClose }: { ex: Explorer; ind: Indexer;
                       background: "var(--card)",
                       color: "var(--paper)",
                       fontFamily: "var(--mono)",
-                      fontSize: "12.5px",
+                      fontSize: "13px",
                       boxSizing: "border-box",
                     }}
                   />
@@ -605,7 +605,7 @@ export function Settings({ ex, ind, th, onClose }: { ex: Explorer; ind: Indexer;
                         background: "var(--card)",
                         color: "var(--paper)",
                         fontFamily: "var(--mono)",
-                        fontSize: "12.5px",
+                        fontSize: "13px",
                         boxSizing: "border-box",
                       }}
                     />

@@ -125,7 +125,7 @@ export function NewFileModal({ folderPath, onClose, onCreated }: NewFileModalPro
               background: "var(--ink-2)",
               borderRight: "1px solid var(--border-soft)",
               color: "var(--paper-dim)",
-              fontSize: "12.5px",
+              fontSize: "13px",
               maxWidth: "180px",
               overflow: "hidden",
               textOverflow: "ellipsis",
@@ -163,7 +163,7 @@ export function NewFileModal({ folderPath, onClose, onCreated }: NewFileModalPro
         </div>
 
         {error && (
-          <div style={{ color: "var(--terracotta)", fontSize: "11.5px", marginBottom: "12px" }}>
+          <div style={{ color: "var(--terracotta)", fontSize: "12px", marginBottom: "12px" }}>
             {error}
           </div>
         )}

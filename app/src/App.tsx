@@ -214,6 +214,7 @@ export default function App() {
       const wait = Math.max(0, SPLASH_MIN_MS - (Date.now() - t0));
       const timer = setTimeout(() => {
         splash.classList.add("splash-hidden");
+        document.documentElement.setAttribute("data-revealed", ""); // app settles in behind the fading splash
         setTimeout(() => splash.remove(), 400);
       }, wait);
       return () => clearTimeout(timer);

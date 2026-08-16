@@ -96,6 +96,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .crumb-suggest-item {
   display: block; width: 100%; text-align: left; background: transparent; border: none;
   color: var(--paper); font-family: var(--mono); font-size: 12px; padding: 5px 8px; border-radius: 4px; cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
 }
 .crumb-suggest-item.file { color: var(--dim); }
 .crumb-suggest-item:hover { background: var(--ink-3); }
@@ -643,6 +644,8 @@ body.is-spotlight #root { padding: 0; margin: 0; }
 .modal-backdrop { position: fixed; inset: 0; z-index: 80; background: color-mix(in srgb, var(--ink) 50%, transparent); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; animation: ov-in 0.14s ease; }
 @keyframes ov-in { from { opacity: 0; } to { opacity: 1; } }
 .modal { width: 480px; max-height: 85vh; overflow-y: auto; background: var(--ink-2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 22px 24px; box-shadow: var(--shadow); animation: rise 0.2s cubic-bezier(0.2, 0.8, 0.3, 1); }
+/* Shared chrome for header/body modals (Watson action, Quick access edit). */
+.modal-panel { max-width: 92vw; max-height: 82vh; background: var(--ink); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55); display: flex; flex-direction: column; overflow: hidden; animation: rise 0.2s cubic-bezier(0.2, 0.8, 0.3, 1); }
 .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
 .modal-head h2 { font-family: var(--serif); font-size: 22px; font-weight: 600; margin: 0; }
 .modal-x { width: 30px; height: 30px; border-radius: var(--radius); color: var(--dim); font-size: 20px; line-height: 1; transition: background 0.14s ease, color 0.14s ease; }
@@ -1209,7 +1212,7 @@ body.is-spotlight #root { padding: 0; margin: 0; }
   margin: 32px 0;
 }
 
-.doc-table {
+.doc-table, .doc-content-body table {
   width: 100%;
   border-collapse: collapse;
   margin: 16px 0;
@@ -1220,13 +1223,15 @@ body.is-spotlight #root { padding: 0; margin: 0; }
   border: 1px solid var(--border-soft);
 }
 
-.doc-table th, .doc-table td {
+.doc-table th, .doc-table td,
+.doc-content-body th, .doc-content-body td {
   padding: 10px 14px;
   text-align: left;
   border-bottom: 1px solid var(--border-soft);
+  vertical-align: top;
 }
 
-.doc-table th {
+.doc-table th, .doc-content-body th {
   background: var(--card);
   color: var(--paper);
   font-weight: 600;
@@ -2264,8 +2269,39 @@ body.is-spotlight #root { padding: 0; margin: 0; }
 .home-result {
   display: flex; align-items: center; gap: 12px; padding: 9px 10px; border-radius: var(--radius-sm);
   background: transparent; border: none; cursor: pointer; text-align: left; width: 100%;
+  transition: background 0.12s ease;
 }
 .home-result:hover { background: var(--ink-2); }
 .home-result-name { font-size: 13px; color: var(--paper); flex-shrink: 0; }
 .home-result-sub { font-size: 11px; color: var(--dim); font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---- Transition animations (subtle, matches menu-in/hp-in house style) ---- */
+/* Opacity-only: transforms extend a scroll container's overflow region in
+   Chromium, flashing a scrollbar for a few frames = layout jerk. Fades don't. */
+@keyframes content-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pane-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes app-reveal { from { opacity: 0; } to { opacity: 1; } }
+
+/* App settles in as the splash fades out (first load only). */
+html[data-revealed] .app { animation: app-reveal 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+
+/* Content entrance on route / tab open. */
+.home-greeting { animation: content-in 0.34s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.home-search { animation: content-in 0.34s cubic-bezier(0.16, 1, 0.3, 1) 0.05s both; }
+.home-section, .home-results { animation: content-in 0.34s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both; }
+.panel { animation: content-in 0.2s ease-out; }
+.tab-file-panel { animation: content-in 0.22s cubic-bezier(0.16, 1, 0.3, 1); }
+
+/* Right-side panes slide in when they open. */
+.watson-chat-pane { animation: pane-in 0.22s cubic-bezier(0.16, 1, 0.3, 1); }
+.split-view-panel { animation: pane-in 0.22s cubic-bezier(0.16, 1, 0.3, 1); }
+.inspector { animation: pane-in 0.2s ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-revealed] .app,
+  .home-greeting, .home-search, .home-section, .home-results,
+  .panel, .tab-file-panel, .watson-chat-pane, .split-view-panel, .inspector {
+    animation: none;
+  }
+}
 

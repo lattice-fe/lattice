@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
+import { ThinkingOrb } from "thinking-orbs";
 import { Entry, api } from "../lib/api";
 import { getAssistantConfig } from "../lib/assistant/config";
 import { askAssistant } from "../lib/assistant/client";
@@ -89,34 +91,10 @@ export function WatsonActionModal({ request, onClose, onToast }: WatsonActionMod
   };
 
   return (
-    <div
-      className="modal-backdrop"
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0, 0, 0, 0.65)",
-        backdropFilter: "blur(6px)",
-        display: "grid",
-        placeItems: "center",
-        zIndex: 99999,
-        animation: "fadein 0.15s ease-out",
-      }}
-      onClick={onClose}
-    >
+    <div className="modal-backdrop" onClick={onClose}>
       <div
-        className="modal"
-        style={{
-          width: "560px",
-          maxWidth: "92vw",
-          maxHeight: "82vh",
-          background: "var(--ink)",
-          border: "1px solid var(--border)",
-          borderRadius: "var(--radius-lg)",
-          boxShadow: "0 24px 60px rgba(0, 0, 0, 0.75)",
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-        }}
+        className="modal-panel"
+        style={{ width: "660px" }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -165,33 +143,24 @@ export function WatsonActionModal({ request, onClose, onToast }: WatsonActionMod
             flex: 1,
             overflowY: "auto",
             padding: "20px 22px",
-            fontSize: "13.5px",
+            fontSize: "14px",
             lineHeight: "1.65",
             color: "var(--paper)",
           }}
         >
           {loading ? (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 0", gap: "12px", color: "var(--dim)" }}>
-              <div
-                style={{
-                  width: "24px",
-                  height: "24px",
-                  border: "2.5px solid var(--border-soft)",
-                  borderTopColor: "var(--amber)",
-                  borderRadius: "50%",
-                  animation: "spin 0.8s linear infinite",
-                }}
-              />
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 0", gap: "14px", color: "var(--dim)" }}>
+              <ThinkingOrb state="composing" size={64} theme={document.documentElement.getAttribute("data-appearance") === "light" ? "light" : "dark"} />
               <span style={{ fontSize: "13px" }}>Watson is analyzing {entry.name}…</span>
             </div>
           ) : error ? (
             <div style={{ padding: "16px", background: "color-mix(in srgb, var(--terracotta) 12%, transparent)", border: "1px solid var(--terracotta)", borderRadius: "var(--radius)", color: "var(--paper)" }}>
               <div style={{ fontWeight: 600, marginBottom: "4px", color: "var(--terracotta)" }}>Watson Error</div>
-              <div style={{ fontSize: "12.5px", color: "var(--dim)" }}>{error}</div>
+              <div style={{ fontSize: "13px", color: "var(--dim)" }}>{error}</div>
             </div>
           ) : (
             <div className="doc-content-body">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
                 {response || ""}
               </ReactMarkdown>
             </div>

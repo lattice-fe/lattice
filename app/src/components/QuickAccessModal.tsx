@@ -24,11 +24,7 @@ export function QuickAccessModal({ ex, onClose }: { ex: Explorer; onClose: () =>
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div
-        className="modal"
-        style={{ width: "480px", maxWidth: "92vw", maxHeight: "80vh", background: "var(--ink)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", boxShadow: "0 24px 60px rgba(0,0,0,0.7)", display: "flex", flexDirection: "column", overflow: "hidden" }}
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="modal-panel" style={{ width: "480px" }} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 18px", borderBottom: "1px solid var(--border-soft)" }}>
           <div style={{ fontSize: "15px", fontWeight: 600, color: "var(--paper)" }}>Edit Quick Access</div>
           <button className="iconbtn" onClick={onClose} title="Done" style={{ width: 26, height: 26 }}><XIcon /></button>

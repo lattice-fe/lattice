@@ -243,7 +243,7 @@ export function TopBar({
           onClick={onToggleChat}
           style={{ width: "auto", padding: "0 9px", height: "32px", display: "inline-flex", alignItems: "center", gap: "5px" }}
         >
-          <span style={{ fontFamily: "'Syne Mono', monospace, var(--mono)", fontSize: "11.5px", fontWeight: 600, color: chatOpen ? "var(--amber)" : "var(--dim)" }}>
+          <span style={{ fontFamily: "'Syne Mono', monospace, var(--mono)", fontSize: "12px", fontWeight: 600, color: chatOpen ? "var(--amber)" : "var(--dim)" }}>
             Watson
           </span>
         </button>

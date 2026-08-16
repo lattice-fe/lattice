@@ -117,7 +117,7 @@ export function ImageViewer({ entry, onClose }: ImageViewerProps) {
               boxShadow: "var(--shadow)",
               padding: "14px 16px",
               zIndex: 30,
-              fontSize: "12.5px",
+              fontSize: "13px",
               color: "var(--paper)",
               animation: "fadein 0.18s ease-out",
             }}

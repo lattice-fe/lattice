@@ -6,6 +6,7 @@ import { streamAssistant, ToolStep, ModelMessage } from "../lib/assistant/client
 import { getAssistantConfig } from "../lib/assistant/config";
 import { createNote } from "../lib/keep/store";
 import { baseName } from "../lib/format";
+import { ThinkingIndicator } from "./ThinkingIndicator";
 
 interface WatsonChatPaneProps {
   ex: Explorer;
@@ -45,11 +46,11 @@ function StepRow({ label, status }: { label: string; status: ToolStep["status"] 
       : status === "error" ? { ch: "✕", color: "var(--terracotta)" }
         : { ch: "", color: "var(--amber)" };
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: "7px", fontSize: "11.5px", color: "var(--dim)", fontFamily: "var(--mono)", lineHeight: 1.8 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: "7px", fontSize: "12px", color: "var(--dim)", fontFamily: "var(--mono)", lineHeight: 1.8 }}>
       {status === "running" ? (
         <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--amber)", display: "inline-block", animation: "pulse 1.2s infinite", flexShrink: 0 }} />
       ) : (
-        <span style={{ width: "6px", textAlign: "center", color: mark.color, fontSize: "10px", flexShrink: 0 }}>{mark.ch}</span>
+        <span style={{ width: "6px", textAlign: "center", color: mark.color, fontSize: "11px", flexShrink: 0 }}>{mark.ch}</span>
       )}
       <span>{label}{status === "running" ? "…" : ""}</span>
     </div>
@@ -214,7 +215,7 @@ export function WatsonChatPane({ ex, onClose }: WatsonChatPaneProps) {
               {["What is in this folder?", "List my pinned notes", "Create a checklist for today"].map((suggestion) => (
                 <button
                   key={suggestion} type="button" onClick={() => handleSend(suggestion)}
-                  style={{ fontSize: "11.5px", padding: "7px 10px", background: "var(--card)", border: "1px solid var(--border-soft)", borderRadius: "var(--radius-sm)", color: "var(--paper-dim)", textAlign: "left", cursor: "pointer", transition: "all 0.1s ease" }}
+                  style={{ fontSize: "12px", padding: "7px 10px", background: "var(--card)", border: "1px solid var(--border-soft)", borderRadius: "var(--radius-sm)", color: "var(--paper-dim)", textAlign: "left", cursor: "pointer", transition: "all 0.1s ease" }}
                   onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--amber)")}
                   onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-soft)")}
                 >
@@ -251,11 +252,11 @@ export function WatsonChatPane({ ex, onClose }: WatsonChatPaneProps) {
                 {/* Turn actions */}
                 {!isUser && body.trim() && (
                   <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
-                    <button type="button" onClick={() => handleCopy(idx, body)} style={{ background: "transparent", border: "none", fontSize: "10.5px", color: "var(--dim)", cursor: "pointer", padding: "2px 4px" }}>
+                    <button type="button" onClick={() => handleCopy(idx, body)} style={{ background: "transparent", border: "none", fontSize: "11px", color: "var(--dim)", cursor: "pointer", padding: "2px 4px" }}>
                       {copiedIdx === idx ? "Copied" : "Copy"}
                     </button>
-                    <span style={{ color: "var(--dim-2)", fontSize: "10px" }}>·</span>
-                    <button type="button" onClick={() => handleSaveToKeep(idx, body)} style={{ background: "transparent", border: "none", fontSize: "10.5px", color: savedIdx === idx ? "var(--sage)" : "var(--amber)", cursor: "pointer", padding: "2px 4px" }}>
+                    <span style={{ color: "var(--dim-2)", fontSize: "11px" }}>·</span>
+                    <button type="button" onClick={() => handleSaveToKeep(idx, body)} style={{ background: "transparent", border: "none", fontSize: "11px", color: savedIdx === idx ? "var(--sage)" : "var(--amber)", cursor: "pointer", padding: "2px 4px" }}>
                       {savedIdx === idx ? "Saved to Keep" : "Save to Keep"}
                     </button>
                   </div>
@@ -274,7 +275,7 @@ export function WatsonChatPane({ ex, onClose }: WatsonChatPaneProps) {
               </div>
             )}
             {reasoning.trim() && (
-              <div style={{ fontSize: "11.5px", fontStyle: "italic", color: "var(--dim-2)", lineHeight: 1.5, borderLeft: "2px solid var(--border)", paddingLeft: "8px", whiteSpace: "pre-wrap", maxHeight: "120px", overflowY: "auto" }}>
+              <div style={{ fontSize: "12px", fontStyle: "italic", color: "var(--dim-2)", lineHeight: 1.5, borderLeft: "2px solid var(--border)", paddingLeft: "8px", whiteSpace: "pre-wrap", maxHeight: "120px", overflowY: "auto" }}>
                 {reasoning}
               </div>
             )}
@@ -283,9 +284,8 @@ export function WatsonChatPane({ ex, onClose }: WatsonChatPaneProps) {
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{streamText}</ReactMarkdown>
               </div>
             ) : liveSteps.length === 0 && !reasoning.trim() ? (
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 2px", color: "var(--dim)", fontSize: "12.5px" }}>
-                <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--amber)", display: "inline-block", animation: "pulse 1.2s infinite" }} />
-                <span>Watson is thinking…</span>
+              <div style={{ padding: "4px 2px" }}>
+                <ThinkingIndicator label="Watson is thinking…" />
               </div>
             ) : null}
           </div>
@@ -301,14 +301,14 @@ export function WatsonChatPane({ ex, onClose }: WatsonChatPaneProps) {
             ref={inputRef} rows={1} value={input}
             onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown}
             placeholder="Ask Watson (Enter to send)..."
-            style={{ flex: 1, background: "var(--ink)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", color: "var(--paper)", fontSize: "12.5px", padding: "7px 9px", resize: "none", maxHeight: "80px", minHeight: "32px", outline: "none", fontFamily: "inherit", lineHeight: "1.4" }}
+            style={{ flex: 1, background: "var(--ink)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", color: "var(--paper)", fontSize: "13px", padding: "7px 9px", resize: "none", maxHeight: "80px", minHeight: "32px", outline: "none", fontFamily: "inherit", lineHeight: "1.4" }}
           />
           <button
             type="button"
             onClick={() => (loading ? handleStop() : handleSend())}
             disabled={!loading && !input.trim()}
             title={loading ? "Stop" : "Send"}
-            style={{ height: "32px", padding: "0 10px", fontSize: "11.5px", fontWeight: 600, borderRadius: "var(--radius-sm)", background: loading ? "var(--ink-3)" : "var(--amber)", border: loading ? "1px solid var(--border)" : "none", color: loading ? "var(--paper)" : "var(--ink)", cursor: !loading && !input.trim() ? "default" : "pointer", opacity: !loading && !input.trim() ? 0.5 : 1, flexShrink: 0 }}
+            style={{ height: "32px", padding: "0 10px", fontSize: "12px", fontWeight: 600, borderRadius: "var(--radius-sm)", background: loading ? "var(--ink-3)" : "var(--amber)", border: loading ? "1px solid var(--border)" : "none", color: loading ? "var(--paper)" : "var(--ink)", cursor: !loading && !input.trim() ? "default" : "pointer", opacity: !loading && !input.trim() ? 0.5 : 1, flexShrink: 0 }}
           >
             {loading ? "Stop" : "Send"}
           </button>
