@@ -1,4 +1,4 @@
-import { streamText, generateText, stepCountIs, tool, jsonSchema, type ModelMessage } from "ai";
+import { streamText, stepCountIs, tool, jsonSchema, type ModelMessage } from "ai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { AssistantConfig } from "./config";
 import {
@@ -28,6 +28,14 @@ export interface ToolStep {
   id: string;
   name: string;
   status: "running" | "done" | "error";
+  detail?: string; // primary argument (path / query / title) for a richer label
+}
+
+// The one argument worth showing in the step trace, per tool.
+function stepDetail(input: unknown): string | undefined {
+  const a = input as Record<string, unknown> | undefined;
+  const v = a?.path ?? a?.query ?? a?.title ?? a?.name ?? a?.skill_name;
+  return typeof v === "string" && v.trim() ? v : undefined;
 }
 
 export interface StreamCallbacks {
@@ -113,13 +121,19 @@ export async function streamAssistant(
     onFinish: (e) => { appended = stripReasoning(e.responseMessages as ModelMessage[]); },
   });
 
+  const detailById = new Map<string, string | undefined>();
   for await (const part of result.fullStream) {
     switch (part.type) {
       case "text-delta": cb.onText?.(part.text); break;
       case "reasoning-delta": cb.onReasoning?.(part.text); break;
-      case "tool-call": cb.onStep?.({ id: part.toolCallId, name: part.toolName, status: "running" }); break;
-      case "tool-result": cb.onStep?.({ id: part.toolCallId, name: part.toolName, status: "done" }); break;
-      case "tool-error": cb.onStep?.({ id: part.toolCallId, name: part.toolName, status: "error" }); break;
+      case "tool-call": {
+        const detail = stepDetail((part as { input?: unknown }).input);
+        detailById.set(part.toolCallId, detail);
+        cb.onStep?.({ id: part.toolCallId, name: part.toolName, status: "running", detail });
+        break;
+      }
+      case "tool-result": cb.onStep?.({ id: part.toolCallId, name: part.toolName, status: "done", detail: detailById.get(part.toolCallId) }); break;
+      case "tool-error": cb.onStep?.({ id: part.toolCallId, name: part.toolName, status: "error", detail: detailById.get(part.toolCallId) }); break;
       case "error": throw part.error instanceof Error ? part.error : new Error(String(part.error));
     }
   }
@@ -127,21 +141,19 @@ export async function streamAssistant(
   return { messages: appended };
 }
 
-// Non-streaming one-shot (Spotlight, connection test, action modal).
+// One-shot (Spotlight, connection test, action modal). Runs through the
+// streaming path and collects the final text — many OpenAI-compatible proxies
+// (e.g. Omniroute) always reply with an SSE stream even for a non-stream
+// request, which a plain generateText() can't parse ("Invalid JSON response").
 export async function askAssistant(
   prompt: string,
   config: AssistantConfig,
   signal?: AbortSignal
 ): Promise<string> {
-  const { text } = await generateText({
-    model: makeModel(config),
-    system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: prompt.trim() }],
-    tools: buildTools(),
-    stopWhen: stepCountIs(6),
-    abortSignal: signal,
-    temperature: 0.5,
-    prepareStep: ({ messages }) => ({ messages: stripReasoning(messages) }),
+  let text = "";
+  await streamAssistant([{ role: "user", content: prompt.trim() }], config, {
+    signal,
+    onText: (d) => { text += d; },
   });
   return text.trim() || "Done.";
 }

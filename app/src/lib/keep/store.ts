@@ -9,7 +9,7 @@ const STARTER_NOTES: Note[] = [
   {
     id: "welcome-note",
     title: "Welcome to Keep in Lattice",
-    content: "A native, local-first workspace for your thoughts, lists, and reminders.\n\n- **100% Offline & Private**\n- Markdown support with bold, code, and links\n- Ask **Watson** (`Alt+Space` → `!`) to create or search notes instantly!",
+    content: "A native, local-first workspace for your thoughts, lists, and reminders.\n\n- **100% Offline & Private**\n- Markdown support with bold, code, and links\n- Ask **watson** (`Alt+Space` → `!`) to create or search notes instantly!",
     type: "note",
     color: "amber",
     pinned: true,

@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { emit } from "@tauri-apps/api/event";
-import { Explorer } from "../hooks/useExplorer";
+import { Explorer, NATIVE_OPEN_PATTERNS_KEY, NATIVE_OPEN_MODE_KEY } from "../hooks/useExplorer";
 import { Indexer } from "../hooks/useIndexer";
 import { ThemeApi } from "../hooks/useTheme";
 import { Theme } from "../lib/theme/types";
@@ -8,7 +8,7 @@ import { api, isTauri } from "../lib/api";
 import { baseName } from "../lib/format";
 import { themeVars } from "../lib/theme/engine";
 import { ThemeEditor } from "./ThemeEditor";
-import { getAssistantConfig, saveAssistantConfig, AssistantConfig, ASSISTANT_EVENT } from "../lib/assistant/config";
+import { getAssistantConfig, saveAssistantConfig, AssistantConfig, ASSISTANT_EVENT, ASSISTANT_DOM_EVENT, FastOverride, FAST_CONFIG_KEY, getFastOverride, saveFastOverride } from "../lib/assistant/config";
 import { askAssistant } from "../lib/assistant/client";
 
 // Hover preview delay settings (localStorage keys)
@@ -131,6 +131,26 @@ export function Settings({ ex, ind, th, onClose }: { ex: Explorer; ind: Indexer;
   const [neverUnblur, setNeverUnblur] = useState(() => localStorage.getItem(NEVER_UNBLUR_KEY) === "true");
   const [blurPatterns, setBlurPatterns] = useState(() => localStorage.getItem(BLUR_PATTERNS_KEY) || "");
 
+  // "Open natively" rules — files matching these open in-app on double-click.
+  const [nativePatterns, setNativePatterns] = useState<string>(() => {
+    try { return (JSON.parse(localStorage.getItem(NATIVE_OPEN_PATTERNS_KEY) || "[]") as string[]).join("\n"); } catch { return ""; }
+  });
+  const [nativeMode, setNativeMode] = useState<"split" | "tab">(() => (localStorage.getItem(NATIVE_OPEN_MODE_KEY) === "tab" ? "tab" : "split"));
+  const [nativeSaved, setNativeSaved] = useState(false);
+  const nativeSavedTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const flashNativeSaved = () => {
+    setNativeSaved(true);
+    clearTimeout(nativeSavedTimer.current);
+    nativeSavedTimer.current = setTimeout(() => setNativeSaved(false), 1600);
+  };
+  const saveNativePatterns = (text: string) => {
+    setNativePatterns(text);
+    const arr = text.split("\n").map((s) => s.trim()).filter(Boolean);
+    localStorage.setItem(NATIVE_OPEN_PATTERNS_KEY, JSON.stringify(arr));
+    flashNativeSaved();
+  };
+  const saveNativeMode = (m: "split" | "tab") => { setNativeMode(m); localStorage.setItem(NATIVE_OPEN_MODE_KEY, m); flashNativeSaved(); };
+
   // Startup animation setting (read at page load by index.html)
   const [startupAnim, setStartupAnim] = useState(() => localStorage.getItem("lattice:startup-animation") !== "off");
   const handleStartupAnimChange = () => {
@@ -170,6 +190,24 @@ export function Settings({ ex, ind, th, onClose }: { ex: Explorer; ind: Indexer;
     if (isTauri) {
       emit(ASSISTANT_EVENT, updated).catch(() => {});
     }
+  };
+
+  // Optional "fast" profile for Spotlight (falls back to the config above).
+  const [fastConfig, setFastConfig] = useState<FastOverride>(() => getFastOverride() ?? { baseUrl: "", model: "", apiKey: "" });
+  const [advancedOpen, setAdvancedOpen] = useState(() => getFastOverride() !== null);
+  const [showFastKey, setShowFastKey] = useState(false);
+  const nudgeSpotlight = () => { if (isTauri) emit(ASSISTANT_EVENT, assistantConfig).catch(() => {}); };
+  const updateFastConfig = (patch: Partial<FastOverride>) => {
+    const updated = { ...fastConfig, ...patch };
+    setFastConfig(updated);
+    saveFastOverride(updated);
+    nudgeSpotlight();
+  };
+  const clearFastConfig = () => {
+    setFastConfig({ baseUrl: "", model: "", apiKey: "" });
+    try { localStorage.removeItem(FAST_CONFIG_KEY); } catch { /* ignore */ }
+    window.dispatchEvent(new CustomEvent(ASSISTANT_DOM_EVENT));
+    nudgeSpotlight();
   };
 
   const handleTestConnection = async () => {
@@ -420,6 +458,30 @@ export function Settings({ ex, ind, th, onClose }: { ex: Explorer; ind: Indexer;
                 </div>
               </div>
 
+              {/* Open natively */}
+              <div className="setting-group" style={{ marginBottom: "24px" }}>
+                <div className="settings-section-title" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                    Open natively
+                    <span style={{ color: "var(--teal)", fontSize: "12px", fontWeight: 500, opacity: nativeSaved ? 1 : 0, transition: "opacity .18s ease" }}>✓ Saved</span>
+                  </span>
+                  <div className="md-toggle-group" style={{ marginLeft: "auto" }}>
+                    <button type="button" className={"md-toggle-btn" + (nativeMode === "split" ? " active" : "")} onClick={() => saveNativeMode("split")}>Split pane</button>
+                    <button type="button" className={"md-toggle-btn" + (nativeMode === "tab" ? " active" : "")} onClick={() => saveNativeMode("tab")}>New tab</button>
+                  </div>
+                </div>
+                <div className="setting-desc" style={{ marginBottom: "12px" }}>
+                  Files whose name matches one of these patterns open in Lattice's built-in editor on double-click, instead of the OS default app. One regex per line, matched case-insensitively.
+                </div>
+                <textarea
+                  value={nativePatterns}
+                  onChange={(e) => saveNativePatterns(e.target.value)}
+                  placeholder={"\\.(md|markdown|txt|env|json|ya?ml|toml|ini|conf|cfg|log|csv)$\n(^|/)\\.env"}
+                  spellCheck={false}
+                  style={{ width: "100%", minHeight: "92px", padding: "10px 12px", borderRadius: "var(--radius)", border: "1px solid var(--border)", background: "var(--card)", color: "var(--paper)", fontFamily: "var(--mono)", fontSize: "12px", resize: "vertical", boxSizing: "border-box", outline: "none" }}
+                />
+              </div>
+
               {/* Hover preview settings */}
               <div className="setting-group" style={{ marginBottom: "24px" }}>
                 <div className="settings-section-title">Hover previews</div>
@@ -515,7 +577,7 @@ export function Settings({ ex, ind, th, onClose }: { ex: Explorer; ind: Indexer;
               <div className="setting-group" style={{ marginBottom: "24px" }}>
                 <div className="settings-section-title">AI features</div>
                 <div className="setting-desc" style={{ marginBottom: "12px" }}>
-                  Control how much of Watson is enabled across Lattice.
+                  Control how much of watson is enabled across Lattice.
                 </div>
                 <RadioOption
                   label="Full"
@@ -539,9 +601,9 @@ export function Settings({ ex, ind, th, onClose }: { ex: Explorer; ind: Indexer;
 
               {/* Watson (Spotlight '!' quick queries) */}
               <div className="setting-group" style={{ opacity: assistantConfig.aiMode === "off" ? 0.5 : 1 }}>
-                <div className="settings-section-title">Watson</div>
+                <div className="settings-section-title">watson</div>
                 <div className="setting-desc" style={{ marginBottom: "14px" }}>
-                  Configure the OpenAI-compatible API used for Watson instant Spotlight queries (! prefix)
+                  The OpenAI-compatible model for watson — the chat pane, file summaries, and Spotlight <b>!</b> queries.
                 </div>
 
                 <div className="setting-row" style={{ flexDirection: "column", alignItems: "stretch", gap: "6px", marginBottom: "12px" }}>
@@ -649,6 +711,62 @@ export function Settings({ ex, ind, th, onClose }: { ex: Explorer; ind: Indexer;
                     <span style={{ fontSize: "12px", color: "var(--danger, #c0392b)", fontWeight: 500 }}>
                       {testMessage}
                     </span>
+                  )}
+                </div>
+
+                {/* Advanced: a separate faster model just for Spotlight */}
+                <div style={{ marginTop: "18px", borderTop: "1px solid var(--border-soft)", paddingTop: "14px" }}>
+                  <button
+                    type="button"
+                    onClick={() => setAdvancedOpen((o) => !o)}
+                    style={{ background: "transparent", border: "none", color: "var(--terracotta)", fontSize: "12px", fontWeight: 500, cursor: "pointer", padding: 0, display: "inline-flex", alignItems: "center", gap: "6px" }}
+                  >
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: advancedOpen ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 0.12s ease" }}><polyline points="6 9 12 15 18 9" /></svg>
+                    Advanced configuration
+                  </button>
+
+                  {advancedOpen && (
+                    <div style={{ marginTop: "14px" }}>
+                      <div className="setting-desc" style={{ marginBottom: "14px" }}>
+                        Optional <b>fast</b> model for Spotlight <b>!</b> queries — the model above stays the <b>big</b> one for the chat pane and summaries. Leave the key blank to use one model everywhere.
+                      </div>
+                      {([
+                        { label: "Fast base URL", key: "baseUrl", ph: "https://api.openai.com/v1" },
+                        { label: "Fast model", key: "model", ph: "gpt-4o-mini" },
+                      ] as const).map((f) => (
+                        <div key={f.key} className="setting-row" style={{ flexDirection: "column", alignItems: "stretch", gap: "6px", marginBottom: "12px" }}>
+                          <div className="setting-name">{f.label}</div>
+                          <input
+                            type="text"
+                            value={fastConfig[f.key]}
+                            onChange={(e) => updateFastConfig({ [f.key]: e.target.value } as Partial<FastOverride>)}
+                            placeholder={f.ph}
+                            style={{ width: "100%", padding: "9px 12px", borderRadius: "var(--radius)", border: "1px solid var(--border)", background: "var(--card)", color: "var(--paper)", fontFamily: "var(--mono)", fontSize: "13px", boxSizing: "border-box" }}
+                          />
+                        </div>
+                      ))}
+                      <div className="setting-row" style={{ flexDirection: "column", alignItems: "stretch", gap: "6px", marginBottom: "12px" }}>
+                        <div className="setting-name">Fast API key</div>
+                        <div className="setting-desc">Sets the fast profile active. Blank = use the model above.</div>
+                        <div style={{ display: "flex", gap: "8px", width: "100%" }}>
+                          <input
+                            type={showFastKey ? "text" : "password"}
+                            value={fastConfig.apiKey}
+                            onChange={(e) => updateFastConfig({ apiKey: e.target.value })}
+                            placeholder="sk-..."
+                            style={{ flex: 1, padding: "9px 12px", borderRadius: "var(--radius)", border: "1px solid var(--border)", background: "var(--card)", color: "var(--paper)", fontFamily: "var(--mono)", fontSize: "13px", boxSizing: "border-box" }}
+                          />
+                          <button type="button" onClick={() => setShowFastKey(!showFastKey)} className="btn-outline" style={{ padding: "8px 14px", fontSize: "12px", cursor: "pointer", borderRadius: "var(--radius)", border: "1px solid var(--border)", background: "var(--ink-2)", color: "var(--paper)" }}>
+                            {showFastKey ? "Hide" : "Show"}
+                          </button>
+                        </div>
+                      </div>
+                      {fastConfig.apiKey.trim() && (
+                        <button type="button" onClick={clearFastConfig} style={{ background: "transparent", border: "none", color: "var(--dim)", fontSize: "12px", cursor: "pointer", padding: "2px 0", textDecoration: "underline" }}>
+                          Remove fast profile (use one model everywhere)
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>

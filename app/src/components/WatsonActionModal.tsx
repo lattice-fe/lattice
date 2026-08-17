@@ -60,7 +60,7 @@ export function WatsonActionModal({ request, onClose, onToast }: WatsonActionMod
         }
       } catch (err: any) {
         if (!cancelled) {
-          setError(err.message || "Failed to get Watson response.");
+          setError(err.message || "Failed to get watson response.");
           setLoading(false);
         }
       }
@@ -120,7 +120,7 @@ export function WatsonActionModal({ request, onClose, onToast }: WatsonActionMod
                 lineHeight: "1.2",
               }}
             >
-              Watson
+              watson
             </span>
             <span style={{ fontSize: "14px", fontWeight: "600", color: "var(--paper)" }}>
               {title}
@@ -150,11 +150,11 @@ export function WatsonActionModal({ request, onClose, onToast }: WatsonActionMod
           {loading ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 0", gap: "14px", color: "var(--dim)" }}>
               <ThinkingOrb state="composing" size={64} theme={document.documentElement.getAttribute("data-appearance") === "light" ? "light" : "dark"} />
-              <span style={{ fontSize: "13px" }}>Watson is analyzing {entry.name}…</span>
+              <span style={{ fontSize: "13px" }}>watson is analyzing {entry.name}…</span>
             </div>
           ) : error ? (
             <div style={{ padding: "16px", background: "color-mix(in srgb, var(--terracotta) 12%, transparent)", border: "1px solid var(--terracotta)", borderRadius: "var(--radius)", color: "var(--paper)" }}>
-              <div style={{ fontWeight: 600, marginBottom: "4px", color: "var(--terracotta)" }}>Watson Error</div>
+              <div style={{ fontWeight: 600, marginBottom: "4px", color: "var(--terracotta)" }}>watson error</div>
               <div style={{ fontSize: "13px", color: "var(--dim)" }}>{error}</div>
             </div>
           ) : (

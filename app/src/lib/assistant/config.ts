@@ -42,3 +42,39 @@ export function saveAssistantConfig(cfg: AssistantConfig): void {
     window.dispatchEvent(new CustomEvent(ASSISTANT_DOM_EVENT));
   } catch { /* ignore */ }
 }
+
+// ---- optional "fast" profile (Spotlight) ----
+// Power users can point Spotlight's instant "!" queries at a cheaper/faster
+// model than the "big" model used inside Lattice (Watson pane + summaries).
+// When unset, Spotlight falls back to the main config. aiMode stays global.
+export interface FastOverride { baseUrl: string; model: string; apiKey: string }
+export const FAST_CONFIG_KEY = "lattice:assistant_config_fast";
+
+export function getFastOverride(): FastOverride | null {
+  try {
+    const raw = localStorage.getItem(FAST_CONFIG_KEY);
+    if (!raw) return null;
+    const p = JSON.parse(raw);
+    const apiKey = typeof p.apiKey === "string" ? p.apiKey.trim() : "";
+    if (!apiKey) return null; // no key → treat as unset
+    return {
+      baseUrl: typeof p.baseUrl === "string" && p.baseUrl.trim() ? p.baseUrl.trim() : DEFAULT_ASSISTANT_CONFIG.baseUrl,
+      model: typeof p.model === "string" && p.model.trim() ? p.model.trim() : DEFAULT_ASSISTANT_CONFIG.model,
+      apiKey,
+    };
+  } catch { return null; }
+}
+
+/** Config Spotlight should use: the fast override when configured, else the main config. */
+export function getFastConfig(): AssistantConfig {
+  const main = getAssistantConfig();
+  const fast = getFastOverride();
+  return fast ? { ...fast, aiMode: main.aiMode } : main;
+}
+
+export function saveFastOverride(o: FastOverride): void {
+  try {
+    localStorage.setItem(FAST_CONFIG_KEY, JSON.stringify(o));
+    window.dispatchEvent(new CustomEvent(ASSISTANT_DOM_EVENT));
+  } catch { /* ignore */ }
+}

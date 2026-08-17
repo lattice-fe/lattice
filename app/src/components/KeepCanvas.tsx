@@ -16,15 +16,17 @@ import {
   NOTES_EVENT,
 } from "../lib/keep/store";
 
-export const NOTE_COLORS: { id: NoteColor; label: string; bg: string; border: string }[] = [
-  { id: "default", label: "Default", bg: "var(--card)", border: "var(--border)" },
-  { id: "amber", label: "Amber", bg: "color-mix(in srgb, var(--amber) 14%, var(--card))", border: "color-mix(in srgb, var(--amber) 36%, var(--border))" },
-  { id: "terracotta", label: "Terracotta", bg: "color-mix(in srgb, var(--terracotta) 14%, var(--card))", border: "color-mix(in srgb, var(--terracotta) 36%, var(--border))" },
-  { id: "sage", label: "Sage", bg: "color-mix(in srgb, #7a9a7a 16%, var(--card))", border: "color-mix(in srgb, #7a9a7a 38%, var(--border))" },
-  { id: "slate", label: "Slate", bg: "color-mix(in srgb, #5a6b9a 16%, var(--card))", border: "color-mix(in srgb, #5a6b9a 38%, var(--border))" },
-  { id: "violet", label: "Violet", bg: "color-mix(in srgb, #8a7a9a 16%, var(--card))", border: "color-mix(in srgb, #8a7a9a 38%, var(--border))" },
-  { id: "rose", label: "Rose", bg: "color-mix(in srgb, #b23320 14%, var(--card))", border: "color-mix(in srgb, #b23320 36%, var(--border))" },
-  { id: "sand", label: "Sand", bg: "color-mix(in srgb, #c7b090 16%, var(--card))", border: "color-mix(in srgb, #c7b090 38%, var(--border))" },
+// `strong` is the saturated colour used for the heavy border experiment (card
+// stays neutral, the colour lives entirely in a thick border).
+export const NOTE_COLORS: { id: NoteColor; label: string; bg: string; border: string; strong: string }[] = [
+  { id: "default", label: "Default", bg: "var(--card)", border: "var(--border)", strong: "var(--border)" },
+  { id: "amber", label: "Amber", bg: "color-mix(in srgb, var(--amber) 14%, var(--card))", border: "color-mix(in srgb, var(--amber) 36%, var(--border))", strong: "var(--amber)" },
+  { id: "terracotta", label: "Terracotta", bg: "color-mix(in srgb, var(--terracotta) 14%, var(--card))", border: "color-mix(in srgb, var(--terracotta) 36%, var(--border))", strong: "var(--terracotta)" },
+  { id: "sage", label: "Sage", bg: "color-mix(in srgb, #7a9a7a 16%, var(--card))", border: "color-mix(in srgb, #7a9a7a 38%, var(--border))", strong: "#7a9a7a" },
+  { id: "slate", label: "Slate", bg: "color-mix(in srgb, #5a6b9a 16%, var(--card))", border: "color-mix(in srgb, #5a6b9a 38%, var(--border))", strong: "#5a6b9a" },
+  { id: "violet", label: "Violet", bg: "color-mix(in srgb, #8a7a9a 16%, var(--card))", border: "color-mix(in srgb, #8a7a9a 38%, var(--border))", strong: "#8a7a9a" },
+  { id: "rose", label: "Rose", bg: "color-mix(in srgb, #b23320 14%, var(--card))", border: "color-mix(in srgb, #b23320 36%, var(--border))", strong: "#b23320" },
+  { id: "sand", label: "Sand", bg: "color-mix(in srgb, #c7b090 16%, var(--card))", border: "color-mix(in srgb, #c7b090 38%, var(--border))", strong: "#c7b090" },
 ];
 
 function getColorStyles(colorId: NoteColor) {
@@ -198,7 +200,7 @@ export function KeepCanvas({ ex: _ex }: { ex?: Explorer }) {
                 <NoteIcon />
               </div>
               <div className="keep-empty-title">Notes you add appear here</div>
-              <div className="keep-empty-sub">Capture quick ideas, to-do lists, or ask Watson from Spotlight (! note...)</div>
+              <div className="keep-empty-sub">Capture quick ideas, to-do lists, or ask watson from Spotlight (! note...)</div>
             </div>
           ) : (
             <>
@@ -326,7 +328,7 @@ export function KeepCanvas({ ex: _ex }: { ex?: Explorer }) {
                       <button
                         key={c.id}
                         className={`keep-palette-dot ${paneColor === c.id ? "active" : ""}`}
-                        style={{ backgroundColor: c.bg, borderColor: c.border }}
+                        style={{ backgroundColor: c.strong, borderColor: c.strong }}
                         onClick={() => { setPaneColor(c.id); setShowPaneColorPicker(false); }}
                         title={c.label}
                       />
@@ -399,7 +401,7 @@ function NoteCard({
   return (
     <div
       className="keep-card"
-      style={{ backgroundColor: colorStyle.bg, borderColor: colorStyle.border }}
+      style={{ backgroundColor: "var(--card)", borderColor: colorStyle.strong, borderWidth: "2px" }}
       onClick={onEdit}
     >
       <div className="keep-card-top-actions" onClick={(e) => e.stopPropagation()}>
@@ -413,7 +415,7 @@ function NoteCard({
                 <button
                   key={c.id}
                   className={`keep-palette-dot ${note.color === c.id ? "active" : ""}`}
-                  style={{ backgroundColor: c.bg, borderColor: c.border }}
+                  style={{ backgroundColor: c.strong, borderColor: c.strong }}
                   onClick={() => {
                     setNoteColor(note.id, c.id);
                     setShowPalette(false);
@@ -467,7 +469,7 @@ function NoteCard({
       <div className="keep-card-footer" onClick={(e) => e.stopPropagation()}>
         <div>
           {note.author === "watson" && (
-            <div className="keep-watson-pill" title="Created by Watson">
+            <div className="keep-watson-pill" title="Created by watson">
               <span className="keep-watson-sparkle">✦</span>
               <span className="keep-watson-sig">watson</span>
             </div>
@@ -592,7 +594,7 @@ function EditNoteModal({ note, onClose }: { note: Note; onClose: () => void }) {
                     <button
                       key={c.id}
                       className={`keep-palette-dot ${color === c.id ? "active" : ""}`}
-                      style={{ backgroundColor: c.bg, borderColor: c.border }}
+                      style={{ backgroundColor: c.strong, borderColor: c.strong }}
                       onClick={() => {
                         setColor(c.id);
                         setShowPalette(false);

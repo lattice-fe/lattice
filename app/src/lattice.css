@@ -91,11 +91,26 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .crumb-suggest-item {
   display: block; width: 100%; text-align: left; background: transparent; border: none;
-  color: var(--paper); font-family: var(--mono); font-size: 12px; padding: 5px 8px; border-radius: 4px; cursor: pointer;
+  color: var(--paper); font-family: var(--sans); font-size: 12px; padding: 5px 8px; border-radius: 4px; cursor: pointer;
   transition: background 0.12s ease, color 0.12s ease;
 }
 .crumb-suggest-item.file { color: var(--dim); }
-.crumb-suggest-item:hover { background: var(--ink-3); }
+.crumb-suggest-item:hover, .crumb-suggest-item.active { background: var(--ink-3); }
+
+/* Watson @-mention attachment pills */
+.wp-attach-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--ink-3); border: 1px solid var(--border);
+  border-radius: 9999px; padding: 2px 6px 2px 7px;
+  font-size: 11px; color: var(--paper-dim); font-family: var(--mono);
+  max-width: 170px;
+}
+.wp-attach-pill .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wp-attach-pill button {
+  background: transparent; border: none; color: var(--dim);
+  cursor: pointer; font-size: 14px; line-height: 1; padding: 0 1px; display: flex;
+}
+.wp-attach-pill button:hover { color: var(--terracotta); }
 .crumb {
   padding: 5px 9px; border-radius: var(--radius); color: var(--dim);
   transition: background 0.15s ease, color 0.15s ease; white-space: nowrap;
@@ -996,6 +1011,10 @@ body.is-spotlight #root { padding: 0; margin: 0; }
 .body.split-active {
   grid-template-columns: 1fr 1fr;
 }
+/* split preview + Watson rail sharing the right side */
+.body.split-active.with-watson {
+  grid-template-columns: 1fr 1fr 320px;
+}
 .split-view-panel {
   display: flex; flex-direction: column; height: 100%; min-width: 0;
   background: var(--ink-2); border-left: 1px solid var(--border);
@@ -1081,7 +1100,7 @@ body.is-spotlight #root { padding: 0; margin: 0; }
 }
 
 .md-preview-container {
-  flex: 1; height: 100%; overflow-y: auto; padding: 20px 24px; color: var(--paper); font-family: var(--font-main);
+  flex: 1; height: 100%; overflow-y: auto; padding: 20px 24px; color: var(--paper); font-family: var(--sans);
   line-height: 1.6; box-sizing: border-box;
 }
 .md-preview-container h1 { font-size: 20px; margin: 0 0 12px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
@@ -1126,6 +1145,7 @@ body.is-spotlight #root { padding: 0; margin: 0; }
 @media (max-width: 1024px) {
   .body { grid-template-columns: 200px 1fr; }
   .body.split-active { grid-template-columns: 1fr 1fr; }
+  .body.split-active.with-watson { grid-template-columns: 1fr 1fr 300px; }
   .inspector { display: none !important; }
 }
 
@@ -1884,8 +1904,8 @@ body.is-spotlight #root { padding: 0; margin: 0; }
 
 .keep-palette-popover {
   position: absolute;
-  bottom: calc(100% + 6px);
-  left: 0;
+  top: calc(100% + 6px);
+  right: 0;
   display: flex;
   gap: 6px;
   background: var(--ink-2);
@@ -2354,3 +2374,19 @@ html[data-revealed] .app { animation: app-reveal 0.5s cubic-bezier(0.16, 1, 0.3,
 .onboard-btn.ghost:hover { background: var(--card); border-color: var(--dim-2); }
 
 @media (prefers-reduced-motion: reduce) { .onboard-glow { animation: none; } }
+
+/* ---- Watson tool-call pills ---- */
+.wp-pill-stack { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.wp-pill {
+  display: inline-flex; align-items: center; gap: 9px; max-width: 100%;
+  background: var(--ink-3); border: 1px solid var(--card-hi); border-radius: var(--radius);
+  padding: 7px 14px 7px 10px;
+}
+.wp-pill-icon { width: 20px; height: 20px; flex-shrink: 0; display: grid; place-items: center; }
+.wp-scan-box { width: 14px; height: 14px; border: 1px solid var(--dim-2); border-radius: 3px; overflow: hidden; position: relative; }
+.wp-scan-line { position: absolute; left: 1px; right: 1px; top: 0; height: 2px; border-radius: 1px; background: var(--terracotta); animation: wp-scan 1.15s ease-in-out infinite; }
+@keyframes wp-scan { 0% { transform: translateY(-1px); } 50% { transform: translateY(10px); } 100% { transform: translateY(-1px); } }
+.wp-pill-text { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
+.wp-pill-verb { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--paper-dim); white-space: nowrap; flex-shrink: 0; }
+.wp-pill-target { font-family: var(--mono); font-size: 12px; color: var(--dim-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+@media (prefers-reduced-motion: reduce) { .wp-scan-line { animation: none; top: 6px; } }

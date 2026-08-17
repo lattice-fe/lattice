@@ -10,7 +10,7 @@ import { baseName, parentOf } from "../lib/format";
 import { Glyph, TONE, kindOf } from "../lib/icons";
 import { calc, fmtNum } from "../lib/math";
 import { asUrl, webSearchUrl } from "../lib/url";
-import { getAssistantConfig, AssistantConfig, ASSISTANT_EVENT } from "../lib/assistant/config";
+import { getFastConfig, AssistantConfig, ASSISTANT_EVENT } from "../lib/assistant/config";
 import { askAssistant } from "../lib/assistant/client";
 import { searchNotes } from "../lib/keep/store";
 import { Note } from "../lib/keep/types";
@@ -19,7 +19,7 @@ import { ThinkingIndicator } from "./ThinkingIndicator";
 const MODES: SearchMode[] = ["name", "text", "semantic"];
 type Mode = "default" | "apps" | "files" | "web" | "math" | "commands" | "assistant";
 const PREFIX: Record<string, Mode> = { ">": "apps", "@": "files", "?": "web", "=": "math", "/": "commands", "!": "assistant" };
-const BADGE: Record<Mode, string> = { default: "", apps: "Apps", files: "Files", web: "Web", math: "Math", commands: "Commands", assistant: "Watson" };
+const BADGE: Record<Mode, string> = { default: "", apps: "Apps", files: "Files", web: "Web", math: "Math", commands: "Commands", assistant: "watson" };
 
 // `@kind query` filters — mirror the `lat` CLI. code/doc/folder are index-backed;
 // image/audio/video/archive aren't indexed, so they return nothing here (the CLI
@@ -64,7 +64,7 @@ export function Spotlight() {
   const win = isTauri ? getCurrentWindow() : null;
 
   // Assistant state
-  const [assistantConfig, setAssistantConfig] = useState<AssistantConfig>(getAssistantConfig);
+  const [assistantConfig, setAssistantConfig] = useState<AssistantConfig>(getFastConfig);
   const [assistantAnswer, setAssistantAnswer] = useState<string | null>(null);
   const [assistantLoading, setAssistantLoading] = useState(false);
   const [assistantError, setAssistantError] = useState<string | null>(null);
@@ -127,9 +127,8 @@ export function Spotlight() {
 
     let unListen: Promise<() => void> | null = null;
     if (isTauri) {
-      unListen = listen<AssistantConfig>(ASSISTANT_EVENT, (ev) => {
-        if (ev.payload) setAssistantConfig(ev.payload);
-      });
+      // Any config change (main or fast) → re-read the effective Spotlight config.
+      unListen = listen<AssistantConfig>(ASSISTANT_EVENT, () => setAssistantConfig(getFastConfig()));
     }
 
     return () => {
@@ -209,7 +208,7 @@ export function Spotlight() {
   const runAssistant = async (queryText: string) => {
     const q = queryText.trim();
     if (!q) return;
-    const cfg = getAssistantConfig();
+    const cfg = getFastConfig();
     if (!cfg.apiKey.trim()) {
       setAssistantError("API key is not configured. Set your credentials in Settings > Advanced.");
       return;
@@ -314,7 +313,7 @@ export function Spotlight() {
           value={raw}
           onChange={(e) => setRaw(e.target.value)}
           onKeyDown={onKey}
-          placeholder={mode === "assistant" ? "Ask Watson..." : `Search, or try  > @ ? = /${aiOff ? "" : " !"}`}
+          placeholder={mode === "assistant" ? "Ask watson..." : `Search, or try  > @ ? = /${aiOff ? "" : " !"}`}
           spellCheck={false}
         />
         {mode === "default" || mode === "files" ? (
@@ -381,7 +380,7 @@ export function Spotlight() {
           ) : !isConfigured ? (
             <div style={{ padding: "8px 0", color: "var(--paper-dim)", fontSize: "13px" }}>
               <div style={{ marginBottom: "12px" }}>
-                Watson is not configured. Add your API credentials in Settings &gt; Advanced to enable instant queries.
+                watson is not configured. Add your API credentials in Settings &gt; Advanced to enable instant queries.
               </div>
               <div style={{ display: "flex", gap: "10px" }}>
                 <button
@@ -404,7 +403,7 @@ export function Spotlight() {
             </div>
           ) : (
             <div style={{ padding: "8px 0", color: "var(--dim-2)", fontSize: "13px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span>Press Enter to ask Watson</span>
+              <span>Press Enter to ask watson</span>
               {term.trim() && (
                 <button
                   type="button"

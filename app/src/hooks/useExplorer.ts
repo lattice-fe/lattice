@@ -55,6 +55,24 @@ function saveHiddenQuick(items: string[]) {
   localStorage.setItem(QUICK_HIDDEN_KEY, JSON.stringify(items));
 }
 
+// "Open natively" rules: files whose name matches one of these regexes open in
+// Lattice's own editor/viewer (split or tab) on double-click instead of the OS
+// default app. Read at open time so Settings changes take effect immediately.
+export const NATIVE_OPEN_PATTERNS_KEY = "lattice:native-open-patterns";
+export const NATIVE_OPEN_MODE_KEY = "lattice:native-open-mode";
+function getNativePatterns(): string[] {
+  try { return JSON.parse(localStorage.getItem(NATIVE_OPEN_PATTERNS_KEY) || "[]"); } catch { return []; }
+}
+function getNativeMode(): "split" | "tab" {
+  return localStorage.getItem(NATIVE_OPEN_MODE_KEY) === "tab" ? "tab" : "split";
+}
+function matchesNativeOpen(name: string): boolean {
+  return getNativePatterns().some((p) => {
+    if (!p.trim()) return false;
+    try { return new RegExp(p, "i").test(name); } catch { return false; }
+  });
+}
+
 function getSavedHomeDir(): string {
   try {
     return localStorage.getItem(HOME_DIR_KEY) || "";
@@ -461,13 +479,28 @@ export function useExplorer() {
   const selectAll = useCallback(() => setSel(new Set(entries.map((e) => e.path))), [entries]);
   const selectSet = useCallback((paths: Set<string>) => { setSel(paths); setCtx(null); }, []);
 
-  const openEntry = useCallback((e: Entry) => {
-    if (e.is_dir) navigate(e.path);
-    else {
-      logActivity({ type: "open", title: `Opened ${e.name}`, sub: parentOf(e.path) ?? "", path: e.path });
-      api.openPath(e.path);
+  // Open a file inside Lattice (split pane or new tab), with the same guards
+  // used by the explicit "open in app" action.
+  const openInApp = useCallback((entry: Entry, mode: "split" | "tab") => {
+    const ext = extOf(entry.name);
+    if (AUDIO_EXTS.has(ext)) { showToast("Audio files open in the side Inspector panel."); return; }
+    if (VIDEO_EXTS.has(ext) || BINARY_EXTS.has(ext)) { showToast(`Cannot preview ${ext ? ext.toUpperCase() : "binary"} files in split panel.`); return; }
+    const isCompact = window.innerWidth < 768;
+    if (mode === "tab" || isCompact) {
+      if (isCompact && mode === "split") showToast("Opened in new tab for compact display.");
+      newTab(entry.path);
+    } else {
+      patchActive((t) => ({ ...t, splitItem: entry }));
     }
-  }, [navigate]);
+  }, [newTab, patchActive, showToast]);
+
+  const openEntry = useCallback((e: Entry) => {
+    if (e.is_dir) { navigate(e.path); return; }
+    logActivity({ type: "open", title: `Opened ${e.name}`, sub: parentOf(e.path) ?? "", path: e.path });
+    // "Open natively" rules → in-app editor/viewer; otherwise the OS default app.
+    if (matchesNativeOpen(e.name)) openInApp(e, getNativeMode());
+    else api.openPath(e.path);
+  }, [navigate, openInApp]);
 
   const setSort = useCallback((col: SortCol) => {
     setSortState((s) => s.col === col ? { col, dir: s.dir === "asc" ? "desc" : "asc" } : { col, dir: "asc" });
@@ -516,30 +549,9 @@ export function useExplorer() {
   const reveal = useCallback((p: string) => api.reveal(p), []);
 
   const openItemSpecial = useCallback((entry: Entry) => {
-    if (entry.is_dir) {
-      navigate(entry.path);
-      return;
-    }
-    const ext = extOf(entry.name);
-    if (AUDIO_EXTS.has(ext)) {
-      showToast("Audio files open in the side Inspector panel.");
-      return;
-    }
-    if (VIDEO_EXTS.has(ext) || BINARY_EXTS.has(ext)) {
-      showToast(`Cannot preview ${ext ? ext.toUpperCase() : "binary"} files in split panel.`);
-      return;
-    }
-
-    const isCompact = window.innerWidth < 768;
-    if (openMode === "tab" || isCompact) {
-      if (isCompact && openMode === "split") {
-        showToast("Opened in new tab for compact display.");
-      }
-      newTab(entry.path);
-    } else {
-      patchActive((t) => ({ ...t, splitItem: entry }));
-    }
-  }, [navigate, newTab, openMode, patchActive, showToast]);
+    if (entry.is_dir) { navigate(entry.path); return; }
+    openInApp(entry, openMode);
+  }, [navigate, openInApp, openMode]);
 
   const chatOpen = activeTab?.chatOpen ?? false;
   const toggleChat = useCallback(() => {

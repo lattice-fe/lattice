@@ -265,7 +265,7 @@ export default function App() {
           {watson}
         </div>
       ) : isFileTab ? (
-        <div className="body" style={{ gridTemplateColumns: fileTabSidebarOpen ? "232px 1fr" : "1fr" }}>
+        <div className="body" style={{ gridTemplateColumns: `${fileTabSidebarOpen ? "232px " : ""}1fr${watson ? " 320px" : ""}` }}>
           {fileTabSidebarOpen && <Sidebar ex={ex} />}
           <div className="tab-file-panel isolated">
             {activePathLower.endsWith(".pdf") ? (
@@ -302,9 +302,10 @@ export default function App() {
               />
             )}
           </div>
+          {watson}
         </div>
       ) : (
-        <div className={"body" + (ex.splitItem ? " split-active" : "") + (ex.previewCollapsed ? " no-preview" : "")}>
+        <div className={"body" + (ex.splitItem ? " split-active" : "") + (ex.splitItem && watson ? " with-watson" : "") + (ex.previewCollapsed ? " no-preview" : "")}>
           {!ex.splitItem && <Sidebar ex={ex} />}
           <FileList ex={ex} />
 
@@ -323,6 +324,7 @@ export default function App() {
               )}
             </div>
           )}
+          {ex.splitItem && watson}
           {!ex.splitItem && !ex.previewCollapsed && (
             ex.chatOpen && aiPaneEnabled ? (
               <WatsonChatPane ex={ex} onClose={() => ex.setChatOpen(false)} />

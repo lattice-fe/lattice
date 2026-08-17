@@ -239,12 +239,12 @@ export function TopBar({
       {onToggleChat && aiPaneEnabled && (
         <button
           className={"iconbtn" + (chatOpen ? " active" : "")}
-          title={chatOpen ? "Close Watson Chat" : "Open Watson Chat"}
+          title={chatOpen ? "Close watson chat" : "Open watson chat"}
           onClick={onToggleChat}
           style={{ width: "auto", padding: "0 9px", height: "32px", display: "inline-flex", alignItems: "center", gap: "5px" }}
         >
           <span style={{ fontFamily: "'Syne Mono', monospace, var(--mono)", fontSize: "12px", fontWeight: 600, color: chatOpen ? "var(--amber)" : "var(--dim)" }}>
-            Watson
+            watson
           </span>
         </button>
       )}

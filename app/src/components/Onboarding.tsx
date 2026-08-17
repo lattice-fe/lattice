@@ -96,7 +96,7 @@ export function Onboarding({ th, onDone }: { th: ThemeApi; onDone: () => void })
         {step === 2 && (
           <div className="onboard-step">
             <h1 className="onboard-title">Make search instant</h1>
-            <p className="onboard-sub">Index a folder so search, Spotlight, and Watson can find things right away. It runs in the background — you can keep using Lattice.</p>
+            <p className="onboard-sub">Index a folder so search, Spotlight, and watson can find things right away. It runs in the background — you can keep using Lattice.</p>
             <div className="onboard-folder">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--terracotta)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>
               <span className="onboard-folder-path" title={folder}>{folder || "…"}</span>

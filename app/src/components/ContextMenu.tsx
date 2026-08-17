@@ -100,7 +100,7 @@ export function ContextMenu({
           <Sep />
           {onWatsonAction && !target.is_dir && (
             <>
-              <Item label="Summarize with Watson" on={() => { ex.closeContext(); onWatsonAction({ action: "summarize", entry: target }); }} />
+              <Item label="Summarize with watson" on={() => { ex.closeContext(); onWatsonAction({ action: "summarize", entry: target }); }} />
               <Sep />
             </>
           )}
