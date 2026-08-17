@@ -77,6 +77,7 @@ export function mdAssetComponents(basePath: string, onOpenPath?: (path: string) 
           href={cleaned}
           target={external ? "_blank" : undefined}
           rel={external ? "noopener noreferrer" : undefined}
+          draggable={false}
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();

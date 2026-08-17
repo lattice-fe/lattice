@@ -33,7 +33,7 @@ Use this skill to manage the user's personal knowledge base, to-do lists, scratc
 export const notesSkill: Skill = {
   name: "notes",
   title: "Lattice Keep Notes & Checklists",
-  description: "Create, search, view, update, append to, and delete notes and checklists in Lattice Keep.",
+  description: "Create, search, view, update, append to, and delete notes and checklists in Lattice Keep, and set timed desktop reminders.",
   instructions,
   tools: [
     {
@@ -62,6 +62,28 @@ export const notesSkill: Skill = {
               description: "Color palette theme for the note card",
             },
             pinned: { type: "boolean", description: "Whether to pin the note to the top" },
+          },
+          required: ["title"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "create_reminder",
+        description: "Set a timed reminder. Creates a note that pops up a desktop reminder at the given time. Prefer 'remind_in_minutes' for relative times like 'in a minute' or 'in 2 hours' — you do not need to know the current time for that.",
+        parameters: {
+          type: "object",
+          properties: {
+            title: { type: "string", description: "What to remind the user about" },
+            remind_in_minutes: { type: "number", description: "Fire the reminder this many minutes from now (e.g. 1 for 'in a minute', 120 for 'in 2 hours'). Use this whenever the time is relative." },
+            remind_at: { type: "string", description: "Absolute local time as ISO 8601 (YYYY-MM-DDTHH:mm). Only use if you reliably know the target date/time; otherwise prefer remind_in_minutes." },
+            content: { type: "string", description: "Optional extra details for the reminder note" },
+            color: {
+              type: "string",
+              enum: ["default", "amber", "terracotta", "sage", "slate", "violet", "rose", "sand"],
+              description: "Color palette theme for the note card",
+            },
           },
           required: ["title"],
         },
@@ -189,6 +211,25 @@ export const notesSkill: Skill = {
           author: "watson",
         });
         return { success: true, note_id: note.id, title: note.title, type: note.type };
+      }
+      case "create_reminder": {
+        let remindAt: number | undefined;
+        if (typeof args.remind_in_minutes === "number" && args.remind_in_minutes >= 0) {
+          remindAt = Date.now() + args.remind_in_minutes * 60000;
+        } else if (typeof args.remind_at === "string") {
+          const t = Date.parse(args.remind_at);
+          if (!Number.isNaN(t)) remindAt = t;
+        }
+        if (!remindAt) return { success: false, error: "Provide remind_in_minutes (relative) or a valid remind_at ISO datetime." };
+        const note = createNote({
+          title: args.title,
+          content: args.content,
+          type: "note",
+          color: (args.color as NoteColor) || "amber",
+          author: "watson",
+          remindAt,
+        });
+        return { success: true, note_id: note.id, title: note.title, remind_at: new Date(remindAt).toLocaleString() };
       }
       case "search_notes": {
         const results = searchNotes(args.query || "");

@@ -24,6 +24,8 @@ export interface Note {
   pinned: boolean;
   author?: "watson" | "user";
   archived?: boolean;
+  remindAt?: number;       // epoch ms to fire a local reminder; unset = no reminder
+  reminderDone?: boolean;  // reminder already fired (cleared when remindAt is (re)set)
   createdAt: number;
   updatedAt: number;
 }

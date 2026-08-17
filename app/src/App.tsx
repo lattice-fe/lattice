@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { listen } from "@tauri-apps/api/event";
+import { listen, emit } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useExplorer } from "./hooks/useExplorer";
 import { useSearch } from "./hooks/useSearch";
 import { useIndexer } from "./hooks/useIndexer";
@@ -27,6 +28,8 @@ import { NewFileModal } from "./components/NewFileModal";
 import { api, isTauri } from "./lib/api";
 import { isFilePath, baseName } from "./lib/format";
 import { getAssistantConfig, ASSISTANT_DOM_EVENT } from "./lib/assistant/config";
+import { updateNote } from "./lib/keep/store";
+import { checkDueReminders, REMINDER_ACTION_EVENT, REMINDER_OPEN_EVENT, SNOOZE_MS, type ReminderAction } from "./lib/keep/reminders";
 import "./lattice.css";
 
 function isSpreadsheet(path: string): boolean {
@@ -94,6 +97,35 @@ export default function App() {
   }, []);
   useEffect(() => { reconcileNow(); }, [ex.path, reconcileNow]); // navigate
   useEffect(() => { window.addEventListener("focus", reconcileNow); return () => window.removeEventListener("focus", reconcileNow); }, [reconcileNow]);
+
+  // Local reminders: poll for due notes and hand them to the toast window.
+  // (Fires only while the app is running — the known ceiling of a local, no-OS
+  // reminder; a future connector/plugin can schedule at the OS level.)
+  useEffect(() => {
+    if (!isTauri) return;
+    checkDueReminders();
+    const id = setInterval(() => checkDueReminders(), 5000); // ≤5s late; swap to per-reminder setTimeout if exactness ever matters
+    return () => clearInterval(id);
+  }, []);
+
+  // Toast → main: Snooze reschedules; Open brings the main window forward,
+  // navigates to Keep, and asks the Keep view to open that note's editor.
+  useEffect(() => {
+    if (!isTauri) return;
+    let un: (() => void) | null = null;
+    listen<ReminderAction>(REMINDER_ACTION_EVENT, ({ payload }) => {
+      if (payload.action === "snooze") {
+        updateNote(payload.id, { remindAt: Date.now() + SNOOZE_MS, reminderDone: false });
+      } else if (payload.action === "open") {
+        exRef.current.navigate("lattice://keep");
+        const w = getCurrentWindow();
+        // unminimize + show before focus, or a minimized window never comes forward
+        (async () => { try { await w.unminimize(); await w.show(); await w.setFocus(); } catch { /* not tauri */ } })();
+        emit(REMINDER_OPEN_EVENT, payload.id).catch(() => {});
+      }
+    }).then((fn) => { un = fn; });
+    return () => { un?.(); };
+  }, []);
 
   // commands dispatched from the Spotlight window (deduplicated & checks existing tab)
   const lastNavRef = useRef<{ path: string; time: number }>({ path: "", time: 0 });

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo, type ReactNode } from "react";
 import Editor, { useMonaco } from "@monaco-editor/react";
 import type { editor as MonacoEditor } from "monaco-editor";
 import ReactMarkdown from "react-markdown";
@@ -57,6 +57,12 @@ function getLang(filename: string) {
 export function TextEditor({ entry, onClose, onErrorToast, onOpenPath, isFullTab = false }: TextEditorProps) {
   const monaco = useMonaco();
   const editorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
+  // Keep onOpenPath current without it invalidating the memoized markdown
+  // components (a fresh components object each render remounts every <a>, which
+  // destroys the link mid-click — mousedown and mouseup hit different nodes, so
+  // no click ever fires).
+  const onOpenPathRef = useRef(onOpenPath);
+  onOpenPathRef.current = onOpenPath;
 
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
@@ -243,34 +249,63 @@ export function TextEditor({ entry, onClose, onErrorToast, onOpenPath, isFullTab
     setSaveStatus("saving");
   }, []);
 
-  // Markdown preview helpers
-  const handlePreviewClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const link = (e.target as HTMLElement).closest("a") as HTMLAnchorElement | null;
-    if (!link) return;
-    const raw = link.getAttribute("href") || link.href;
-    const cleaned = cleanHref(raw);
+  // Preview link handling — shared by the markdown preview and the HTML iframe.
+  // External URLs open in the browser; relative links open the sibling file as a
+  // Lattice tab. Reusing this for the iframe stops relative links (e.g. an index
+  // page linking to sibling games) from navigating the frame to the app's own
+  // origin, which served the SPA fallback and loaded Lattice inside Lattice.
+  const openLink = (rawHref: string) => {
+    const cleaned = cleanHref(rawHref);
     if (!cleaned || cleaned.startsWith("#")) return;
-    e.preventDefault(); e.stopPropagation();
     if (isExternalUrl(cleaned)) { if (isTauri) api.openUrl(cleaned); else window.open(cleaned, "_blank", "noopener,noreferrer"); }
     else if (onOpenPath) onOpenPath(resolveRelativePath(entry.path, cleaned));
   };
 
+  const handlePreviewClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const link = (e.target as HTMLElement).closest("a") as HTMLAnchorElement | null;
+    if (!link) return;
+    const cleaned = cleanHref(link.getAttribute("href") || link.href);
+    if (!cleaned || cleaned.startsWith("#")) return;
+    e.preventDefault(); e.stopPropagation();
+    openLink(cleaned);
+  };
+
+  // srcDoc is same-origin (allow-same-origin), so we can intercept link clicks
+  // inside the previewed HTML and route them through the same handler.
+  const handleHtmlFrameLoad = (e: React.SyntheticEvent<HTMLIFrameElement>) => {
+    try {
+      const doc = e.currentTarget.contentDocument;
+      if (!doc) return;
+      doc.addEventListener("click", (ev) => {
+        const link = (ev.target as HTMLElement | null)?.closest?.("a") as HTMLAnchorElement | null;
+        if (!link) return;
+        const cleaned = cleanHref(link.getAttribute("href") || link.href);
+        if (!cleaned || cleaned.startsWith("#")) return; // leave in-page anchors alone
+        ev.preventDefault();
+        openLink(cleaned);
+      }, true);
+    } catch { /* cross-origin doc after a navigation — nothing to attach */ }
+  };
+
+  // Stable across renders (only rebuilt when the file changes) so ReactMarkdown
+  // reuses the rendered DOM nodes instead of remounting them on every render.
+  const previewComponents = useMemo(() => ({
+    ...mdAssetComponents(entry.path, (p: string) => onOpenPathRef.current?.(p)),
+    table: ({ children }: { children?: ReactNode }) => <table className="doc-table">{children}</table>,
+    code: ({ className, children }: { className?: string; children?: ReactNode }) => {
+      const inline = !className;
+      return inline ? <code className="doc-inline-code">{children}</code> : <pre className="doc-code"><code>{children}</code></pre>;
+    },
+  }), [entry.path]);
+
   const renderPreview = () =>
     isHtml ? (
-      <iframe srcDoc={content} title="HTML Preview" className="html-preview-frame" sandbox="allow-same-origin allow-scripts" />
+      <iframe srcDoc={content} title="HTML Preview" className="html-preview-frame" sandbox="allow-same-origin allow-scripts" onLoad={handleHtmlFrameLoad} />
     ) : (
       <div style={{ height: "100%", overflowY: "auto", width: "100%" }}>
         <div className="md-preview-container doc-content-body" onClick={handlePreviewClick}
           style={{ padding: isFullTab ? "32px 32px 80px" : "16px 24px", maxWidth: isFullTab ? "840px" : "100%", margin: isFullTab ? "0 auto" : undefined, width: "100%" }}>
-          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}
-            components={{
-              ...mdAssetComponents(entry.path, onOpenPath),
-              table: ({ children }) => <table className="doc-table">{children}</table>,
-              code: ({ className, children }) => {
-                const inline = !className;
-                return inline ? <code className="doc-inline-code">{children}</code> : <pre className="doc-code"><code>{children}</code></pre>;
-              },
-            }}>
+          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={previewComponents}>
             {content}
           </ReactMarkdown>
         </div>

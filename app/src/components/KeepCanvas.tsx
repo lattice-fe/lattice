@@ -15,6 +15,7 @@ import {
   setNoteColor,
   NOTES_EVENT,
 } from "../lib/keep/store";
+import { REMINDER_OPEN_EVENT, formatRemindAt, tsToLocalInput, localInputToTs } from "../lib/keep/reminders";
 
 // `strong` is the saturated colour used for the heavy border experiment (card
 // stays neutral, the colour lives entirely in a thick border).
@@ -49,6 +50,13 @@ const TrashIcon = () => (
     <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
     <line x1="10" y1="11" x2="10" y2="17" />
     <line x1="14" y1="11" x2="14" y2="17" />
+  </svg>
+);
+
+const BellIcon = ({ size = 12 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
   </svg>
 );
 
@@ -113,6 +121,17 @@ export function KeepCanvas({ ex: _ex }: { ex?: Explorer }) {
       setTimeout(() => titleRef.current?.focus(), 200);
     }
   }, [paneOpen]);
+
+  // "Open" on a reminder toast → open that note's editor here.
+  useEffect(() => {
+    if (!isTauri) return;
+    let un: (() => void) | null = null;
+    listen<string>(REMINDER_OPEN_EVENT, ({ payload }) => {
+      const n = getNotes().find((x) => x.id === payload);
+      if (n) setEditingNote(n);
+    }).then((fn) => { un = fn; });
+    return () => { un?.(); };
+  }, []);
 
   const refreshNotes = () => {
     setNotes(getNotes());
@@ -439,6 +458,12 @@ function NoteCard({
 
       {note.title && <div className="keep-card-title">{note.title}</div>}
 
+      {note.remindAt && (
+        <div className={"keep-reminder-badge" + (note.remindAt <= Date.now() ? " past" : "")} title="Reminder set">
+          <BellIcon size={11} /> {formatRemindAt(note.remindAt)}
+        </div>
+      )}
+
       {note.type === "checklist" && note.items && note.items.length > 0 ? (
         <div className="keep-card-checklist">
           {note.items.slice(0, 8).map((it) => (
@@ -491,6 +516,7 @@ function EditNoteModal({ note, onClose }: { note: Note; onClose: () => void }) {
   const [color, setColor] = useState<NoteColor>(note.color);
   const [pinned, setPinned] = useState(note.pinned);
   const [showPalette, setShowPalette] = useState(false);
+  const [remindAt, setRemindAt] = useState<number | undefined>(note.remindAt);
 
   const colorStyle = getColorStyles(color);
 
@@ -501,6 +527,9 @@ function EditNoteModal({ note, onClose }: { note: Note; onClose: () => void }) {
       items: note.type === "checklist" ? items.filter((it) => it.text.trim()) : undefined,
       color,
       pinned,
+      remindAt,
+      // re-arm the reminder when the time moves into the future
+      reminderDone: remindAt && remindAt > Date.now() ? false : note.reminderDone,
     });
     onClose();
   };
@@ -605,6 +634,17 @@ function EditNoteModal({ note, onClose }: { note: Note; onClose: () => void }) {
                 </div>
               )}
             </div>
+            <label className={"keep-remind-control" + (remindAt ? " set" : "")} title="Set a reminder">
+              <BellIcon size={13} />
+              <input
+                type="datetime-local"
+                value={tsToLocalInput(remindAt)}
+                onChange={(e) => setRemindAt(localInputToTs(e.target.value))}
+              />
+              {remindAt && (
+                <button type="button" className="keep-remind-clear" title="Clear reminder" onClick={() => setRemindAt(undefined)}>✕</button>
+              )}
+            </label>
           </div>
 
           <div className="keep-creator-submit">

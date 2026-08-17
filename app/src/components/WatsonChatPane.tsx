@@ -25,13 +25,14 @@ const TOOL_VERB: Record<string, string> = {
   read_file_preview: "Reading", list_directory: "Reading folder",
   search: "Searching", search_files: "Searching", search_notes: "Searching notes",
   read_skill: "Reading skill", get_note: "Reading note", create_note: "Creating note",
+  create_reminder: "Setting reminder",
   update_note: "Updating note", append_to_note: "Appending to note", delete_note: "Deleting note",
   toggle_checklist_item: "Checking off in",
 };
 // Fallback labels when there's no target to show.
 const TOOL_LABEL: Record<string, string> = {
   read_skill: "Reading skill",
-  create_note: "Creating note", search_notes: "Searching notes", list_notes: "Listing notes",
+  create_note: "Creating note", create_reminder: "Setting reminder", search_notes: "Searching notes", list_notes: "Listing notes",
   get_note: "Reading note", update_note: "Updating note", append_to_note: "Appending to note",
   toggle_checklist_item: "Updating checklist", delete_note: "Deleting note",
   search: "Searching", search_files: "Searching files", list_directory: "Reading folder",

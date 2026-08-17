@@ -76,6 +76,7 @@ export function createNote(input: {
   color?: NoteColor;
   pinned?: boolean;
   author?: "watson" | "user";
+  remindAt?: number;
 }): Note {
   const notes = getNotes();
   const now = Date.now();
@@ -100,6 +101,7 @@ export function createNote(input: {
     color: input.color || "default",
     pinned: Boolean(input.pinned),
     author: input.author,
+    remindAt: input.remindAt,
     createdAt: now,
     updatedAt: now,
   };

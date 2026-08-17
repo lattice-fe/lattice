@@ -1,6 +1,6 @@
 [package]
 name = "lattice"
-version = "0.3.0"
+version = "0.4.0"
 description = "Lattice — a high-performance, inviting file explorer"
 authors = ["parzi-val"]
 edition = "2021"

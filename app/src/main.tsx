@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import App from "./App";
 import { Spotlight } from "./components/Spotlight";
+import { ReminderToast } from "./components/ReminderToast";
 import { isTauri } from "./lib/api";
 import { applyTheme } from "./lib/theme/engine";
 import { initialTheme, THEME_EVENT } from "./hooks/useTheme";
@@ -19,11 +20,15 @@ if (isTauri) {
   });
 }
 
-let spotlight = new URLSearchParams(location.search).has("spotlight"); // dev override
+// Which window are we? Both spotlight and reminder are chromeless overlay
+// windows that reuse this same entry (dev override via ?spotlight / ?reminder).
+const params = new URLSearchParams(location.search);
+let kind: "main" | "spotlight" | "reminder" = params.has("reminder") ? "reminder" : params.has("spotlight") ? "spotlight" : "main";
 if (isTauri) {
-  try { spotlight = getCurrentWindow().label === "spotlight"; } catch { /* not tauri */ }
+  try { const l = getCurrentWindow().label; if (l === "spotlight" || l === "reminder") kind = l; } catch { /* not tauri */ }
 }
-if (spotlight) {
+const chromeless = kind !== "main";
+if (chromeless) {
   const splash = document.getElementById("app-splash");
   if (splash) splash.remove();
   document.documentElement.classList.add("is-spotlight");
@@ -35,5 +40,5 @@ if (spotlight) {
 }
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-  <React.StrictMode>{spotlight ? <Spotlight /> : <App />}</React.StrictMode>,
+  <React.StrictMode>{kind === "spotlight" ? <Spotlight /> : kind === "reminder" ? <ReminderToast /> : <App />}</React.StrictMode>,
 );
