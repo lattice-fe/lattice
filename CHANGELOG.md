@@ -5,6 +5,49 @@ All notable changes to Lattice will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-08-18
+
+### Added
+
+#### Watson AI Assistant
+- **Vercel AI SDK Agent Loop:** Rebuilt the assistant on the Vercel AI SDK with streaming text/reasoning and surfaced tool + thinking steps as live "scan" pills (running → ✓ done / ✕ error).
+- **@-Mention File Attachments:** Attach files to a chat with `@` — reuses the path-bar completion dropdown, turns picks into removable pills, falls back to whole-index search on virtual tabs (Home / Keep / Docs), and auto-attaches the currently open file on file tabs.
+- **Everywhere-Available Pane:** The Watson pane now renders on every view (folders, file tabs, Home, Keep, Docs) and coexists alongside a split preview.
+- **Tiered AI Features:** Setting to run AI at full (chat pane + actions + Spotlight), Spotlight-only, or fully off.
+- **Fast / Big Model Configs:** Separate model configs — a fast model for Spotlight completions and a big model for the in-app pane and summaries.
+- **`create_reminder` Tool:** Watson can set timed local reminders.
+
+#### Local Reminders (Keep)
+- **Timed Note Reminders:** Set a reminder on any note via a native date-time picker; cards show a due-time badge (terracotta when overdue).
+- **Custom Toast Window:** A dedicated frameless, always-on-top reminder window (reusing the Spotlight multi-window pattern) pops bottom-right with `Done` / `Snooze 10m` / `Open`, a 7-second countdown bar, and click-to-open. Fires from an in-app scheduler while Lattice is running.
+
+#### Home & Onboarding
+- **Home Landing Page:** Greeting, live dateline, pinned quick-access, and a "Lately" recent-activity feed.
+- **First-Run Onboarding:** Three-step setup — name → theme → initial folder indexing — with an aurora/doodle backdrop.
+
+#### Editor & Navigation
+- **Monaco Editor:** Migrated the code editor to Monaco with theme-following colors and minimap.
+- **Editable Breadcrumb Path Bar:** Type any path (`Ctrl+L`) with `Tab` completion, plus a live folder + file completion dropdown.
+- **"Open Natively" Rules:** Settings option to define regex patterns for files that should open in Lattice's built-in editor (split pane or new tab) on double-click instead of the OS default app.
+- **Startup Animation Control:** Guarantees one full lettermark cycle on cold boot, with an option to disable.
+
+#### Theming & UI
+- **Theme Role System:** Formalized accent roles (selection/primary, text accent, success, constant on-accent foreground) with an audit realignment; **Google Sans** as the primary UI font.
+- **Motion & Thinking Orbs:** Entrance/motion pass and animated thinking orbs in the chat pane, Spotlight, and summaries.
+- **Keep Card Restyle:** Neutral card backgrounds with a heavy colored border and matching color-swatch picker.
+- **Consistent Typography:** Completion dropdowns and the markdown preview now use the primary UI font instead of monospace.
+
+### Fixed
+- **Markdown In-Preview Link Navigation:** Clicking links in the markdown preview silently did nothing (resolves the 0.3.0 known issue). Root cause: the react-markdown `components` object was rebuilt on every render, remounting the `<a>` element mid-click — so `mousedown` and `mouseup` landed on different DOM nodes and the browser never synthesized a `click`. Fixed by memoizing the preview components (stable component identity → the node survives the click) and adding in-iframe click interception for HTML previews so relative links open the sibling file as a tab instead of loading the app into the iframe. Full writeup: [docs/markdown-preview-click-bug.md](docs/markdown-preview-click-bug.md).
+- **OpenAI-Compatible Streaming (Omniroute):** One-shot assistant calls now route through the streaming path, so proxies that always return an SSE stream no longer fail with "Invalid JSON response".
+- **Mid-Conversation Working Directory:** Watson re-asserts the current directory each turn, so navigating mid-chat no longer leaves it reasoning about the folder it started in.
+- **Reasoning Echo Rejection:** Strips `reasoning_content` before re-sending, for endpoints that reject it as input.
+- **Auto-Save Failure State:** Surfaces an unsaved indicator when a background auto-save fails.
+- **Editor Polish:** Fixed Monaco line-number clipping and a brief layout shift when opening the Watson/split pane.
+
+### Known Issues
+- **External URLs Without a Protocol:** Links like `example.com` (no `http(s)://`) in markdown previews are treated as relative paths and don't navigate — deferred for later.
+
 ## [0.3.0] - 2026-08-08
 
 ### Added
