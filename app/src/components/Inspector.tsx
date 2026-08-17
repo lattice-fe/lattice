@@ -86,7 +86,7 @@ export function Inspector({ ex, onCollapse }: { ex: Explorer; onCollapse: () => 
           <div style={{ fontFamily: "var(--serif)", fontSize: "18px", fontWeight: 600, marginBottom: "4px" }}>
             {baseName(ex.path) || "/"}
           </div>
-          <div style={{ fontSize: "12px", color: "var(--dim)", fontFamily: "var(--mono)", marginBottom: "16px" }}>
+          <div style={{ fontSize: "12px", color: "var(--dim)", fontFamily: "var(--mono)", marginBottom: "16px", wordBreak: "break-all" }}>
             {normalizePath(ex.path)}
           </div>
           <FolderTree path={ex.path} />

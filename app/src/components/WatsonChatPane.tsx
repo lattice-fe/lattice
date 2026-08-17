@@ -181,7 +181,7 @@ export function WatsonChatPane({ ex, onClose }: WatsonChatPaneProps) {
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", borderBottom: "1px solid var(--border-soft)", background: "var(--ink-2)", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span style={{ fontFamily: "'Syne Mono', monospace, var(--mono)", fontSize: "12px", fontWeight: "600", color: "var(--paper)", border: "1px solid var(--amber)", borderRadius: "9999px", padding: "2px 8px", lineHeight: "1.2" }}>
+          <span style={{ fontFamily: "'Syne Mono', monospace, var(--mono)", fontSize: "12px", fontWeight: "600", color: "var(--amber)", borderRadius: "9999px", padding: "2px 2px", lineHeight: "1.2" }}>
             Watson
           </span>
           <span style={{ fontSize: "12px", color: "var(--dim)", fontFamily: "var(--mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "140px" }} title={ex.path}>
@@ -308,7 +308,7 @@ export function WatsonChatPane({ ex, onClose }: WatsonChatPaneProps) {
             onClick={() => (loading ? handleStop() : handleSend())}
             disabled={!loading && !input.trim()}
             title={loading ? "Stop" : "Send"}
-            style={{ height: "32px", padding: "0 10px", fontSize: "12px", fontWeight: 600, borderRadius: "var(--radius-sm)", background: loading ? "var(--ink-3)" : "var(--amber)", border: loading ? "1px solid var(--border)" : "none", color: loading ? "var(--paper)" : "var(--ink)", cursor: !loading && !input.trim() ? "default" : "pointer", opacity: !loading && !input.trim() ? 0.5 : 1, flexShrink: 0 }}
+            style={{ height: "32px", padding: "0 10px", fontSize: "12px", fontWeight: 600, borderRadius: "var(--radius-sm)", background: loading ? "var(--ink-3)" : "var(--terracotta)", border: loading ? "1px solid var(--border)" : "none", color: loading ? "var(--paper)" : "var(--on-accent)", cursor: !loading && !input.trim() ? "default" : "pointer", opacity: !loading && !input.trim() ? 0.5 : 1, flexShrink: 0 }}
           >
             {loading ? "Stop" : "Send"}
           </button>

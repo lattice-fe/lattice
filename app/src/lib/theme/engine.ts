@@ -10,7 +10,7 @@ const TONE_HUE: Record<Tone, string> = {
 const TONES: Tone[] = ["rust", "amber", "green", "violet", "red", "neutral"];
 
 const DEFAULT_FONTS = {
-  ui: '"Inter", system-ui, sans-serif',
+  ui: '"Google Sans", "Inter", system-ui, sans-serif',
   display: '"IBM Plex Sans", inter, serif',
   mono: '"JetBrains Mono", monospace',
 };
@@ -50,6 +50,10 @@ export function themeVars(theme: Theme): Record<string, string> {
     "--amber": t.accent2,
     "--teal": t.accent3,
     "--danger": t.danger,
+    // Foreground for text/icons sitting on a filled accent or danger surface.
+    // Always the theme's light neutral (text on dark themes, bg on light) so
+    // primary/danger buttons read as light-on-color in every theme.
+    "--on-accent": dark ? t.text : t.bg,
     // effects
     "--shadow": `0 18px 50px -24px ${alpha("#000000", shadowStrength)}`,
     "--shadow-soft": `0 8px 24px -14px ${alpha("#000000", shadowStrength * 0.82)}`,

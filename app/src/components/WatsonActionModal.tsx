@@ -113,11 +113,10 @@ export function WatsonActionModal({ request, onClose, onToast }: WatsonActionMod
               style={{
                 fontFamily: "'Syne Mono', monospace, var(--mono)",
                 fontSize: "12px",
-                fontWeight: "500",
-                color: "var(--paper)",
-                border: "1px solid var(--amber)",
+                fontWeight: "600",
+                color: "var(--amber)",
                 borderRadius: "9999px",
-                padding: "2px 8px",
+                padding: "2px 2px",
                 lineHeight: "1.2",
               }}
             >
@@ -179,7 +178,10 @@ export function WatsonActionModal({ request, onClose, onToast }: WatsonActionMod
               background: "var(--ink-2)",
             }}
           >
-            <div style={{ fontSize: "11px", color: "var(--dim-2)", fontFamily: "var(--mono)" }}>
+            <div
+              title={entry.path}
+              style={{ fontSize: "11px", color: "var(--dim-2)", fontFamily: "var(--mono)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginRight: "12px" }}
+            >
               {entry.path}
             </div>
             <div style={{ display: "flex", gap: "8px" }}>

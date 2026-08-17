@@ -178,7 +178,7 @@ export function NewFileModal({ folderPath, onClose, onCreated }: NewFileModalPro
             onClick={handleCreate}
             disabled={creating}
             type="button"
-            style={{ padding: "4px 14px", fontSize: "12px", background: "var(--amber)", color: "var(--ink)", fontWeight: "600", borderColor: "var(--amber)" }}
+            style={{ padding: "4px 14px", fontSize: "12px", background: "var(--terracotta)", color: "var(--on-accent)", fontWeight: "600", borderColor: "var(--terracotta)" }}
           >
             {creating ? "Creating..." : "Create"}
           </button>

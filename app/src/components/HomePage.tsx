@@ -28,10 +28,19 @@ function ActivityIcon({ a }: { a: Activity }) {
 }
 
 export function HomePage({ ex }: { ex: Explorer }) {
-  const name = ex.homeDir ? cap(baseName(ex.homeDir)) : "";
+  const savedName = (() => { try { return localStorage.getItem("lattice:user-name") || ""; } catch { return ""; } })();
+  const name = savedName || (ex.homeDir ? cap(baseName(ex.homeDir)) : "");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Hit[]>([]);
   const [activity, setActivity] = useState<Activity[]>(() => getActivity());
+  const [now, setNow] = useState(() => new Date());
+
+  // Keep the date/time line current (tick each minute).
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+  const dateline = `${now.toLocaleDateString(undefined, { weekday: "long" })} · ${now.toLocaleDateString(undefined, { month: "short", day: "numeric" })} · ${now.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`;
 
   // Refresh the timeline whenever an activity is logged.
   useEffect(() => {
@@ -66,6 +75,7 @@ export function HomePage({ ex }: { ex: Explorer }) {
 
   return (
     <div className="home-page">
+      <div className="home-dateline">{dateline}</div>
       <h1 className="home-greeting">{greeting()}{name ? `, ${name}` : ""}</h1>
 
       <div className="home-search">

@@ -20,6 +20,7 @@ import { SpreadsheetViewer } from "./components/SpreadsheetViewer";
 import { DocumentationViewer } from "./components/DocumentationViewer";
 import { KeepCanvas } from "./components/KeepCanvas";
 import { HomePage } from "./components/HomePage";
+import { Onboarding } from "./components/Onboarding";
 import { WatsonActionModal, WatsonActionRequest } from "./components/WatsonActionModal";
 import { WatsonChatPane } from "./components/WatsonChatPane";
 import { NewFileModal } from "./components/NewFileModal";
@@ -45,6 +46,7 @@ export default function App() {
   const th = useTheme();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [newFileFolder, setNewFileFolder] = useState<string | null>(null);
+  const [onboarded, setOnboarded] = useState(() => { try { return localStorage.getItem("lattice:onboarded") === "true"; } catch { return true; } });
   const [watsonModalReq, setWatsonModalReq] = useState<WatsonActionRequest | null>(null);
   const [fileTabSidebarOpen, setFileTabSidebarOpen] = useState(false);
   const [aiMode, setAiMode] = useState(() => getAssistantConfig().aiMode);
@@ -368,6 +370,7 @@ export default function App() {
         </div>
       )}
       {settingsOpen && <Settings ex={ex} ind={ind} th={th} onClose={() => setSettingsOpen(false)} />}
+      {!onboarded && <Onboarding th={th} onDone={() => setOnboarded(true)} />}
       {!isTauri && <div className="scaffold-note">preview · mock data — run <b style={{ color: "var(--paper-dim)" }}>npm run tauri dev</b> for live files</div>}
     </div>
   );
