@@ -151,9 +151,9 @@ export function ThemeEditor({ th, base, isNew, onClose }: { th: ThemeApi; base: 
 
         <div className="modal-sec">Typography <span className="te-hint">(optional — blank uses defaults)</span></div>
         <div className="tf-grid">
-          <label className="tf-field grow"><span className="tf-label">UI font</span><input className="te-input" placeholder="Inter" value={draft.fonts?.ui ?? ""} onChange={(e) => setFont("ui", e.target.value)} /></label>
-          <label className="tf-field grow"><span className="tf-label">Display font</span><input className="te-input" placeholder="IBM Plex Sans" value={draft.fonts?.display ?? ""} onChange={(e) => setFont("display", e.target.value)} /></label>
-          <label className="tf-field grow"><span className="tf-label">Mono font</span><input className="te-input" placeholder="JetBrains Mono" value={draft.fonts?.mono ?? ""} onChange={(e) => setFont("mono", e.target.value)} /></label>
+          <label className="tf-field grow"><span className="tf-label">UI font</span><input className="te-input" placeholder="Google Sans" value={draft.fonts?.ui ?? ""} onChange={(e) => setFont("ui", e.target.value)} /></label>
+          <label className="tf-field grow"><span className="tf-label">Display font</span><input className="te-input" placeholder="Google Sans" value={draft.fonts?.display ?? ""} onChange={(e) => setFont("display", e.target.value)} /></label>
+          <label className="tf-field grow"><span className="tf-label">Mono font</span><input className="te-input" placeholder="Google Sans Code" value={draft.fonts?.mono ?? ""} onChange={(e) => setFont("mono", e.target.value)} /></label>
         </div>
 
         {importing && (

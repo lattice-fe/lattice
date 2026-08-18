@@ -10,9 +10,9 @@ const TONE_HUE: Record<Tone, string> = {
 const TONES: Tone[] = ["rust", "amber", "green", "violet", "red", "neutral"];
 
 const DEFAULT_FONTS = {
-  ui: '"Google Sans", "Inter", system-ui, sans-serif',
-  display: '"IBM Plex Sans", inter, serif',
-  mono: '"JetBrains Mono", monospace',
+  ui: '"Google Sans", "Google Sans Text", "Inter", system-ui, sans-serif',
+  display: '"Google Sans", "Google Sans Text", "Inter", system-ui, sans-serif',
+  mono: '"Google Sans Code", "JetBrains Mono", monospace',
 };
 
 /**
