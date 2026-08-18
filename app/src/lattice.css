@@ -16,9 +16,9 @@
   --teal: #4f9a8a;
   --shadow: 0 18px 50px -24px rgba(0, 0, 0, 0.7);
   --shadow-soft: 0 8px 24px -14px rgba(0, 0, 0, 0.6);
-  --serif: "IBM Plex Sans", inter, serif;
-  --sans: "Google Sans", "Inter", system-ui, sans-serif;
-  --mono: "JetBrains Mono", monospace;
+  --serif: "Google Sans", "Google Sans Text", "Inter", system-ui, sans-serif;
+  --sans: "Google Sans", "Google Sans Text", "Inter", system-ui, sans-serif;
+  --mono: "Google Sans Code", "JetBrains Mono", monospace;
   /* theme-engine tokens (overridden at runtime by applyTheme) */
   --danger: #c0392b;
   --glow: rgba(224, 166, 76, 0.035);

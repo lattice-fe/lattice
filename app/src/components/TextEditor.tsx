@@ -315,7 +315,7 @@ export function TextEditor({ entry, onClose, onErrorToast, onOpenPath, isFullTab
   // Monaco editor options
   const editorOptions: MonacoEditor.IStandaloneEditorConstructionOptions = {
     fontSize: 13.5,
-    fontFamily: "'JetBrains Mono', 'Cascadia Code', Consolas, monospace",
+    fontFamily: "'Google Sans Code', 'JetBrains Mono', 'Cascadia Code', Consolas, monospace",
     lineHeight: 21,
     minimap: { enabled: true, scale: 1 },
     scrollBeyondLastLine: false,
