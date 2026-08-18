@@ -159,6 +159,14 @@ export function Settings({ ex, ind, th, onClose }: { ex: Explorer; ind: Indexer;
     localStorage.setItem("lattice:startup-animation", next ? "on" : "off");
   };
 
+  // Terminal drawer — off by default; App reads this key when Ctrl+` is pressed.
+  const [terminalEnabled, setTerminalEnabled] = useState(() => localStorage.getItem("lattice:terminal-enabled") === "true");
+  const handleTerminalChange = () => {
+    const next = !terminalEnabled;
+    setTerminalEnabled(next);
+    localStorage.setItem("lattice:terminal-enabled", next ? "true" : "false");
+  };
+
   // Hover preview setting
   const [disableHover, setDisableHover] = useState(() => localStorage.getItem(DISABLE_HOVER_KEY) === "true");
 
@@ -455,6 +463,13 @@ export function Settings({ ex, ind, th, onClose }: { ex: Explorer; ind: Indexer;
                     <div className="setting-desc">Play the splash lettermark animation on launch</div>
                   </div>
                   <Switch on={startupAnim} onClick={handleStartupAnimChange} />
+                </div>
+                <div className="setting-row">
+                  <div>
+                    <div className="setting-name">Terminal</div>
+                    <div className="setting-desc">Enable an integrated terminal drawer, opened with <b>Ctrl + `</b> in the current folder</div>
+                  </div>
+                  <Switch on={terminalEnabled} onClick={handleTerminalChange} />
                 </div>
               </div>
 

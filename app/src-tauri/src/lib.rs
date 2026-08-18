@@ -1,4 +1,5 @@
 pub mod core;
+mod terminal;
 
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::Sender as CmdSender;
@@ -497,6 +498,7 @@ pub fn run() {
             let (tx, mut ev_rx) = index::spawn();
             let collections = Arc::new(Mutex::new(Vec::new()));
             app.manage(IndexState { tx: Mutex::new(tx), collections: collections.clone() });
+            app.manage(terminal::TerminalState::default());
 
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
@@ -527,6 +529,7 @@ pub fn run() {
             open_path, select_folder, reveal, open_url, preview_file, read_file, write_file, show_main_window, quit_app,
             search, index_folder, reindex, remove_collection, set_semantic, collections,
             search_apps, copy_file_to_clipboard,
+            terminal::terminal_spawn, terminal::terminal_write, terminal::terminal_resize, terminal::terminal_kill,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

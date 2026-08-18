@@ -48,6 +48,8 @@ ignore = "0.4"
 pdf-extract = "0.12"
 fastembed = "5"
 rfd = "0.15"
+# terminal: real PTY (ConPTY on Windows) for the opt-in terminal drawer
+portable-pty = "0.8"
 
 [target.'cfg(windows)'.dependencies]
 clipboard-win = "5"

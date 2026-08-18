@@ -26,7 +26,10 @@ import { WatsonActionModal, WatsonActionRequest } from "./components/WatsonActio
 import { WatsonChatPane } from "./components/WatsonChatPane";
 import { NewFileModal } from "./components/NewFileModal";
 import { api, isTauri } from "./lib/api";
-import { isFilePath, baseName } from "./lib/format";
+import { isFilePath, baseName, parentOf } from "./lib/format";
+import { TerminalPane } from "./components/TerminalPane";
+
+const TERMINAL_ENABLED_KEY = "lattice:terminal-enabled";
 import { getAssistantConfig, ASSISTANT_DOM_EVENT } from "./lib/assistant/config";
 import { updateNote } from "./lib/keep/store";
 import { checkDueReminders, REMINDER_ACTION_EVENT, REMINDER_OPEN_EVENT, SNOOZE_MS, type ReminderAction } from "./lib/keep/reminders";
@@ -48,6 +51,7 @@ export default function App() {
   const ind = useIndexer();
   const th = useTheme();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [terminalOpen, setTerminalOpen] = useState(false);
   const [newFileFolder, setNewFileFolder] = useState<string | null>(null);
   const [onboarded, setOnboarded] = useState(() => { try { return localStorage.getItem("lattice:onboarded") === "true"; } catch { return true; } });
   const [watsonModalReq, setWatsonModalReq] = useState<WatsonActionRequest | null>(null);
@@ -167,6 +171,11 @@ export default function App() {
       const ex = exRef.current; // fresh explorer state (effect deps are [])
       if (e.key === "F1") { e.preventDefault(); ex.openDocTab(); return; }
       const ctrl = e.ctrlKey || e.metaKey;
+      // Ctrl+` toggles the terminal drawer, only when the feature is enabled.
+      if (ctrl && (e.key === "`" || e.code === "Backquote")) {
+        if (isTauri && localStorage.getItem(TERMINAL_ENABLED_KEY) === "true") { e.preventDefault(); setTerminalOpen((o) => !o); }
+        return;
+      }
       if (ctrl && e.shiftKey && e.key.toLowerCase() === "n") {
         e.preventDefault();
         ex.newFolder();
@@ -262,6 +271,10 @@ export default function App() {
   const isHomeTab = activePathLower === "lattice://home";
   // Watson chat pane, available on every page (docs/keep/home included) when enabled.
   const watson = ex.chatOpen && aiPaneEnabled ? <WatsonChatPane ex={ex} onClose={() => ex.setChatOpen(false)} /> : null;
+
+  // Terminal opens in the active tab's folder (a file tab → its parent; a
+  // virtual tab → the shell's own default home). Captured when the pane mounts.
+  const terminalCwd = isFileTab ? (parentOf(ex.path) ?? "") : (ex.path.startsWith("lattice://") ? "" : ex.path);
 
   return (
     <div className="app">
@@ -372,6 +385,18 @@ export default function App() {
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
             </button>
           )}
+        </div>
+      )}
+      {terminalOpen && isTauri && (
+        <div className="terminal-drawer">
+          <div className="terminal-drawer-head">
+            <span className="terminal-drawer-title">Terminal</span>
+            <span className="terminal-drawer-cwd" title={terminalCwd}>{terminalCwd ? baseName(terminalCwd) || terminalCwd : "~"}</span>
+            <button className="iconbtn" title="Close terminal (Ctrl+`)" onClick={() => setTerminalOpen(false)} style={{ width: "24px", height: "24px", marginLeft: "auto" }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            </button>
+          </div>
+          <TerminalPane key={terminalCwd} cwd={terminalCwd} />
         </div>
       )}
       <ContextMenu
