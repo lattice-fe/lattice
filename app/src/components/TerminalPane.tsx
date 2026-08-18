@@ -6,7 +6,10 @@ import { listen } from "@tauri-apps/api/event";
 import "@xterm/xterm/css/xterm.css";
 import { isTauri } from "../lib/api";
 
-// Pull a couple of live theme tokens so the terminal matches the app.
+// Base surface/cursor follow the live theme; the 16 ANSI slots are a warm,
+// muted set that complements Lattice (tuned for dark themes) while staying
+// semantically correct (red = error, green = ok, …).
+// ponytail: dark-tuned ANSI; add a light-appearance variant if it looks washed.
 function themeColors() {
   const cs = getComputedStyle(document.documentElement);
   const v = (n: string, fallback: string) => cs.getPropertyValue(n).trim() || fallback;
@@ -14,7 +17,12 @@ function themeColors() {
     background: v("--ink", "#1a1815"),
     foreground: v("--paper", "#f4eee2"),
     cursor: v("--terracotta", "#c05f3c"),
+    cursorAccent: v("--ink", "#1a1815"),
     selectionBackground: v("--card-hi", "#3a352d"),
+    black: "#3a352d", red: "#cf6f5b", green: "#8aa87f", yellow: "#e0a44c",
+    blue: "#7f8fc4", magenta: "#a98bb0", cyan: "#6bb0aa", white: "#d8cfc0",
+    brightBlack: "#6b6355", brightRed: "#e0836a", brightGreen: "#a0bd93", brightYellow: "#f0c070",
+    brightBlue: "#9aa8d8", brightMagenta: "#bfa2c6", brightCyan: "#86c6c0", brightWhite: "#f4eee2",
   };
 }
 

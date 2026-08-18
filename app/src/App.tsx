@@ -52,6 +52,35 @@ export default function App() {
   const th = useTheme();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [terminalOpen, setTerminalOpen] = useState(false);
+  const [terminalFull, setTerminalFull] = useState(false);
+  const [terminalTop, setTerminalTop] = useState(92); // y where the body begins, for fullscreen
+  const [terminalHeight, setTerminalHeight] = useState(() => {
+    const v = parseInt(localStorage.getItem("lattice:terminal-height") || "280", 10);
+    return Number.isFinite(v) ? Math.min(Math.max(v, 120), 900) : 280;
+  });
+  const toggleTerminalFull = () => {
+    if (!terminalFull) setTerminalTop(document.querySelector(".topbar")?.getBoundingClientRect().bottom ?? 92);
+    setTerminalFull((f) => !f);
+  };
+  const startTerminalResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startY = e.clientY;
+    const startH = terminalHeight;
+    let h = startH;
+    const onMove = (ev: MouseEvent) => {
+      h = Math.min(Math.max(startH + (startY - ev.clientY), 120), Math.round(window.innerHeight * 0.75));
+      setTerminalHeight(h);
+    };
+    const onUp = () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      document.body.style.userSelect = "";
+      localStorage.setItem("lattice:terminal-height", String(Math.round(h)));
+    };
+    document.body.style.userSelect = "none";
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  };
   const [newFileFolder, setNewFileFolder] = useState<string | null>(null);
   const [onboarded, setOnboarded] = useState(() => { try { return localStorage.getItem("lattice:onboarded") === "true"; } catch { return true; } });
   const [watsonModalReq, setWatsonModalReq] = useState<WatsonActionRequest | null>(null);
@@ -388,11 +417,17 @@ export default function App() {
         </div>
       )}
       {terminalOpen && isTauri && (
-        <div className="terminal-drawer">
+        <div className={"terminal-drawer" + (terminalFull ? " full" : "")} style={terminalFull ? { top: terminalTop } : { height: terminalHeight }}>
+          {!terminalFull && <div className="terminal-resize-handle" onMouseDown={startTerminalResize} title="Drag to resize" />}
           <div className="terminal-drawer-head">
             <span className="terminal-drawer-title">Terminal</span>
             <span className="terminal-drawer-cwd" title={terminalCwd}>{terminalCwd ? baseName(terminalCwd) || terminalCwd : "~"}</span>
-            <button className="iconbtn" title="Close terminal (Ctrl+`)" onClick={() => setTerminalOpen(false)} style={{ width: "24px", height: "24px", marginLeft: "auto" }}>
+            <button className="iconbtn" title={terminalFull ? "Restore" : "Maximize"} onClick={toggleTerminalFull} style={{ width: "24px", height: "24px", marginLeft: "auto" }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                {terminalFull ? <polyline points="6 9 12 15 18 9" /> : <polyline points="6 15 12 9 18 15" />}
+              </svg>
+            </button>
+            <button className="iconbtn" title="Close terminal (Ctrl+`)" onClick={() => setTerminalOpen(false)} style={{ width: "24px", height: "24px" }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
             </button>
           </div>

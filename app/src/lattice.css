@@ -55,6 +55,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   display: grid;
   grid-template-rows: auto auto 1fr; /* toolbar · tab strip · body */
   background: var(--ink);
+  position: relative; /* anchor for the terminal overlay */
 }
 
 /* ---------- top bar ---------- */
@@ -2063,13 +2064,25 @@ body.is-spotlight #root { padding: 0; margin: 0; }
 }
 @keyframes reminder-deplete { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 
-/* Integrated terminal drawer (opt-in, Ctrl+`) */
+/* Integrated terminal drawer (opt-in, Ctrl+`) — an overlay that floats over the
+   content so the panels behind it never resize. */
 .terminal-drawer {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 40;
   height: 280px; display: flex; flex-direction: column;
   background: var(--ink); border-top: 1px solid var(--border);
+  box-shadow: 0 -12px 32px rgba(0, 0, 0, 0.45);
   overflow: hidden; min-height: 0;
   animation: pane-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
+.terminal-drawer.full { height: auto !important; box-shadow: none; }
+.terminal-resize-handle {
+  height: 6px; margin-top: -3px; flex-shrink: 0; cursor: ns-resize; position: relative; z-index: 1;
+}
+.terminal-resize-handle::after {
+  content: ""; position: absolute; left: 0; right: 0; top: 2px; height: 2px;
+  background: transparent; transition: background 0.12s ease;
+}
+.terminal-resize-handle:hover::after { background: var(--terracotta); }
 .terminal-drawer-head {
   display: flex; align-items: center; gap: 10px; flex-shrink: 0;
   padding: 3px 6px 3px 12px; background: var(--ink-2);
