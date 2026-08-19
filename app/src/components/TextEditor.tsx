@@ -8,6 +8,7 @@ import { api, Entry, isTauri } from "../lib/api";
 import { baseName, parentOf } from "../lib/format";
 import { logActivity } from "../lib/activity";
 import { mdAssetComponents, resolveRelativePath, cleanHref, isExternalUrl } from "../lib/markdown";
+import { getNote, updateNote } from "../lib/keep/store";
 
 interface TextEditorProps {
   entry: Entry;
@@ -133,6 +134,13 @@ export function TextEditor({ entry, onClose, onErrorToast, onOpenPath, isFullTab
 
   // Auto-save
   const performSave = useCallback(async (targetPath: string, text: string) => {
+    if (targetPath.toLowerCase().startsWith("lattice://keep/")) {
+      const noteId = targetPath.slice("lattice://keep/".length);
+      updateNote(noteId, { content: text });
+      isDirtyRef.current = false;
+      setSaveStatus("saved");
+      return;
+    }
     if (targetPath.startsWith("lattice://")) return;
     setSaveStatus("saving");
     try {
@@ -154,7 +162,18 @@ export function TextEditor({ entry, onClose, onErrorToast, onOpenPath, isFullTab
       setLoading(true);
       setError(null);
       try {
-        const text = await api.readFile(entry.path);
+        let text = "";
+        if (entry.path.toLowerCase().startsWith("lattice://keep/")) {
+          const noteId = entry.path.slice("lattice://keep/".length);
+          const note = getNote(noteId);
+          if (note) {
+            text = note.type === "checklist"
+              ? (note.items?.map((it) => `- [${it.done ? "x" : " "}] ${it.text}`).join("\n") || "")
+              : note.content;
+          }
+        } else {
+          text = await api.readFile(entry.path);
+        }
         if (isMounted) { const t = text || ""; setContent(t); contentRef.current = t; isDirtyRef.current = false; setSaveStatus("saved"); setLoading(false); }
       } catch (err) {
         if (isMounted) {
@@ -166,9 +185,9 @@ export function TextEditor({ entry, onClose, onErrorToast, onOpenPath, isFullTab
     load();
     return () => {
       isMounted = false;
-      if (isDirtyRef.current) api.writeFile(entryPathRef.current, contentRef.current).catch(() => {});
+      if (isDirtyRef.current) performSave(entryPathRef.current, contentRef.current).catch(() => {});
     };
-  }, [entry.path, entry.name]);
+  }, [entry.path, entry.name, performSave]);
 
   // Debounced auto-save on content change
   useEffect(() => {

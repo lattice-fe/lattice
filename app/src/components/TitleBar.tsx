@@ -6,9 +6,16 @@ import { Mark, Glyph, kindOf, TONE } from "../lib/icons";
 import { isTauri } from "../lib/api";
 import { TabContextMenu, TabCtxState } from "./TabContextMenu";
 
+import { getNote } from "../lib/keep/store";
+
 function tabTitle(path: string, splitPath?: string | null): string {
   if (path.toLowerCase() === "lattice://docs") return "Documentation";
   if (path.toLowerCase() === "lattice://keep") return "Keep";
+  if (path.toLowerCase().startsWith("lattice://keep/")) {
+    const id = path.slice("lattice://keep/".length);
+    const n = getNote(id);
+    return n?.title ? `📝 ${n.title}` : "Note";
+  }
   const folder = baseName(path) || path.replace(/[\\/]+$/, "") || "This PC";
   if (splitPath) {
     const file = baseName(splitPath);
