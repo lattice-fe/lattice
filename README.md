@@ -16,9 +16,9 @@
   <img alt="Platform: Windows" src="https://img.shields.io/badge/platform-Windows-3a352d">
 </p>
 
-<!-- TODO: drop the hero GIF here once recorded → docs/hero.gif
-<p align="center"><img alt="Lattice in action" src="docs/hero.gif" width="820"></p>
--->
+<p align="center">
+  <img alt="Lattice — asking Watson about a file inside the explorer" src="docs/hero.png" width="820">
+</p>
 
 Lattice indexes any folder and lets you find things instantly — by filename,
 full text (SQLite FTS5), or **meaning** (local embeddings). It pairs that with
