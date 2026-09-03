@@ -15,10 +15,11 @@ import {
   setNoteColor,
   NOTES_EVENT,
 } from "../lib/keep/store";
-import { REMINDER_OPEN_EVENT, formatRemindAt, tsToLocalInput, localInputToTs } from "../lib/keep/reminders";
+import { REMINDER_OPEN_EVENT, formatRemindAt } from "../lib/keep/reminders";
 
-// `strong` is the saturated colour used for the heavy border experiment (card
-// stays neutral, the colour lives entirely in a thick border).
+// ponytail: single draft key for instant tab navigation restoration & zero state loss
+const KEEP_EDITOR_DRAFT_KEY = "lattice:keep_editor_draft";
+
 export const NOTE_COLORS: { id: NoteColor; label: string; bg: string; border: string; strong: string }[] = [
   { id: "default", label: "Default", bg: "var(--card)", border: "var(--border)", strong: "var(--border)" },
   { id: "amber", label: "Amber", bg: "color-mix(in srgb, var(--amber) 14%, var(--card))", border: "color-mix(in srgb, var(--amber) 36%, var(--border))", strong: "var(--amber)" },
@@ -76,33 +77,88 @@ const NoteIcon = () => (
   </svg>
 );
 
-const PinIcon = ({ filled }: { filled?: boolean }) => (
+const PinIcon = ({ filled = false }: { filled?: boolean }) => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <line x1="12" y1="17" x2="12" y2="22" />
     <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" />
   </svg>
 );
 
-export function KeepCanvas({ ex: _ex }: { ex?: Explorer }) {
+const PencilIcon = ({ size = 14 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+    <path d="m15 5 4 4" />
+  </svg>
+);
+
+interface KeepEditorDraft {
+  paneOpen: boolean;
+  activeNoteId: string | null;
+  title: string;
+  content: string;
+  checklist: ChecklistItem[];
+  color: NoteColor;
+  pinned: boolean;
+  type: "note" | "checklist";
+  isEditing: boolean;
+}
+
+function loadInitialDraft(): KeepEditorDraft {
+  try {
+    const raw = localStorage.getItem(KEEP_EDITOR_DRAFT_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object" && typeof parsed.paneOpen === "boolean") {
+        return parsed;
+      }
+    }
+  } catch {}
+  return {
+    paneOpen: false,
+    activeNoteId: null,
+    title: "",
+    content: "",
+    checklist: [{ id: "c-1", text: "", done: false }],
+    color: "default",
+    pinned: false,
+    type: "note",
+    isEditing: false,
+  };
+}
+
+export function KeepCanvas({ ex }: { ex?: Explorer }) {
   const [notes, setNotes] = useState<Note[]>(getNotes);
   const [search, setSearch] = useState("");
-  const [editingNote, setEditingNote] = useState<Note | null>(null);
-  const [paneOpen, setPaneOpen] = useState(false);
 
-  // Pane creator state
-  const [paneType, setPaneType] = useState<"note" | "checklist">("note");
-  const [paneTitle, setPaneTitle] = useState("");
-  const [paneContent, setPaneContent] = useState("");
-  const [paneChecklist, setPaneChecklist] = useState<{ id: string; text: string; done: boolean }[]>([
-    { id: "c-1", text: "", done: false },
-  ]);
-  const [paneColor, setPaneColor] = useState<NoteColor>("default");
-  const [panePinned, setPanePinned] = useState(false);
-  const [showPaneColorPicker, setShowPaneColorPicker] = useState(false);
+  const initialDraft = useRef(loadInitialDraft()).current;
+
+  // Unified Right-Side Editor Pane State
+  const [paneOpen, setPaneOpen] = useState(initialDraft.paneOpen);
+  const [activeNoteId, setActiveNoteId] = useState<string | null>(initialDraft.activeNoteId);
+  const [isEditing, setIsEditing] = useState(initialDraft.isEditing);
+
+  const [title, setTitle] = useState(initialDraft.title);
+  const [content, setContent] = useState(initialDraft.content);
+  const [checklist, setChecklist] = useState<ChecklistItem[]>(
+    initialDraft.checklist && initialDraft.checklist.length > 0
+      ? initialDraft.checklist
+      : [{ id: "c-1", text: "", done: false }]
+  );
+  const [color, setColor] = useState<NoteColor>(initialDraft.color || "default");
+  const [pinned, setPinned] = useState(initialDraft.pinned || false);
+  const [type, setType] = useState<"note" | "checklist">(initialDraft.type || "note");
+  const [showColorPicker, setShowColorPicker] = useState(false);
+
+  // Context menu state
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; note: Note } | null>(null);
 
   const titleRef = useRef<HTMLInputElement>(null);
 
-  // Reload notes when store emits changes (e.g. from Watson/Spotlight)
+  // Reload notes store
+  const refreshNotes = () => {
+    setNotes(getNotes());
+  };
+
   useEffect(() => {
     let unlisten: Promise<() => void> | null = null;
     if (isTauri) {
@@ -115,49 +171,132 @@ export function KeepCanvas({ ex: _ex }: { ex?: Explorer }) {
     };
   }, []);
 
-  // Auto-focus title when pane opens
+  // Persist draft to localStorage on every change so tab switches NEVER lose edits or pane state
   useEffect(() => {
     if (paneOpen) {
-      setTimeout(() => titleRef.current?.focus(), 200);
+      const draft: KeepEditorDraft = {
+        paneOpen,
+        activeNoteId,
+        title,
+        content,
+        checklist,
+        color,
+        pinned,
+        type,
+        isEditing,
+      };
+      localStorage.setItem(KEEP_EDITOR_DRAFT_KEY, JSON.stringify(draft));
+    } else {
+      localStorage.removeItem(KEEP_EDITOR_DRAFT_KEY);
     }
-  }, [paneOpen]);
+  }, [paneOpen, activeNoteId, title, content, checklist, color, pinned, type, isEditing]);
 
-  // "Open" on a reminder toast → open that note's editor here.
+  // Reminder open listener
   useEffect(() => {
     if (!isTauri) return;
     let un: (() => void) | null = null;
     listen<string>(REMINDER_OPEN_EVENT, ({ payload }) => {
       const n = getNotes().find((x) => x.id === payload);
-      if (n) setEditingNote(n);
+      if (n) handleOpenNote(n);
     }).then((fn) => { un = fn; });
     return () => { un?.(); };
   }, []);
 
-  const refreshNotes = () => {
+  // Real-time update active note in store as user types
+  useEffect(() => {
+    if (!paneOpen || !activeNoteId) return;
+    updateNote(activeNoteId, {
+      title,
+      content,
+      items: type === "checklist" ? checklist.filter((it) => it.text.trim()) : undefined,
+      color,
+      pinned,
+    });
     setNotes(getNotes());
-  };
+  }, [paneOpen, activeNoteId, title, content, checklist, color, pinned, type]);
 
-  const resetPane = () => {
-    setPaneTitle("");
-    setPaneContent("");
-    setPaneChecklist([{ id: "c-1", text: "", done: false }]);
-    setPaneColor("default");
-    setPanePinned(false);
-    setPaneType("note");
-    setShowPaneColorPicker(false);
-  };
-
-  const handlePaneSave = () => {
-    if (paneType === "note") {
-      if (!paneTitle.trim() && !paneContent.trim()) return;
-      createNote({ title: paneTitle, content: paneContent, type: "note", color: paneColor, pinned: panePinned });
-    } else {
-      const validItems = paneChecklist.filter((it) => it.text.trim());
-      if (!paneTitle.trim() && validItems.length === 0) return;
-      createNote({ title: paneTitle, items: validItems, type: "checklist", color: paneColor, pinned: panePinned });
+  // Focus title input when entering edit mode
+  useEffect(() => {
+    if (paneOpen && isEditing) {
+      setTimeout(() => titleRef.current?.focus(), 150);
     }
-    resetPane();
+  }, [paneOpen, isEditing]);
+
+  const handleNewNote = () => {
+    setActiveNoteId(null);
+    setTitle("");
+    setContent("");
+    setChecklist([{ id: "c-1", text: "", done: false }]);
+    setColor("default");
+    setPinned(false);
+    setType("note");
+    setIsEditing(true); // New note starts in edit mode
+    setPaneOpen(true);
+  };
+
+  const handleOpenNote = (n: Note) => {
+    setActiveNoteId(n.id);
+    setTitle(n.title || "");
+    setContent(n.content || "");
+    setChecklist(n.items && n.items.length > 0 ? n.items : [{ id: "c-1", text: "", done: false }]);
+    setColor(n.color || "default");
+    setPinned(n.pinned || false);
+    setType(n.type || "note");
+    setIsEditing(false); // Existing note starts in preview mode!
+    setPaneOpen(true);
+  };
+
+  const handleClosePane = () => {
+    setPaneOpen(false);
+    setActiveNoteId(null);
+    localStorage.removeItem(KEEP_EDITOR_DRAFT_KEY);
     refreshNotes();
+  };
+
+  const handleSavePane = () => {
+    if (activeNoteId) {
+      updateNote(activeNoteId, {
+        title,
+        content,
+        items: type === "checklist" ? checklist.filter((it) => it.text.trim()) : undefined,
+        color,
+        pinned,
+      });
+    } else {
+      if (type === "note") {
+        if (!title.trim() && !content.trim()) {
+          handleClosePane();
+          return;
+        }
+        createNote({ title, content, type: "note", color, pinned });
+      } else {
+        const validItems = checklist.filter((it) => it.text.trim());
+        if (!title.trim() && validItems.length === 0) {
+          handleClosePane();
+          return;
+        }
+        createNote({ title, items: validItems, type: "checklist", color, pinned });
+      }
+    }
+    handleClosePane();
+  };
+
+  const handleOpenInNewTab = (n: Note) => {
+    ex?.newTab("lattice://keep/" + n.id);
+    setCtxMenu(null);
+  };
+
+  const handleCopyMarkdown = (n: Note) => {
+    const text = n.type === "checklist"
+      ? (n.title ? `# ${n.title}\n\n` : "") + (n.items?.map((it) => `- [${it.done ? "x" : " "}] ${it.text}`).join("\n") || "")
+      : (n.title ? `# ${n.title}\n\n` : "") + (n.content || "");
+    navigator.clipboard.writeText(text);
+    ex?.showToast("Copied note markdown to clipboard");
+    setCtxMenu(null);
+  };
+
+  const handleToggleChecklistItem = (id: string) => {
+    setChecklist((list) => list.map((it) => (it.id === id ? { ...it, done: !it.done } : it)));
   };
 
   const filteredNotes = notes.filter((n) => {
@@ -172,7 +311,7 @@ export function KeepCanvas({ ex: _ex }: { ex?: Explorer }) {
 
   const pinnedNotes = filteredNotes.filter((n) => n.pinned);
   const otherNotes = filteredNotes.filter((n) => !n.pinned);
-  const paneColorStyle = getColorStyles(paneColor);
+  const paneColorStyle = getColorStyles(color);
 
   return (
     <div className={`keep-canvas ${paneOpen ? "pane-open" : ""}`}>
@@ -199,11 +338,10 @@ export function KeepCanvas({ ex: _ex }: { ex?: Explorer }) {
             )}
           </div>
 
-          {/* New note button in topbar */}
           <button
-            className={`keep-btn-new-note ${paneOpen ? "active" : ""}`}
-            onClick={() => { setPaneOpen(!paneOpen); if (!paneOpen) resetPane(); }}
-            title={paneOpen ? "Close editor" : "New note"}
+            className={`keep-btn-new-note ${paneOpen && !activeNoteId ? "active" : ""}`}
+            onClick={paneOpen && !activeNoteId ? handleClosePane : handleNewNote}
+            title={paneOpen && !activeNoteId ? "Close editor" : "Take a note"}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 5v14M5 12h14" />
@@ -212,7 +350,6 @@ export function KeepCanvas({ ex: _ex }: { ex?: Explorer }) {
         </div>
 
         <div className="keep-content">
-          {/* Notes Grid Display */}
           {notes.length === 0 ? (
             <div className="keep-empty-state">
               <div className="keep-empty-icon">
@@ -231,7 +368,8 @@ export function KeepCanvas({ ex: _ex }: { ex?: Explorer }) {
                       <NoteCard
                         key={note.id}
                         note={note}
-                        onEdit={() => setEditingNote(note)}
+                        onEdit={() => handleOpenNote(note)}
+                        onContextMenu={(x, y, n) => setCtxMenu({ x, y, note: n })}
                         onRefresh={refreshNotes}
                       />
                     ))}
@@ -247,7 +385,8 @@ export function KeepCanvas({ ex: _ex }: { ex?: Explorer }) {
                       <NoteCard
                         key={note.id}
                         note={note}
-                        onEdit={() => setEditingNote(note)}
+                        onEdit={() => handleOpenNote(note)}
+                        onContextMenu={(x, y, n) => setCtxMenu({ x, y, note: n })}
                         onRefresh={refreshNotes}
                       />
                     ))}
@@ -259,96 +398,160 @@ export function KeepCanvas({ ex: _ex }: { ex?: Explorer }) {
         </div>
       </div>
 
-      {/* Right-side Editor Pane */}
+      {/* Right-side Editor Pane (Smooth GPU Overlay) */}
       <div className={`keep-editor-pane ${paneOpen ? "open" : ""}`}>
         <div className="keep-editor-pane-inner" style={{ borderColor: paneColorStyle.border }}>
-          {/* Pane header */}
+          {/* Pane Header */}
           <div className="keep-editor-header">
-            <span className="keep-editor-heading">New note</span>
-            <button className="keep-btn-icon" onClick={() => setPaneOpen(false)} title="Collapse">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M13 17l5-5-5-5M6 17l5-5-5-5" />
-              </svg>
-            </button>
+            <span className="keep-editor-heading">
+              {activeNoteId ? (isEditing ? "EDIT NOTE" : "NOTE PREVIEW") : "NEW NOTE"}
+            </span>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+              <button
+                className={`keep-btn-icon ${isEditing ? "active" : ""}`}
+                onClick={() => setIsEditing(!isEditing)}
+                title={isEditing ? "Switch to preview mode" : "Edit note"}
+              >
+                <PencilIcon />
+              </button>
+              <button className="keep-btn-icon" onClick={handleClosePane} title="Collapse">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M13 17l5-5-5-5M6 17l5-5-5-5" />
+                </svg>
+              </button>
+            </div>
           </div>
 
-          {/* Title */}
-          <input
-            ref={titleRef}
-            type="text"
-            placeholder="Title"
-            value={paneTitle}
-            onChange={(e) => setPaneTitle(e.target.value)}
-            className="keep-editor-title"
-          />
-
-          {/* Content area */}
-          {paneType === "note" ? (
-            <textarea
-              placeholder="Take a note..."
-              value={paneContent}
-              onChange={(e) => setPaneContent(e.target.value)}
-              className="keep-editor-textarea"
-              rows={10}
+          {/* Title Area */}
+          {isEditing ? (
+            <input
+              ref={titleRef}
+              type="text"
+              placeholder="Title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="keep-editor-title"
             />
           ) : (
-            <div className="keep-editor-checklist">
-              {paneChecklist.map((item) => (
-                <div key={item.id} className="keep-checklist-input-row">
-                  <span className="keep-checklist-dot">+</span>
-                  <input
-                    type="text"
-                    placeholder="List item"
-                    value={item.text}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setPaneChecklist((list) =>
-                        list.map((it) => (it.id === item.id ? { ...it, text: val } : it))
-                      );
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        const newId = `c-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`;
-                        setPaneChecklist((list) => [...list, { id: newId, text: "", done: false }]);
-                      } else if (e.key === "Backspace" && !item.text && paneChecklist.length > 1) {
-                        e.preventDefault();
-                        setPaneChecklist((list) => list.filter((it) => it.id !== item.id));
-                      }
-                    }}
-                    className="keep-checklist-input"
-                  />
-                </div>
-              ))}
+            <div
+              className="keep-editor-preview-title"
+              onClick={() => setIsEditing(true)}
+              title="Click to edit title"
+            >
+              {title || "Untitled Note"}
             </div>
           )}
 
-          {/* Pane footer toolbar */}
+          {/* Body Content Area: Preview Mode vs Edit Mode */}
+          {type === "note" ? (
+            isEditing ? (
+              <textarea
+                placeholder="Take a note..."
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                className="keep-editor-textarea"
+                rows={10}
+              />
+            ) : (
+              <div
+                className="keep-editor-preview-body keep-card-markdown"
+                onClick={() => setIsEditing(true)}
+                title="Click to edit content"
+              >
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {content || "*(No content. Click pencil to edit)*"}
+                </ReactMarkdown>
+              </div>
+            )
+          ) : (
+            isEditing ? (
+              <div className="keep-editor-checklist">
+                {checklist.map((item) => (
+                  <div key={item.id} className="keep-checklist-input-row">
+                    <input
+                      type="checkbox"
+                      checked={item.done}
+                      onChange={() => handleToggleChecklistItem(item.id)}
+                      className="keep-checkbox"
+                    />
+                    <input
+                      type="text"
+                      placeholder="List item"
+                      value={item.text}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setChecklist((list) =>
+                          list.map((it) => (it.id === item.id ? { ...it, text: val } : it))
+                        );
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          const newId = `c-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`;
+                          setChecklist((list) => [...list, { id: newId, text: "", done: false }]);
+                        } else if (e.key === "Backspace" && !item.text && checklist.length > 1) {
+                          e.preventDefault();
+                          setChecklist((list) => list.filter((it) => it.id !== item.id));
+                        }
+                      }}
+                      className={`keep-checklist-input ${item.done ? "checked" : ""}`}
+                    />
+                  </div>
+                ))}
+                <button
+                  className="keep-btn-add-item"
+                  onClick={() =>
+                    setChecklist((list) => [
+                      ...list,
+                      { id: `c-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`, text: "", done: false },
+                    ])
+                  }
+                >
+                  + List item
+                </button>
+              </div>
+            ) : (
+              <div className="keep-editor-preview-body">
+                {checklist.map((item) => (
+                  <div
+                    key={item.id}
+                    className={`keep-card-check-row ${item.done ? "checked" : ""}`}
+                    onClick={() => handleToggleChecklistItem(item.id)}
+                    style={{ padding: "6px 0", cursor: "pointer" }}
+                  >
+                    <input type="checkbox" checked={item.done} readOnly className="keep-checkbox" />
+                    <span className="keep-check-text">{item.text || "(Empty item)"}</span>
+                  </div>
+                ))}
+              </div>
+            )
+          )}
+
+          {/* Footer Toolbar */}
           <div className="keep-editor-toolbar">
             <div className="keep-editor-toolbar-left">
-              {/* Toggle note/checklist */}
               <button
-                className="keep-btn-toggle"
-                onClick={() => setPaneType(paneType === "note" ? "checklist" : "note")}
-                title={paneType === "note" ? "Switch to checklist" : "Switch to note"}
+                className={`keep-btn-toggle ${type === "checklist" ? "active" : ""}`}
+                onClick={() => setType(type === "note" ? "checklist" : "note")}
+                title={type === "note" ? "Switch to checklist" : "Switch to note"}
               >
-                {paneType === "note" ? <ChecklistIcon /> : <NoteIcon />}
-                <span>{paneType === "note" ? "Checklist" : "Note"}</span>
+                {type === "note" ? <ChecklistIcon /> : <NoteIcon />}
+                <span>{type === "note" ? "Checklist" : "Note"}</span>
               </button>
 
-              {/* Color picker */}
               <div className="keep-color-palette-wrap">
-                <button className="keep-btn-icon" onClick={() => setShowPaneColorPicker(!showPaneColorPicker)} title="Color">
+                <button className="keep-btn-icon" onClick={() => setShowColorPicker(!showColorPicker)} title="Color">
                   <PaletteIcon />
                 </button>
-                {showPaneColorPicker && (
+                {showColorPicker && (
                   <div className="keep-palette-popover">
                     {NOTE_COLORS.map((c) => (
                       <button
                         key={c.id}
-                        className={`keep-palette-dot ${paneColor === c.id ? "active" : ""}`}
+                        className={`keep-palette-dot ${color === c.id ? "active" : ""}`}
                         style={{ backgroundColor: c.strong, borderColor: c.strong }}
-                        onClick={() => { setPaneColor(c.id); setShowPaneColorPicker(false); }}
+                        onClick={() => { setColor(c.id); setShowColorPicker(false); }}
                         title={c.label}
                       />
                     ))}
@@ -356,32 +559,55 @@ export function KeepCanvas({ ex: _ex }: { ex?: Explorer }) {
                 )}
               </div>
 
-              {/* Pin */}
               <button
-                className={`keep-btn-icon ${panePinned ? "active" : ""}`}
-                onClick={() => setPanePinned(!panePinned)}
-                title={panePinned ? "Unpin" : "Pin"}
+                className={`keep-btn-icon ${pinned ? "active" : ""}`}
+                onClick={() => setPinned(!pinned)}
+                title={pinned ? "Unpin" : "Pin"}
               >
-                <PinIcon filled={panePinned} />
+                <PinIcon filled={pinned} />
               </button>
             </div>
 
-            <button className="keep-btn-save" onClick={handlePaneSave}>
+            <button className="keep-btn-save" onClick={handleSavePane}>
               Save
             </button>
           </div>
         </div>
       </div>
 
-      {/* Edit Modal */}
-      {editingNote && (
-        <EditNoteModal
-          note={editingNote}
-          onClose={() => {
-            setEditingNote(null);
-            refreshNotes();
-          }}
-        />
+      {/* Note Context Menu */}
+      {ctxMenu && (
+        <div
+          className="menu-backdrop"
+          onClick={() => setCtxMenu(null)}
+          onContextMenu={(e) => { e.preventDefault(); setCtxMenu(null); }}
+        >
+          <div
+            className="menu"
+            style={{
+              left: Math.min(ctxMenu.x, window.innerWidth - 220),
+              top: Math.min(ctxMenu.y, window.innerHeight - 240),
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button className="menu-item" onClick={() => handleOpenInNewTab(ctxMenu.note)}>
+              <span>Open in new tab</span>
+            </button>
+            <button className="menu-item" onClick={() => { handleOpenNote(ctxMenu.note); setCtxMenu(null); }}>
+              <span>Edit note</span>
+            </button>
+            <button className="menu-item" onClick={() => { togglePin(ctxMenu.note.id); refreshNotes(); setCtxMenu(null); }}>
+              <span>{ctxMenu.note.pinned ? "Unpin note" : "Pin note"}</span>
+            </button>
+            <button className="menu-item" onClick={() => handleCopyMarkdown(ctxMenu.note)}>
+              <span>Copy markdown</span>
+            </button>
+            <div className="menu-sep" />
+            <button className="menu-item danger" onClick={() => { deleteNote(ctxMenu.note.id); refreshNotes(); setCtxMenu(null); }}>
+              <span>Delete note</span>
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -390,10 +616,12 @@ export function KeepCanvas({ ex: _ex }: { ex?: Explorer }) {
 function NoteCard({
   note,
   onEdit,
+  onContextMenu,
   onRefresh,
 }: {
   note: Note;
   onEdit: () => void;
+  onContextMenu: (x: number, y: number, note: Note) => void;
   onRefresh: () => void;
 }) {
   const [showPalette, setShowPalette] = useState(false);
@@ -422,6 +650,11 @@ function NoteCard({
       className="keep-card"
       style={{ backgroundColor: "var(--card)", borderColor: colorStyle.strong, borderWidth: "2px" }}
       onClick={onEdit}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onContextMenu(e.clientX, e.clientY, note);
+      }}
     >
       <div className="keep-card-top-actions" onClick={(e) => e.stopPropagation()}>
         <div className="keep-color-palette-wrap">
@@ -504,155 +737,6 @@ function NoteCard({
         <button className="keep-btn-icon keep-btn-delete keep-card-action-btn" onClick={handleDelete} title="Delete note">
           <TrashIcon />
         </button>
-      </div>
-    </div>
-  );
-}
-
-function EditNoteModal({ note, onClose }: { note: Note; onClose: () => void }) {
-  const [title, setTitle] = useState(note.title);
-  const [content, setContent] = useState(note.content);
-  const [items, setItems] = useState<ChecklistItem[]>(note.items || []);
-  const [color, setColor] = useState<NoteColor>(note.color);
-  const [pinned, setPinned] = useState(note.pinned);
-  const [showPalette, setShowPalette] = useState(false);
-  const [remindAt, setRemindAt] = useState<number | undefined>(note.remindAt);
-
-  const colorStyle = getColorStyles(color);
-
-  const handleSave = () => {
-    updateNote(note.id, {
-      title,
-      content,
-      items: note.type === "checklist" ? items.filter((it) => it.text.trim()) : undefined,
-      color,
-      pinned,
-      remindAt,
-      // re-arm the reminder when the time moves into the future
-      reminderDone: remindAt && remindAt > Date.now() ? false : note.reminderDone,
-    });
-    onClose();
-  };
-
-  const handleToggleItem = (id: string) => {
-    setItems((list) => list.map((it) => (it.id === id ? { ...it, done: !it.done } : it)));
-  };
-
-  return (
-    <div className="keep-modal-backdrop" onClick={handleSave}>
-      <div
-        className="keep-modal-dialog"
-        style={{ backgroundColor: colorStyle.bg, borderColor: colorStyle.border }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="keep-creator-title-row">
-          <input
-            type="text"
-            placeholder="Title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="keep-creator-title"
-          />
-          <button
-            className={`keep-btn-icon ${pinned ? "active" : ""}`}
-            onClick={() => setPinned(!pinned)}
-            title={pinned ? "Unpin note" : "Pin note"}
-          >
-            <PinIcon filled={pinned} />
-          </button>
-        </div>
-
-        {note.type === "note" ? (
-          <textarea
-            placeholder="Note"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            className="keep-creator-textarea modal-textarea"
-            rows={8}
-          />
-        ) : (
-          <div className="keep-creator-checklist modal-checklist">
-            {items.map((it) => (
-              <div key={it.id} className="keep-checklist-input-row">
-                <input
-                  type="checkbox"
-                  checked={it.done}
-                  onChange={() => handleToggleItem(it.id)}
-                  className="keep-checkbox"
-                />
-                <input
-                  type="text"
-                  value={it.text}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setItems((list) => list.map((item) => (item.id === it.id ? { ...item, text: val } : item)));
-                  }}
-                  className={`keep-checklist-input ${it.done ? "checked" : ""}`}
-                />
-                <button
-                  className="keep-btn-icon-sm"
-                  onClick={() => setItems((list) => list.filter((item) => item.id !== it.id))}
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
-            <button
-              className="keep-btn-add-item"
-              onClick={() =>
-                setItems((list) => [
-                  ...list,
-                  { id: `c-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`, text: "", done: false },
-                ])
-              }
-            >
-              + List item
-            </button>
-          </div>
-        )}
-
-        <div className="keep-creator-footer">
-          <div className="keep-creator-actions">
-            <div className="keep-color-palette-wrap">
-              <button className="keep-btn-icon" onClick={() => setShowPalette(!showPalette)}>
-                <PaletteIcon />
-              </button>
-              {showPalette && (
-                <div className="keep-palette-popover">
-                  {NOTE_COLORS.map((c) => (
-                    <button
-                      key={c.id}
-                      className={`keep-palette-dot ${color === c.id ? "active" : ""}`}
-                      style={{ backgroundColor: c.strong, borderColor: c.strong }}
-                      onClick={() => {
-                        setColor(c.id);
-                        setShowPalette(false);
-                      }}
-                      title={c.label}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-            <label className={"keep-remind-control" + (remindAt ? " set" : "")} title="Set a reminder">
-              <BellIcon size={13} />
-              <input
-                type="datetime-local"
-                value={tsToLocalInput(remindAt)}
-                onChange={(e) => setRemindAt(localInputToTs(e.target.value))}
-              />
-              {remindAt && (
-                <button type="button" className="keep-remind-clear" title="Clear reminder" onClick={() => setRemindAt(undefined)}>✕</button>
-              )}
-            </label>
-          </div>
-
-          <div className="keep-creator-submit">
-            <button className="keep-btn-close" onClick={handleSave}>
-              Close
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );

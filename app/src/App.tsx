@@ -18,6 +18,7 @@ import { TextEditor } from "./components/TextEditor";
 import { JupyterViewer } from "./components/JupyterViewer";
 import { ImageViewer } from "./components/ImageViewer";
 import { SpreadsheetViewer } from "./components/SpreadsheetViewer";
+import { getNote } from "./lib/keep/store";
 import { DocumentationViewer } from "./components/DocumentationViewer";
 import { KeepCanvas } from "./components/KeepCanvas";
 import { HomePage } from "./components/HomePage";
@@ -259,6 +260,7 @@ export default function App() {
   const activePathLower = ex.path.toLowerCase();
   const isDocTab = activePathLower === "lattice://docs";
   const isKeepTab = activePathLower === "lattice://keep";
+  const isKeepNoteTab = activePathLower.startsWith("lattice://keep/");
   const isHomeTab = activePathLower === "lattice://home";
   // Watson chat pane, available on every page (docs/keep/home included) when enabled.
   const watson = ex.chatOpen && aiPaneEnabled ? <WatsonChatPane ex={ex} onClose={() => ex.setChatOpen(false)} /> : null;
@@ -294,6 +296,29 @@ export default function App() {
         <div className="body" style={{ gridTemplateColumns: watson ? "232px 1fr 320px" : "232px 1fr" }}>
           <Sidebar ex={ex} />
           <KeepCanvas ex={ex} />
+          {watson}
+        </div>
+      ) : isKeepNoteTab ? (
+        <div className="body" style={{ gridTemplateColumns: `${fileTabSidebarOpen ? "232px " : ""}1fr${watson ? " 320px" : ""}` }}>
+          {fileTabSidebarOpen && <Sidebar ex={ex} />}
+          <div className="tab-file-panel isolated">
+            <TextEditor
+              key={ex.activeTabId + ":" + ex.path}
+              entry={{
+                name: (getNote(ex.path.slice("lattice://keep/".length))?.title || "Note") + ".md",
+                path: ex.path,
+                is_dir: false,
+                size: 0,
+                modified: null,
+                kind: "code",
+                type_label: "Keep Note",
+                hidden: false,
+              }}
+              onClose={() => ex.closeTab(ex.activeTabId)}
+              onOpenPath={(targetPath) => { ex.newTab(targetPath); }}
+              isFullTab={true}
+            />
+          </div>
           {watson}
         </div>
       ) : isFileTab ? (
