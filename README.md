@@ -6,8 +6,8 @@
 </p>
 
 <p align="center">
-  <b>A fast, AI-native file explorer.</b><br>
-  Find files by name, content, or meaning — then ask Watson about them.
+  <b>An agentic workspace for your filesystem.</b><br>
+  Find files by name, content, or meaning — then hand any of them to Watson.
 </p>
 
 <p align="center">
