@@ -1,6 +1,6 @@
 [package]
 name = "lattice"
-version = "0.4.0"
+version = "0.4.1"
 description = "Lattice — a high-performance, inviting file explorer"
 authors = ["parzi-val"]
 license = "AGPL-3.0-only"
