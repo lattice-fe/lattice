@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/lattice-fe/lattice/releases"><img alt="Release" src="https://img.shields.io/github/v/release/lattice-fe/lattice?color=c05f3c"></a>
+  <a href="https://github.com/lattice-fe/lattice/releases"><img alt="Release" src="https://img.shields.io/github/v/tag/lattice-fe/lattice?sort=semver&label=release&color=c05f3c"></a>
   <a href="LICENSE"><img alt="License: AGPL-3.0" src="https://img.shields.io/badge/license-AGPL--3.0-c05f3c"></a>
   <img alt="Platform: Windows" src="https://img.shields.io/badge/platform-Windows-3a352d">
 </p>
