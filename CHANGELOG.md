@@ -5,6 +5,22 @@ All notable changes to Lattice will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-09-04
+
+### Added
+
+- **Keep:** right-click context menu on notes.
+
+### Changed
+
+- **Keep:** the preview/split pane now composites on the GPU for a smoother overlay when opening and closing.
+- **Keep:** navigation state now persists across tabs.
+- **Editor:** the TextEditor instance is reused across files instead of remounting on each open.
+
+### Docs
+
+- README hero screenshot and refreshed positioning ("an agentic workspace for your filesystem").
+
 ## [0.4.0] - 2026-08-18
 
 ### Added
